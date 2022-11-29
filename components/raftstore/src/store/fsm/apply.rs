@@ -41,7 +41,7 @@ use kvproto::raft_cmdpb::{
 use kvproto::raft_serverpb::{
     MergeState, PeerState, RaftApplyState, RaftTruncatedState, RegionLocalState,
 };
-use prometheus::local::LocalHistogram;
+use prometheus::local::{LocalHistogram};
 use raft::eraftpb::{
     ConfChange, ConfChangeType, ConfChangeV2, Entry, EntryType, Snapshot as RaftSnapshot,
 };
@@ -64,7 +64,7 @@ use crate::coprocessor::{
     Cmd, CmdBatch, CmdObserveInfo, CoprocessorHost, ObserveHandle, ObserveLevel,
 };
 use crate::store::fsm::RaftPollerBuilder;
-use crate::store::local_metrics::RaftMetrics;
+use crate::store::local_metrics::{RaftMetrics, AppliedCmdMetrics};
 use crate::store::memory::*;
 use crate::store::metrics::*;
 use crate::store::msg::{Callback, PeerMsg, ReadResponse, SignificantMsg};
@@ -400,6 +400,7 @@ where
     pending_latency_inspect: Vec<LatencyInspector>,
     apply_wait: LocalHistogram,
     apply_time: LocalHistogram,
+    cmd_types: AppliedCmdMetrics,
 
     key_buffer: Vec<u8>,
 }
@@ -456,6 +457,7 @@ where
             pending_latency_inspect: vec![],
             apply_wait: APPLY_TASK_WAIT_TIME_HISTOGRAM.local(),
             apply_time: APPLY_TIME_HISTOGRAM.local(),
+            cmd_types: Default::default(),
             key_buffer: Vec::with_capacity(1024),
         }
     }
@@ -561,6 +563,7 @@ where
         }
         self.apply_time.flush();
         self.apply_wait.flush();
+        self.cmd_types.flush();
         need_sync
     }
 
@@ -1392,18 +1395,51 @@ where
         }
 
         let (mut response, exec_result) = match cmd_type {
-            AdminCmdType::ChangePeer => self.exec_change_peer(ctx, request),
-            AdminCmdType::ChangePeerV2 => self.exec_change_peer_v2(ctx, request),
-            AdminCmdType::Split => self.exec_split(ctx, request),
-            AdminCmdType::BatchSplit => self.exec_batch_split(ctx, request),
-            AdminCmdType::CompactLog => self.exec_compact_log(request),
-            AdminCmdType::TransferLeader => Err(box_err!("transfer leader won't exec")),
-            AdminCmdType::ComputeHash => self.exec_compute_hash(ctx, request),
-            AdminCmdType::VerifyHash => self.exec_verify_hash(ctx, request),
+            AdminCmdType::ChangePeer => {
+                ctx.cmd_types.change_peer += 1;
+                self.exec_change_peer(ctx, request)
+            }
+            AdminCmdType::ChangePeerV2 => {
+                ctx.cmd_types.change_peer_v2 += 1;
+                self.exec_change_peer_v2(ctx, request)
+            }
+            AdminCmdType::Split => {
+                ctx.cmd_types.split += 1;
+                self.exec_split(ctx, request)
+            }
+            AdminCmdType::BatchSplit => {
+                ctx.cmd_types.batch_split += 1;
+                self.exec_batch_split(ctx, request)
+            }
+            AdminCmdType::CompactLog => {
+                ctx.cmd_types.compact_log += 1;
+                self.exec_compact_log(request)
+            }
+            AdminCmdType::TransferLeader => {
+                ctx.cmd_types.transfer_leader += 1;
+                Err(box_err!("transfer leader won't exec"))
+            }
+            AdminCmdType::ComputeHash => {
+                ctx.cmd_types.compute_hash += 1;
+                self.exec_compute_hash(ctx, request)
+            }
+            AdminCmdType::VerifyHash => {
+                ctx.cmd_types.verify_hash += 1;
+                self.exec_verify_hash(ctx, request)
+            }
             // TODO: is it backward compatible to add new cmd_type?
-            AdminCmdType::PrepareMerge => self.exec_prepare_merge(ctx, request),
-            AdminCmdType::CommitMerge => self.exec_commit_merge(ctx, request),
-            AdminCmdType::RollbackMerge => self.exec_rollback_merge(ctx, request),
+            AdminCmdType::PrepareMerge => {
+                ctx.cmd_types.prepare_merge += 1;
+                self.exec_prepare_merge(ctx, request)
+            }
+            AdminCmdType::CommitMerge => {
+                ctx.cmd_types.commit_merge += 1;
+                self.exec_commit_merge(ctx, request)
+            }
+            AdminCmdType::RollbackMerge => {
+                ctx.cmd_types.rollback_merge += 1;
+                self.exec_rollback_merge(ctx, request)
+            }
             AdminCmdType::InvalidAdmin => Err(box_err!("unsupported admin command type")),
         }?;
         response.set_cmd_type(cmd_type);
@@ -1437,12 +1473,22 @@ where
         for req in requests {
             let cmd_type = req.get_cmd_type();
             match cmd_type {
-                CmdType::Put => self.handle_put(ctx, req),
-                CmdType::Delete => self.handle_delete(ctx, req),
+                CmdType::Put => {
+                    ctx.cmd_types.put += 1;
+                    self.handle_put(ctx, req)
+                }
+                CmdType::Delete => {
+                    ctx.cmd_types.delete += 1;
+                    self.handle_delete(ctx, req)
+                }
                 CmdType::DeleteRange => {
+                    ctx.cmd_types.delete_range += 1;
                     self.handle_delete_range(&ctx.engine, req, &mut ranges, ctx.use_delete_range)
                 }
-                CmdType::IngestSst => self.handle_ingest_sst(ctx, req, &mut ssts),
+                CmdType::IngestSst => {
+                    ctx.cmd_types.ingest_sst += 1;
+                    self.handle_ingest_sst(ctx, req, &mut ssts)
+                }
                 // Readonly commands are handled in raftstore directly.
                 // Don't panic here in case there are old entries need to be applied.
                 // It's also safe to skip them here, because a restart must have happened,

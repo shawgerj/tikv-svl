@@ -10,6 +10,122 @@ use collections::HashSet;
 
 use super::metrics::*;
 
+#[derive(Clone)]
+pub struct AppliedCmdMetrics {
+    pub change_peer: u64,
+    pub change_peer_v2: u64,
+    pub split: u64,
+    pub batch_split: u64,
+    pub compact_log: u64,
+    pub transfer_leader: u64,
+    pub compute_hash: u64,
+    pub verify_hash: u64,
+    pub prepare_merge: u64,
+    pub commit_merge: u64,
+    pub rollback_merge: u64,
+    pub invalid_admin: u64,
+    pub put: u64,
+    pub delete: u64,
+    pub delete_range: u64,
+    pub ingest_sst: u64,
+    pub snap: u64,
+}
+
+impl Default for AppliedCmdMetrics {
+    fn default() -> AppliedCmdMetrics {
+        AppliedCmdMetrics {
+            change_peer: 0,
+            change_peer_v2: 0,
+            split: 0,
+            batch_split: 0,
+            compact_log: 0,
+            transfer_leader: 0,
+            compute_hash: 0,
+            verify_hash: 0,
+            prepare_merge: 0,
+            commit_merge: 0,
+            rollback_merge: 0,
+            invalid_admin: 0,
+            put: 0,
+            delete: 0,
+            delete_range: 0,
+            ingest_sst: 0,
+            snap: 0,
+        }
+    }
+}
+
+impl AppliedCmdMetrics {
+    /// Flushes all metrics
+    pub fn flush(&mut self) {
+        // reset all buffered metrics once they have been added
+        if self.change_peer > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.change_peer.inc_by(self.change_peer);
+            self.change_peer = 0;
+        }
+        if self.change_peer_v2 > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.change_peer_v2.inc_by(self.change_peer_v2);
+            self.change_peer_v2 = 0;
+        }
+        if self.split > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.split.inc_by(self.split);
+            self.split = 0;
+        }
+        if self.batch_split > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.batch_split.inc_by(self.batch_split);
+            self.batch_split = 0;
+        }
+        if self.compact_log > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.compact_log.inc_by(self.compact_log);
+            self.compact_log = 0;
+        }
+        if self.transfer_leader > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.transfer_leader.inc_by(self.transfer_leader);
+            self.transfer_leader = 0;
+        }
+        if self.compute_hash > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.compute_hash.inc_by(self.compute_hash);
+            self.compute_hash = 0;
+        }
+        if self.verify_hash > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.verify_hash.inc_by(self.verify_hash);
+            self.verify_hash = 0;
+        }
+        if self.prepare_merge > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.prepare_merge.inc_by(self.prepare_merge);
+            self.prepare_merge = 0;
+        }
+        if self.rollback_merge > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.rollback_merge.inc_by(self.rollback_merge);
+            self.rollback_merge = 0;
+        }
+        if self.invalid_admin > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.invalid_admin.inc_by(self.invalid_admin);
+            self.invalid_admin = 0;
+        }
+        if self.put > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.put.inc_by(self.put);
+            self.put = 0;
+        }
+        if self.delete > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.delete.inc_by(self.delete);
+            self.delete = 0;
+        }
+        if self.delete_range > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.delete_range.inc_by(self.delete_range);
+            self.delete_range = 0;
+        }
+        if self.ingest_sst > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.ingest_sst.inc_by(self.ingest_sst);
+            self.ingest_sst = 0;
+        }
+        if self.snap > 0 {
+            STORE_APPLY_RAFT_CMD_TYPE.snap.inc_by(self.snap);
+            self.snap = 0;
+        }
+    }
+}
+
 /// The buffered metrics counters for raft ready handling.
 #[derive(Debug, Default, Clone)]
 pub struct RaftReadyMetrics {

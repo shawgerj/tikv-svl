@@ -25,6 +25,25 @@ make_auto_flush_static_metric! {
         conf_change,
         batch,
     }
+    pub label_enum RaftCmdType {
+        change_peer,
+        change_peer_v2,
+        split,
+        batch_split,
+        compact_log,
+        transfer_leader,
+        compute_hash,
+        verify_hash,
+        prepare_merge,
+        commit_merge,
+        rollback_merge,
+        invalid_admin,
+        put,
+        delete,
+        delete_range,
+        ingest_sst,
+        snap,
+    }
 
     pub label_enum AdminCmdType {
         conf_change,
@@ -172,6 +191,9 @@ make_auto_flush_static_metric! {
     }
     pub struct ProposalVec: LocalIntCounter {
         "type" => ProposalType,
+    }
+    pub struct RaftCmdVec: LocalIntCounter {
+        "type" => RaftCmdType,
     }
 
     pub struct AdminCmdVec : LocalIntCounter {
@@ -343,6 +365,15 @@ lazy_static! {
             exponential_buckets(0.00001, 2.0, 26).unwrap()
         ).unwrap();
 
+    pub static ref STORE_APPLY_RAFT_CMD_TYPE_VEC: IntCounterVec =
+        register_int_counter_vec!(
+            "tikv_raftstore_raft_cmds",
+            "Total numbers of raft cmds applied.",
+            &["type"]
+        ).unwrap();
+    pub static ref STORE_APPLY_RAFT_CMD_TYPE: RaftCmdVec =
+        auto_flush_from!(STORE_APPLY_RAFT_CMD_TYPE_VEC, RaftCmdVec);
+        
     pub static ref PEER_PROPOSAL_COUNTER_VEC: IntCounterVec =
         register_int_counter_vec!(
             "tikv_raftstore_proposal_total",
