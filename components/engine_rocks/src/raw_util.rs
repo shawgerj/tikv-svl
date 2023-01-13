@@ -12,7 +12,7 @@ use std::sync::Arc;
 use engine_traits::Result;
 use engine_traits::CF_DEFAULT;
 use rocksdb::load_latest_options;
-use rocksdb::{CColumnFamilyDescriptor, ColumnFamilyOptions, DBOptions, Env, DB};
+use rocksdb::{CColumnFamilyDescriptor, ColumnFamilyOptions, DBOptions, Env, DB, WOTR};
 use tikv_util::warn;
 
 pub struct CFOptions<'a> {
@@ -77,6 +77,13 @@ fn adjust_dynamic_level_bytes(
             .options
             .set_level_compaction_dynamic_level_bytes(existed_dynamic_level_bytes);
     }
+}
+
+pub fn new_wotr(
+    path: &str,
+) -> Result<WOTR> {
+    let mut w = WOTR::wotr_init(path).unwrap();
+    return Ok(w);
 }
 
 pub fn new_engine_opt(

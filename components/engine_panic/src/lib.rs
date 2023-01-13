@@ -33,6 +33,8 @@ mod sst;
 pub use crate::sst::*;
 mod write_batch;
 pub use crate::write_batch::*;
+mod wotr;
+pub use crate::wotr::*;
 pub mod range_properties;
 pub use crate::range_properties::*;
 pub mod mvcc_properties;

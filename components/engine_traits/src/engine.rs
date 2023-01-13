@@ -27,6 +27,7 @@ pub trait KvEngine:
     + TablePropertiesExt
     + PerfContextExt
     + MiscExt
+    + WOTRExt
     + Send
     + Sync
     + Clone

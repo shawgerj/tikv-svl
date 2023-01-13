@@ -58,6 +58,8 @@ pub mod perf_context;
 pub use crate::perf_context::*;
 mod perf_context_impl;
 mod perf_context_metrics;
+mod wotr;
+pub use crate::wotr::*;
 
 mod engine_iterator;
 pub use crate::engine_iterator::*;
