@@ -32,6 +32,10 @@ impl WriteBatch<PanicEngine> for PanicWriteBatch {
         panic!()
     }
 
+    fn write_valuelog(&self, _: &WriteOptions) -> Result<Vec<usize>> {
+        panic!()
+    }
+
     fn data_size(&self) -> usize {
         panic!()
     }

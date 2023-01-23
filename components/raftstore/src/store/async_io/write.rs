@@ -8,7 +8,7 @@
 //! raft db and then invoking callback or sending msgs if any.
 
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use crate::store::config::Config;
@@ -338,6 +338,7 @@ where
     trans: T,
     batch: WriteTaskBatch<EK, ER>,
     cfg_tracker: Tracker<Config>,
+    data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
     raft_write_size_limit: usize,
     metrics: StoreWriteMetrics,
     message_metrics: RaftSendMessageMetrics,
@@ -360,6 +361,7 @@ where
         notifier: N,
         trans: T,
         cfg: &Arc<VersionTrack<Config>>,
+        locs_hm: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
     ) -> Self {
         let batch = WriteTaskBatch::new(
             engines.kv.write_batch_with_cap(KV_WB_DEFAULT_SIZE),
@@ -369,6 +371,7 @@ where
             .kv
             .get_perf_context(cfg.value().perf_level, PerfContextKind::RaftstoreStore);
         let cfg_tracker = cfg.clone().tracker(tag.clone());
+        let data_locations = locs_hm.clone();
         Self {
             store_id,
             tag,
@@ -378,6 +381,7 @@ where
             trans,
             batch,
             cfg_tracker,
+            data_locations,
             raft_write_size_limit: cfg.value().raft_write_size_limit.0 as usize,
             metrics: StoreWriteMetrics::new(cfg.value().waterfall_metrics),
             message_metrics: Default::default(),
@@ -511,14 +515,13 @@ where
             raft_before_save_on_store_1();
 
             let now = Instant::now();
+            let keys = self.engines.raft.get_keys(&self.batch.raft_wb).unwrap();
             self.perf_context.start_observe();
-            self.engines
+            let (size, offsets) = self.engines
                 .raft
-                .consume_and_shrink(
-                    &mut self.batch.raft_wb,
+                .consume(
+                    &self.batch.raft_wb,
                     true,
-                    RAFT_WB_SHRINK_SIZE,
-                    RAFT_WB_DEFAULT_SIZE,
                 )
                 .unwrap_or_else(|e| {
                     panic!(
@@ -526,6 +529,24 @@ where
                         self.store_id, self.tag, e
                     );
                 });
+            
+            assert_eq!(offsets.len(), keys.len());
+            let it = keys.iter().zip(offsets.iter());
+
+            // add key-offset pairs to hashmap
+            let mut locs = self.data_locations.lock().unwrap();
+            for (k, o) in it {
+                locs.insert(k.to_vec(), *o);
+            }
+
+            // shrink (split up operation from original)
+            self.engines.raft.shrink(
+                &mut self.batch.raft_wb,
+                size,
+                RAFT_WB_SHRINK_SIZE,
+                RAFT_WB_DEFAULT_SIZE,
+            ).unwrap();
+            
             self.perf_context.report_metrics();
             write_raft_time = duration_to_sec(now.saturating_elapsed());
             STORE_WRITE_RAFTDB_DURATION_HISTOGRAM.observe(write_raft_time);
@@ -670,6 +691,7 @@ where
         notifier: &N,
         trans: &T,
         cfg: &Arc<VersionTrack<Config>>,
+        data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
     ) -> Result<()> {
         let pool_size = cfg.value().store_io_pool_size;
         for i in 0..pool_size {
@@ -683,6 +705,7 @@ where
                 notifier.clone(),
                 trans.clone(),
                 cfg,
+                data_locations.clone(),
             );
             info!("starting store writer {}", i);
             let t = thread::Builder::new().name(thd_name!(tag)).spawn(move || {

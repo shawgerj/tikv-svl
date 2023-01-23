@@ -91,6 +91,9 @@ pub trait WriteBatch<E: WriteBatchExt + Sized>: Mutable {
         self.write_opt(&WriteOptions::default())
     }
 
+    /// Write data to value log using WOTR
+    fn write_valuelog(&self, opts: &WriteOptions) -> Result<Vec<usize>>;
+
     /// The data size of a write batch
     ///
     /// This is necessarily engine-dependent. In RocksDB though it appears to

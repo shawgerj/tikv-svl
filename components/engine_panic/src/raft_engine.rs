@@ -42,7 +42,12 @@ impl RaftEngine for PanicEngine {
         panic!()
     }
 
-    fn consume(&self, batch: &mut Self::LogBatch, sync_log: bool) -> Result<usize> {
+    fn get_keys<'a>(&self, batch: &'a Self::LogBatch) -> Option<Vec<&'a [u8]>> {
+        panic!()
+    }
+
+    fn consume(&self, batch: &Self::LogBatch, sync_log: bool
+    ) -> Result<(usize, Vec<usize>)> {
         panic!()
     }
 
@@ -52,7 +57,17 @@ impl RaftEngine for PanicEngine {
         sync_log: bool,
         max_capacity: usize,
         shrink_to: usize,
-    ) -> Result<usize> {
+    ) -> Result<(usize, Vec<usize>)> {
+        panic!()
+    }
+
+    fn shrink(
+        &self,
+        batch: &mut Self::LogBatch,
+        data_size: usize,
+        max_capacity: usize,
+        shrink_to: usize,
+    ) -> Result<()> {
         panic!()
     }
 
@@ -66,7 +81,8 @@ impl RaftEngine for PanicEngine {
         panic!()
     }
 
-    fn append(&self, raft_group_id: u64, entries: Vec<Entry>) -> Result<usize> {
+    fn append(&self, raft_group_id: u64, entries: Vec<Entry>)
+              -> Result<(usize, Vec<usize>)> {
         panic!()
     }
 

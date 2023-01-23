@@ -1,0 +1,36 @@
+use crate::engine::RocksEngine;
+use engine_traits::WOTRExt;
+use rocksdb::{WOTR as RawWOTR, DB}
+
+impl ValueLogExt for RocksEngine {
+    fn register_valuelog(&self, &logobj: &WOTR) -> Result<(), String> {
+        self.as_inner().set_wotr(logobj)
+    }
+}
+
+impl WOTRExt for RocksEngine {
+    type WOTR = RocksWOTR;
+    
+    fn create_WOTR(&self, logpath: &str) -> Self::WOTR {
+        Self::WOTR::new(logpath);
+    }
+
+    fn register_valuelog(&self, logobj: &Self::WOTR) -> Result<()> {
+        self.as_inner().set_wotr(&logobj)
+    }
+}
+
+pub struct RocksWOTR {
+    w: RawWOTR,
+}
+
+impl RocksWOTR {
+    pub fn new(logpath: &str) -> RocksWOTR {
+        RocksWOTR {
+            w: RawWOTR::wotr_init(&logpath).unwrap();
+        }
+    }
+}
+
+impl engine_traits::WOTR<RocksEngine> for RocksWOTR {
+}

@@ -402,6 +402,7 @@ where
     apply_time: LocalHistogram,
 
     key_buffer: Vec<u8>,
+    data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
 }
 
 impl<EK, W> ApplyContext<EK, W>
@@ -421,6 +422,7 @@ where
         store_id: u64,
         pending_create_peers: Arc<Mutex<HashMap<u64, (u64, bool)>>>,
         priority: Priority,
+        data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
     ) -> ApplyContext<EK, W> {
         // If `enable_multi_batch_write` was set true, we create `RocksWriteBatchVec`.
         // Otherwise create `RocksWriteBatch`.
@@ -457,6 +459,7 @@ where
             apply_wait: APPLY_TASK_WAIT_TIME_HISTOGRAM.local(),
             apply_time: APPLY_TIME_HISTOGRAM.local(),
             key_buffer: Vec::with_capacity(1024),
+            data_locations,
         }
     }
 
@@ -1501,44 +1504,86 @@ where
         ctx: &mut ApplyContext<EK, W>,
         req: &Request,
     ) -> Result<()> {
+        let lockey = keys::raft_log_key(self.region_id(), ctx.exec_log_index);
+        
         let (key, value) = (req.get_put().get_key(), req.get_put().get_value());
         // region key range has no data prefix, so we must use origin key to check.
         util::check_key_in_region(key, &self.region)?;
 
         keys::data_key_with_buffer(key, &mut ctx.key_buffer);
         let key = ctx.key_buffer.as_slice();
+        
+        let locs = ctx.data_locations.lock().unwrap();
+        if let Some(offset) = locs.get(&lockey.to_vec()) {
+            let value = &offset.to_be_bytes();
 
-        self.metrics.size_diff_hint += key.len() as i64;
-        self.metrics.size_diff_hint += value.len() as i64;
-        if !req.get_put().get_cf().is_empty() {
-            let cf = req.get_put().get_cf();
-            // TODO: don't allow write preseved cfs.
-            if cf == CF_LOCK {
-                self.metrics.lock_cf_written_bytes += key.len() as u64;
-                self.metrics.lock_cf_written_bytes += value.len() as u64;
+            self.metrics.size_diff_hint += key.len() as i64;
+            self.metrics.size_diff_hint += value.len() as i64;
+            if !req.get_put().get_cf().is_empty() {
+                let cf = req.get_put().get_cf();
+                // TODO: don't allow write preseved cfs.
+                if cf == CF_LOCK {
+                    self.metrics.lock_cf_written_bytes += key.len() as u64;
+                    self.metrics.lock_cf_written_bytes += value.len() as u64;
+                }
+                // TODO: check whether cf exists or not.
+                ctx.kv_wb.put_cf(cf, key, value).unwrap_or_else(|e| {
+                    panic!(
+                        "{} failed to write ({}, {}) to cf {}: {:?}",
+                        self.tag,
+                        log_wrappers::Value::key(key),
+                        log_wrappers::Value::value(value),
+                        cf,
+                        e
+                    )
+                });
+            } else {
+                ctx.kv_wb.put(key, value).unwrap_or_else(|e| {
+                    panic!(
+                        "{} failed to write ({}, {}): {:?}",
+                        self.tag,
+                        log_wrappers::Value::key(key),
+                        log_wrappers::Value::value(value),
+                        e
+                    );
+                });
             }
-            // TODO: check whether cf exists or not.
-            ctx.kv_wb.put_cf(cf, key, value).unwrap_or_else(|e| {
-                panic!(
-                    "{} failed to write ({}, {}) to cf {}: {:?}",
-                    self.tag,
-                    log_wrappers::Value::key(key),
-                    log_wrappers::Value::value(value),
-                    cf,
-                    e
-                )
-            });
         } else {
-            ctx.kv_wb.put(key, value).unwrap_or_else(|e| {
-                panic!(
-                    "{} failed to write ({}, {}): {:?}",
-                    self.tag,
-                    log_wrappers::Value::key(key),
-                    log_wrappers::Value::value(value),
-                    e
-                );
-            });
+            // this will probably have to change because we should be
+            // writing to WOTR. Different write batch?
+            self.metrics.size_diff_hint += key.len() as i64;
+            self.metrics.size_diff_hint += value.len() as i64;
+            if !req.get_put().get_cf().is_empty() {
+                let cf = req.get_put().get_cf();
+                // TODO: don't allow write preseved cfs.
+                if cf == CF_LOCK {
+                    self.metrics.lock_cf_written_bytes += key.len() as u64;
+                    self.metrics.lock_cf_written_bytes += value.len() as u64;
+                }
+                // TODO: check whether cf exists or not.
+                ctx.kv_wb.put_cf(cf, key, value).unwrap_or_else(|e| {
+                    panic!(
+                        "{} failed to write ({}, {}) to cf {}: {:?}",
+                        self.tag,
+                        log_wrappers::Value::key(key),
+                        log_wrappers::Value::value(value),
+                        cf,
+                        e
+                    )
+                });
+            } else {
+                ctx.kv_wb.put(key, value).unwrap_or_else(|e| {
+                    panic!(
+                        "{} failed to write ({}, {}): {:?}",
+                        self.tag,
+                        log_wrappers::Value::key(key),
+                        log_wrappers::Value::value(value),
+                        e
+                    );
+                });
+            }
         }
+
         Ok(())
     }
 
@@ -3874,6 +3919,7 @@ pub struct Builder<EK: KvEngine, W: WriteBatch<EK>> {
     _phantom: PhantomData<W>,
     store_id: u64,
     pending_create_peers: Arc<Mutex<HashMap<u64, (u64, bool)>>>,
+    data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
 }
 
 impl<EK: KvEngine, W> Builder<EK, W>
@@ -3897,6 +3943,7 @@ where
             router,
             store_id: builder.store.get_id(),
             pending_create_peers: builder.pending_create_peers.clone(),
+            data_locations: builder.data_locations.clone(),
         }
     }
 }
@@ -3924,6 +3971,7 @@ where
                 self.store_id,
                 self.pending_create_peers.clone(),
                 priority,
+                self.data_locations.clone(),
             ),
             messages_per_tick: cfg.messages_per_tick,
             cfg_tracker: self.cfg.clone().tracker(self.tag.clone()),
@@ -3950,6 +3998,7 @@ where
             _phantom: self._phantom,
             store_id: self.store_id,
             pending_create_peers: self.pending_create_peers.clone(),
+            data_locations: self.data_locations.clone(),
         }
     }
 }

@@ -264,8 +264,14 @@ impl RaftEngine for RaftLogEngine {
         self.0.sync().map_err(transfer_error)
     }
 
-    fn consume(&self, batch: &mut Self::LogBatch, sync: bool) -> Result<usize> {
-        self.0.write(&mut batch.0, sync).map_err(transfer_error)
+    fn get_keys<'a>(&self, _: &'a Self::LogBatch) -> Option<Vec<&'a [u8]>> {
+        panic!()
+    }
+
+    fn consume(&self, batch: &Self::LogBatch, sync: bool
+    ) -> Result<(usize, Vec<usize>)> {
+        //        self.0.write(&mut batch.0, sync).map_err(transfer_error)
+        panic!()
     }
 
     fn consume_and_shrink(
@@ -274,8 +280,19 @@ impl RaftEngine for RaftLogEngine {
         sync: bool,
         _: usize,
         _: usize,
-    ) -> Result<usize> {
-        self.0.write(&mut batch.0, sync).map_err(transfer_error)
+    ) -> Result<(usize, Vec<usize>)> {
+        //        self.0.write(&mut batch.0, sync).map_err(transfer_error)
+        panic!()
+    }
+
+    fn shrink(
+        &self,
+        batch: &mut Self::LogBatch,
+        data_size: usize,
+        max_capacity: usize,
+        shrink_to: usize,
+    ) -> Result<()> {
+        panic!()
     }
 
     fn clean(
@@ -289,13 +306,15 @@ impl RaftEngine for RaftLogEngine {
         Ok(())
     }
 
-    fn append(&self, raft_group_id: u64, entries: Vec<Entry>) -> Result<usize> {
-        let mut batch = Self::LogBatch::default();
-        batch
-            .0
-            .add_entries::<MessageExtTyped>(raft_group_id, &entries)
-            .map_err(transfer_error)?;
-        self.0.write(&mut batch.0, false).map_err(transfer_error)
+    fn append(&self, raft_group_id: u64, entries: Vec<Entry>)
+              -> Result<(usize, Vec<usize>)> {
+        // let mut batch = Self::LogBatch::default();
+        // batch
+        //     .0
+        //     .add_entries::<MessageExtTyped>(raft_group_id, &entries)
+        //     .map_err(transfer_error)?;
+        // self.0.write(&mut batch.0, false).map_err(transfer_error)
+        panic!()
     }
 
     fn put_raft_state(&self, raft_group_id: u64, state: &RaftLocalState) -> Result<()> {
