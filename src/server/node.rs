@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+use collections::HashMap;
 use super::RaftKv;
 use super::Result;
 use crate::import::SSTImporter;
@@ -183,6 +184,7 @@ where
         auto_split_controller: AutoSplitController,
         concurrency_manager: ConcurrencyManager,
         collector_reg_handle: CollectorRegHandle,
+        data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
     ) -> Result<()>
     where
         T: Transport + 'static,
@@ -219,6 +221,7 @@ where
             auto_split_controller,
             concurrency_manager,
             collector_reg_handle,
+            data_locations,
         )?;
 
         Ok(())
@@ -461,6 +464,7 @@ where
         auto_split_controller: AutoSplitController,
         concurrency_manager: ConcurrencyManager,
         collector_reg_handle: CollectorRegHandle,
+        data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
     ) -> Result<()>
     where
         T: Transport + 'static,
@@ -493,6 +497,7 @@ where
             concurrency_manager,
             collector_reg_handle,
             self.health_service.clone(),
+            data_locations,
         )?;
         Ok(())
     }

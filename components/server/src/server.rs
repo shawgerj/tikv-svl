@@ -25,6 +25,7 @@ use std::{
     u64,
 };
 
+use collections::HashMap;
 use cdc::{CdcConfigManager, MemoryQuota};
 use concurrency_manager::ConcurrencyManager;
 use encryption_export::{data_key_manager_from_config, DataKeyManager};
@@ -191,7 +192,8 @@ struct TiKVServer<ER: RaftEngine> {
     concurrency_manager: ConcurrencyManager,
     env: Arc<Environment>,
     background_worker: Worker,
-    valuelog_mgr: Option<RocksWOTR>, 
+    valuelog_mgr: Option<RocksWOTR>,
+    data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
 }
 
 struct TiKVEngines<EK: KvEngine, ER: RaftEngine> {
@@ -283,6 +285,7 @@ impl<ER: RaftEngine> TiKVServer<ER> {
             flow_info_sender: None,
             flow_info_receiver: None,
             valuelog_mgr: None,
+            data_locations: Arc::new(Mutex::new(HashMap::default())),
         }
     }
 
@@ -879,6 +882,7 @@ impl<ER: RaftEngine> TiKVServer<ER> {
             auto_split_controller,
             self.concurrency_manager.clone(),
             collector_reg_handle,
+            self.data_locations.clone(),
         )
         .unwrap_or_else(|e| fatal!("failed to start node: {}", e));
 
