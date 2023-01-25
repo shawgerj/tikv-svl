@@ -857,7 +857,7 @@ mod tests {
         Receiver<RaftCommand<KvTestSnapshot>>,
     ) {
         let path = Builder::new().prefix(path).tempdir().unwrap();
-        let db = engine_test::kv::new_engine(path.path().to_str().unwrap(), None, ALL_CFS, None)
+        let db = engine_test::kv::new_engine(path.path(), None, ALL_CFS, None)
             .unwrap();
         let (ch, rx) = sync_channel(1);
         let mut reader = LocalReader::new(db, store_meta, ch);

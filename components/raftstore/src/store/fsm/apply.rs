@@ -4343,7 +4343,8 @@ mod tests {
     pub fn create_tmp_engine(path: &str) -> (TempDir, KvTestEngine) {
         let path = Builder::new().prefix(path).tempdir().unwrap();
         let engine = new_engine(
-            path.path().join("db").to_str().unwrap(),
+            //            path.path().join("db").to_str().unwrap(),
+            path.path(),
             None,
             ALL_CFS,
             None,
@@ -4601,6 +4602,7 @@ mod tests {
         let cfg = Arc::new(VersionTrack::new(Config::default()));
         let (router, mut system) = create_apply_batch_system(&cfg.value());
         let pending_create_peers = Arc::new(Mutex::new(HashMap::default()));
+        let data_locations = Arc::new(Mutex::new(HashMap::default()));
         let builder = super::Builder::<KvTestEngine, KvTestWriteBatch> {
             tag: "test-store".to_owned(),
             cfg,
@@ -4613,6 +4615,7 @@ mod tests {
             _phantom: Default::default(),
             store_id: 1,
             pending_create_peers,
+            data_locations,
         };
         system.spawn("test-basic".to_owned(), builder);
 
@@ -4937,6 +4940,7 @@ mod tests {
         let cfg = Arc::new(VersionTrack::new(Config::default()));
         let (router, mut system) = create_apply_batch_system(&cfg.value());
         let pending_create_peers = Arc::new(Mutex::new(HashMap::default()));
+        let data_locations = Arc::new(Mutex::new(HashMap::default()));
         let builder = super::Builder::<KvTestEngine, KvTestWriteBatch> {
             tag: "test-store".to_owned(),
             cfg,
@@ -4949,6 +4953,7 @@ mod tests {
             _phantom: Default::default(),
             store_id: 1,
             pending_create_peers,
+            data_locations,
         };
         system.spawn("test-handle-raft".to_owned(), builder);
 
@@ -5281,6 +5286,7 @@ mod tests {
         };
         let (router, mut system) = create_apply_batch_system(&cfg.value());
         let pending_create_peers = Arc::new(Mutex::new(HashMap::default()));
+        let data_locations = Arc::new(Mutex::new(HashMap::default()));
         let builder = super::Builder::<KvTestEngine, KvTestWriteBatch> {
             tag: "test-store".to_owned(),
             cfg,
@@ -5293,6 +5299,7 @@ mod tests {
             _phantom: Default::default(),
             store_id: 1,
             pending_create_peers,
+            data_locations,
         };
         system.spawn("test-ingest".to_owned(), builder);
 
@@ -5458,6 +5465,7 @@ mod tests {
         let cfg = Config::default();
         let (router, mut system) = create_apply_batch_system(&cfg);
         let pending_create_peers = Arc::new(Mutex::new(HashMap::default()));
+        let data_locations = Arc::new(Mutex::new(HashMap::default()));
         let builder = super::Builder::<KvTestEngine, KvTestWriteBatch> {
             tag: "test-store".to_owned(),
             cfg: Arc::new(VersionTrack::new(cfg)),
@@ -5470,6 +5478,7 @@ mod tests {
             _phantom: Default::default(),
             store_id: 1,
             pending_create_peers,
+            data_locations,
         };
         system.spawn("test-handle-raft".to_owned(), builder);
 
@@ -5747,6 +5756,7 @@ mod tests {
         let cfg = Arc::new(VersionTrack::new(Config::default()));
         let (router, mut system) = create_apply_batch_system(&cfg.value());
         let pending_create_peers = Arc::new(Mutex::new(HashMap::default()));
+        let data_locations = Arc::new(Mutex::new(HashMap::default()));
         let builder = super::Builder::<KvTestEngine, KvTestWriteBatch> {
             tag: "test-store".to_owned(),
             cfg,
@@ -5759,6 +5769,7 @@ mod tests {
             _phantom: Default::default(),
             store_id: 2,
             pending_create_peers,
+            data_locations,
         };
         system.spawn("test-split".to_owned(), builder);
 

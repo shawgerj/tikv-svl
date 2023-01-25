@@ -204,13 +204,12 @@ mod tests {
     #[test]
     fn test_gc_raft_log() {
         let dir = Builder::new().prefix("gc-raft-log-test").tempdir().unwrap();
-        let path_raft = dir.path().join("raft");
-        let path_kv = dir.path().join("kv");
+
         let raft_db =
-            engine_test::raft::new_engine(path_kv.to_str().unwrap(), None, CF_DEFAULT, None)
+            engine_test::raft::new_engine(dir.path(), None, CF_DEFAULT, None)
                 .unwrap();
         let kv_db =
-            engine_test::kv::new_engine(path_raft.to_str().unwrap(), None, ALL_CFS, None).unwrap();
+            engine_test::kv::new_engine(dir.path(), None, ALL_CFS, None).unwrap();
         let engines = Engines::new(kv_db, raft_db.clone());
 
         let (tx, rx) = mpsc::channel();

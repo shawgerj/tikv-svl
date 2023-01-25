@@ -246,6 +246,7 @@ fn collect_ranges_need_compact(
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
     use std::thread::sleep;
     use std::time::Duration;
 
@@ -267,7 +268,7 @@ mod tests {
             .prefix("compact-range-test")
             .tempdir()
             .unwrap();
-        let db = new_engine(path.path().to_str().unwrap(), None, &[CF_DEFAULT], None).unwrap();
+        let db = new_engine(path.path(), None, &[CF_DEFAULT], None).unwrap();
 
         let mut runner = Runner::new(db.clone());
 
@@ -319,7 +320,7 @@ mod tests {
         db.delete_cf(CF_WRITE, k.as_encoded()).unwrap();
     }
 
-    fn open_db(path: &str) -> KvTestEngine {
+    fn open_db(path: &Path) -> KvTestEngine {
         let db_opts = DBOptions::new();
         let mut cf_opts = ColumnFamilyOptions::new();
         cf_opts.set_level_zero_file_num_compaction_trigger(8);
@@ -335,7 +336,7 @@ mod tests {
     #[test]
     fn test_check_space_redundancy() {
         let tmp_dir = Builder::new().prefix("test").tempdir().unwrap();
-        let engine = open_db(tmp_dir.path().to_str().unwrap());
+        let engine = open_db(tmp_dir.path());
 
         // mvcc_put 0..5
         for i in 0..5 {

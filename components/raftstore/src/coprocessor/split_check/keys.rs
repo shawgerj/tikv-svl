@@ -243,14 +243,13 @@ mod tests {
     #[test]
     fn test_split_check() {
         let path = Builder::new().prefix("test-raftstore").tempdir().unwrap();
-        let path_str = path.path().to_str().unwrap();
         let db_opts = DBOptions::new();
         let cf_opts = ColumnFamilyOptions::new();
         let cfs_opts = ALL_CFS
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let engine = engine_test::kv::new_engine_opt(path.path(), db_opts, cfs_opts).unwrap();
 
         let mut region = Region::default();
         region.set_id(1);
@@ -344,7 +343,6 @@ mod tests {
             .prefix("_test_region_approximate_keys")
             .tempdir()
             .unwrap();
-        let path_str = path.path().to_str().unwrap();
         let db_opts = DBOptions::new();
         let mut cf_opts = ColumnFamilyOptions::new();
         cf_opts.set_level_zero_file_num_compaction_trigger(10);
@@ -352,7 +350,7 @@ mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let db = engine_test::kv::new_engine_opt(path.path(), db_opts, cfs_opts).unwrap();
 
         let cases = [("a", 1024), ("b", 2048), ("c", 4096)];
         for &(key, vlen) in &cases {
@@ -384,7 +382,6 @@ mod tests {
             .prefix("_test_region_approximate_keys_sub_region")
             .tempdir()
             .unwrap();
-        let path_str = path.path().to_str().unwrap();
         let db_opts = DBOptions::new();
         let mut cf_opts = ColumnFamilyOptions::new();
         cf_opts.set_level_zero_file_num_compaction_trigger(10);
@@ -392,7 +389,7 @@ mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let db = engine_test::kv::new_engine_opt(path.path(), db_opts, cfs_opts).unwrap();
 
         // size >= 4194304 will insert a new point in range properties
         // 3 points will be inserted into range properties

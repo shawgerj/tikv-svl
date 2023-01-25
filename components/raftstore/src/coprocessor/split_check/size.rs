@@ -288,7 +288,6 @@ pub mod tests {
 
     fn test_split_check_impl(cfs_with_range_prop: &[CfName], data_cf: CfName) {
         let path = Builder::new().prefix("test-raftstore").tempdir().unwrap();
-        let path_str = path.path().to_str().unwrap();
         let db_opts = DBOptions::new();
         let cfs_with_range_prop: HashSet<_> = cfs_with_range_prop.iter().cloned().collect();
         let mut cf_opt = ColumnFamilyOptions::new();
@@ -304,7 +303,7 @@ pub mod tests {
                 }
             })
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let engine = engine_test::kv::new_engine_opt(path.path(), db_opts, cfs_opts).unwrap();
 
         let mut region = Region::default();
         region.set_id(1);
@@ -414,7 +413,6 @@ pub mod tests {
     #[test]
     fn test_cf_lock_without_range_prop() {
         let path = Builder::new().prefix("test-raftstore").tempdir().unwrap();
-        let path_str = path.path().to_str().unwrap();
         let db_opts = DBOptions::new();
         let mut cf_opt = ColumnFamilyOptions::new();
         cf_opt.set_no_range_properties(true);
@@ -430,7 +428,7 @@ pub mod tests {
             })
             .collect();
 
-        let engine = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let engine = engine_test::kv::new_engine_opt(path.path(), db_opts, cfs_opts).unwrap();
 
         let mut region = Region::default();
         region.set_id(1);
@@ -480,7 +478,7 @@ pub mod tests {
                 CFOptions::new(cf, cf_opts)
             })
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path_str, DBOptions::new(), cfs_opts).unwrap();
+        let engine = engine_test::kv::new_engine_opt(path.path(), DBOptions::new(), cfs_opts).unwrap();
 
         let mut runnable =
             SplitCheckRunner::new(engine.clone(), tx.clone(), CoprocessorHost::new(tx, cfg));
@@ -546,7 +544,6 @@ pub mod tests {
             .prefix("test_raftstore_util")
             .tempdir()
             .unwrap();
-        let path = tmp.path().to_str().unwrap();
 
         let db_opts = DBOptions::new();
         let mut cf_opts = ColumnFamilyOptions::new();
@@ -557,7 +554,7 @@ pub mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path, db_opts, cfs_opts).unwrap();
+        let engine = engine_test::kv::new_engine_opt(tmp.path(), db_opts, cfs_opts).unwrap();
 
         let region = make_region(1, vec![], vec![]);
         assert_eq!(
@@ -584,7 +581,6 @@ pub mod tests {
             .prefix("test_raftstore_util")
             .tempdir()
             .unwrap();
-        let path = tmp.path().to_str().unwrap();
 
         let db_opts = DBOptions::new();
         let mut cf_opts = ColumnFamilyOptions::new();
@@ -593,7 +589,7 @@ pub mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path, db_opts, cfs_opts).unwrap();
+        let engine = engine_test::kv::new_engine_opt(tmp.path(), db_opts, cfs_opts).unwrap();
 
         let mut big_value = Vec::with_capacity(256);
         big_value.extend(iter::repeat(b'v').take(256));
@@ -700,7 +696,6 @@ pub mod tests {
             .prefix("_test_raftstore_region_approximate_size")
             .tempdir()
             .unwrap();
-        let path_str = path.path().to_str().unwrap();
         let db_opts = DBOptions::new();
         let mut cf_opts = ColumnFamilyOptions::new();
         cf_opts.set_level_zero_file_num_compaction_trigger(10);
@@ -708,7 +703,7 @@ pub mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let db = engine_test::kv::new_engine_opt(path.path(), db_opts, cfs_opts).unwrap();
 
         let cases = [("a", 1024), ("b", 2048), ("c", 4096)];
         let cf_size = 2 + 1024 + 2 + 2048 + 2 + 4096;
@@ -733,7 +728,6 @@ pub mod tests {
             .prefix("_test_raftstore_region_maybe_inaccurate_approximate_size")
             .tempdir()
             .unwrap();
-        let path_str = path.path().to_str().unwrap();
         let db_opts = DBOptions::new();
         let mut cf_opts = ColumnFamilyOptions::new();
         cf_opts.set_disable_auto_compactions(true);
@@ -741,7 +735,7 @@ pub mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let db = engine_test::kv::new_engine_opt(path.path(), db_opts, cfs_opts).unwrap();
 
         let mut cf_size = 0;
         for i in 0..100 {
@@ -771,7 +765,6 @@ pub mod tests {
             .prefix("_bench_get_region_approximate_size")
             .tempdir()
             .unwrap();
-        let path_str = path.path().to_str().unwrap();
         let db_opts = DBOptions::new();
         let mut cf_opts = ColumnFamilyOptions::new();
         cf_opts.set_disable_auto_compactions(true);
@@ -779,7 +772,7 @@ pub mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let db = engine_test::kv::new_engine_opt(path.path(), db_opts, cfs_opts).unwrap();
 
         let mut cf_size = 0;
         for i in 0..10 {

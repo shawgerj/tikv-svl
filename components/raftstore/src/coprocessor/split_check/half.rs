@@ -147,7 +147,6 @@ mod tests {
     #[test]
     fn test_split_check() {
         let path = Builder::new().prefix("test-raftstore").tempdir().unwrap();
-        let path_str = path.path().to_str().unwrap();
         let db_opts = DBOptions::new();
         let cfs_opts = ALL_CFS
             .iter()
@@ -156,7 +155,7 @@ mod tests {
                 CFOptions::new(cf, cf_opts)
             })
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let engine = engine_test::kv::new_engine_opt(path.path(), db_opts, cfs_opts).unwrap();
 
         let mut region = Region::default();
         region.set_id(1);
@@ -201,7 +200,6 @@ mod tests {
             .prefix("test_raftstore_util")
             .tempdir()
             .unwrap();
-        let path = tmp.path().to_str().unwrap();
 
         let db_opts = DBOptions::new();
         let mut cf_opts = ColumnFamilyOptions::new();
@@ -210,7 +208,7 @@ mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path, db_opts, cfs_opts).unwrap();
+        let engine = engine_test::kv::new_engine_opt(tmp.path(), db_opts, cfs_opts).unwrap();
 
         let mut big_value = Vec::with_capacity(256);
         big_value.extend(iter::repeat(b'v').take(256));

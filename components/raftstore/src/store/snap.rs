@@ -1881,10 +1881,10 @@ pub mod tests {
             .prefix("test-snap-file-dst")
             .tempdir()
             .unwrap();
-        let dst_db_path = dst_db_dir.path().to_str().unwrap();
+//        let dst_db_path = dst_db_dir.path().to_str().unwrap();
         // Change arbitrarily the cf order of ALL_CFS at destination db.
         let dst_cfs = [CF_WRITE, CF_DEFAULT, CF_LOCK, CF_RAFT];
-        let dst_db = engine_test::kv::new_engine(dst_db_path, db_opt, &dst_cfs, None).unwrap();
+        let dst_db = engine_test::kv::new_engine(dst_db_dir.path(), db_opt, &dst_cfs, None).unwrap();
         let options = ApplyOptions {
             db: dst_db.clone(),
             region,
