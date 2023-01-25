@@ -82,7 +82,7 @@ fn adjust_dynamic_level_bytes(
 pub fn new_wotr(
     path: &str,
 ) -> Result<WOTR> {
-    let mut w = WOTR::wotr_init(path).unwrap();
+    let w = WOTR::wotr_init(path).unwrap();
     return Ok(w);
 }
 

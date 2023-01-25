@@ -364,6 +364,10 @@ where
     kv_wb_last_bytes: u64,
     kv_wb_last_keys: u64,
 
+    kv_wb_wotr: W,
+    kv_wb_wotr_last_bytes: u64,
+    kv_wb_wotr_last_keys: u64,
+
     committed_count: usize,
 
     // Whether synchronize WAL is preferred.
@@ -426,7 +430,12 @@ where
     ) -> ApplyContext<EK, W> {
         // If `enable_multi_batch_write` was set true, we create `RocksWriteBatchVec`.
         // Otherwise create `RocksWriteBatch`.
+        // kv_wb is for writes which have already been persisted in WOTR valuelog.
+        // So kv_wb is full of <key, offset> pairs
+        // kv_wb_wotr is for writes which are ready to be applied, but weren't
+        // persisted yet. They should be written to WOTR, and then written to KV
         let kv_wb = W::with_capacity(&engine, DEFAULT_APPLY_WB_SIZE);
+        let kv_wb_wotr = W::with_capacity(&engine, DEFAULT_APPLY_WB_SIZE);
 
         ApplyContext {
             tag,
@@ -438,12 +447,15 @@ where
             router,
             notifier,
             kv_wb,
+            kv_wb_wotr,
             applied_batch: ApplyCallbackBatch::new(),
             apply_res: vec![],
             exec_log_index: 0,
             exec_log_term: 0,
             kv_wb_last_bytes: 0,
             kv_wb_last_keys: 0,
+            kv_wb_wotr_last_bytes: 0,
+            kv_wb_wotr_last_keys: 0,
             committed_count: 0,
             sync_log_hint: false,
             use_delete_range: cfg.use_delete_range,
@@ -493,6 +505,9 @@ where
         }
         self.kv_wb_last_bytes = self.kv_wb().data_size() as u64;
         self.kv_wb_last_keys = self.kv_wb().count() as u64;
+        self.kv_wb_wotr_last_bytes = self.kv_wb_wotr().data_size() as u64;
+        self.kv_wb_wotr_last_keys = self.kv_wb_wotr().count() as u64;
+
     }
 
     /// Writes all the changes into RocksDB.
@@ -514,6 +529,30 @@ where
                 });
             self.pending_ssts = vec![];
         }
+
+        // do writes to wotr first (does it matter?)
+        if !self.kv_wb_wotr_mut().is_empty() {
+            let mut write_opts = engine_traits::WriteOptions::new();
+            write_opts.set_sync(need_sync);
+            self.kv_wb_wotr().write_valuelog(&write_opts).unwrap_or_else(|e| {
+                panic!("failed to write to engine: {:?}", e);
+            });
+            self.perf_context.report_metrics();
+            self.sync_log_hint = false;
+            let data_size = self.kv_wb_wotr().data_size();
+            if data_size > APPLY_WB_SHRINK_SIZE {
+                // Control the memory usage for the WriteBatch. Whether it's `RocksWriteBatch` or
+                // `RocksWriteBatchVec` depends on the `enable_multi_batch_write` configuration.
+                self.kv_wb_wotr = W::with_capacity(&self.engine, DEFAULT_APPLY_WB_SIZE);
+            } else {
+                // Clear data, reuse the WriteBatch, this can reduce memory allocations and deallocations.
+                self.kv_wb_wotr_mut().clear();
+            }
+            self.kv_wb_wotr_last_bytes = 0;
+            self.kv_wb_wotr_last_keys = 0;
+        }
+
+        // this writebatch contains <key, offset> pairs
         if !self.kv_wb_mut().is_empty() {
             let mut write_opts = engine_traits::WriteOptions::new();
             write_opts.set_sync(need_sync);
@@ -602,6 +641,16 @@ where
     #[inline]
     pub fn kv_wb_mut(&mut self) -> &mut W {
         &mut self.kv_wb
+    }
+
+    #[inline]
+    pub fn kv_wb_wotr(&self) -> &W {
+        &self.kv_wb_wotr
+    }
+
+    #[inline]
+    pub fn kv_wb_wotr_mut(&mut self) -> &mut W {
+        &mut self.kv_wb_wotr
     }
 
     /// Flush all pending writes to engines.
@@ -1561,7 +1610,7 @@ where
                     self.metrics.lock_cf_written_bytes += value.len() as u64;
                 }
                 // TODO: check whether cf exists or not.
-                ctx.kv_wb.put_cf(cf, key, value).unwrap_or_else(|e| {
+                ctx.kv_wb_wotr.put_cf(cf, key, value).unwrap_or_else(|e| {
                     panic!(
                         "{} failed to write ({}, {}) to cf {}: {:?}",
                         self.tag,
@@ -1572,7 +1621,7 @@ where
                     )
                 });
             } else {
-                ctx.kv_wb.put(key, value).unwrap_or_else(|e| {
+                ctx.kv_wb_wotr.put(key, value).unwrap_or_else(|e| {
                     panic!(
                         "{} failed to write ({}, {}): {:?}",
                         self.tag,

@@ -168,7 +168,7 @@ impl RaftEngine for RocksEngine {
         let mut keys = Vec::new();
 
         for i in batch_iter {
-            let (value_type, column_family, key, val) = i;
+            let (_value_type, _column_family, key, _val) = i;
             keys.push(key);
         }
         Some(keys)

@@ -268,7 +268,7 @@ impl RaftEngine for RaftLogEngine {
         panic!()
     }
 
-    fn consume(&self, batch: &Self::LogBatch, sync: bool
+    fn consume(&self, _: &Self::LogBatch, _: bool
     ) -> Result<(usize, Vec<usize>)> {
         //        self.0.write(&mut batch.0, sync).map_err(transfer_error)
         panic!()
@@ -276,8 +276,8 @@ impl RaftEngine for RaftLogEngine {
 
     fn consume_and_shrink(
         &self,
-        batch: &mut Self::LogBatch,
-        sync: bool,
+        _: &mut Self::LogBatch,
+        _: bool,
         _: usize,
         _: usize,
     ) -> Result<(usize, Vec<usize>)> {
@@ -287,10 +287,10 @@ impl RaftEngine for RaftLogEngine {
 
     fn shrink(
         &self,
-        batch: &mut Self::LogBatch,
-        data_size: usize,
-        max_capacity: usize,
-        shrink_to: usize,
+        _: &mut Self::LogBatch,
+        _: usize,
+        _: usize,
+        _: usize,
     ) -> Result<()> {
         panic!()
     }
@@ -306,7 +306,7 @@ impl RaftEngine for RaftLogEngine {
         Ok(())
     }
 
-    fn append(&self, raft_group_id: u64, entries: Vec<Entry>)
+    fn append(&self, _raft_group_id: u64, _entries: Vec<Entry>)
               -> Result<(usize, Vec<usize>)> {
         // let mut batch = Self::LogBatch::default();
         // batch
