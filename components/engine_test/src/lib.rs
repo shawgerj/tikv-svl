@@ -58,7 +58,7 @@
 pub mod raft {
     use std::path::Path;
     use crate::ctor::{CFOptions, DBOptions, EngineConstructorExt};
-    use engine_traits::{Result, WOTR, WOTRExt};
+    use engine_traits::Result;
 
     #[cfg(feature = "test-engine-raft-panic")]
     pub use engine_panic::{
@@ -113,7 +113,7 @@ pub mod raft {
 pub mod kv {
     use std::path::Path;
     use crate::ctor::{CFOptions, DBOptions, EngineConstructorExt};
-    use engine_traits::{Result, WOTR, WOTRExt};
+    use engine_traits::Result;
 
     #[cfg(feature = "test-engine-kv-panic")]
     pub use engine_panic::{
@@ -488,10 +488,10 @@ pub mod ctor {
     }
 }
 
-use crate::ctor::{ColumnFamilyOptions, CryptoOptions, DBOptions,};
 /// Create a new set of engines in a temporary directory
 ///
 /// This is little-used and probably shouldn't exist.
+/// (But it is used, especially write_tests.rs)
 pub fn new_temp_engine(
     path: &tempfile::TempDir,
 ) -> engine_traits::Engines<crate::kv::KvTestEngine, crate::raft::RaftTestEngine> {

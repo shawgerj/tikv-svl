@@ -163,6 +163,18 @@ impl Peekable for RocksEngine {
 //        dbg!(&v);
         Ok(v.map(RocksDBVector::from_raw))
     }
+
+    fn get_value_cf_valuelog_opt(
+        &self,
+        opts: &ReadOptions,
+        cf: &str,
+        key: &[u8],
+    ) -> Result<Option<RocksDBVector>> {
+        let opt: RocksReadOptions = opts.into();
+        let handle = get_cf_handle(&self.db, cf)?;
+        let v = self.db.get_external_cf(handle, key, &opt.into_raw())?;
+        Ok(v.map(RocksDBVector::from_raw))
+    }
 }
 
 impl SyncMutable for RocksEngine {

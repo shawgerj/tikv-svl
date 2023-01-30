@@ -122,4 +122,21 @@ impl Peekable for RocksSnapshot {
         let v = self.db.get_external(key, &opt)?;
         Ok(v.map(RocksDBVector::from_raw))
     }
+
+    fn get_value_cf_valuelog_opt(
+        &self,
+        opts: &ReadOptions,
+        cf: &str,
+        key: &[u8],
+    ) -> Result<Option<RocksDBVector>> {
+        let opt: RocksReadOptions = opts.into();
+        let mut opt = opt.into_raw();
+        unsafe {
+            opt.set_snapshot(&self.snap);
+        }
+        let handle = get_cf_handle(&self.db.as_ref(), cf)?;
+        let v = self.db.get_external_cf(handle, key, &opt)?;
+        Ok(v.map(RocksDBVector::from_raw))
+    }
+
 }

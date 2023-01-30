@@ -37,6 +37,15 @@ impl Peekable for PanicSnapshot {
     ) -> Result<Option<Self::DBVector>> {
         panic!()
     }
+
+    fn get_value_cf_valuelog_opt(
+        &self,
+        opts: &ReadOptions,
+        cf: &str,
+        key: &[u8],
+    ) -> Result<Option<Self::DBVector>> {
+        panic!()
+    }
     
 }
 

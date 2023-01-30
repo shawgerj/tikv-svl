@@ -630,7 +630,7 @@ where
     }
 
     pub fn delta_keys(&self) -> u64 {
-        self.kv_wb().count() as u64 - self.kv_wb_last_keys
+        self.kv_wb().count() as u64 + self.kv_wb_wotr().count() as u64 - self.kv_wb_last_keys - self.kv_wb_wotr_last_keys
     }
 
     #[inline]
@@ -1277,12 +1277,14 @@ where
         ctx.exec_log_index = index;
         ctx.exec_log_term = term;
         ctx.kv_wb_mut().set_save_point();
+        ctx.kv_wb_wotr_mut().set_save_point();
         let mut origin_epoch = None;
         // Remember if the raft cmd fails to be applied, it must have no side effects.
         // E.g. `RaftApplyState` must not be changed.
         let (resp, exec_result) = match self.exec_raft_cmd(ctx, req) {
             Ok(a) => {
                 ctx.kv_wb_mut().pop_save_point().unwrap();
+                ctx.kv_wb_wotr_mut().pop_save_point().unwrap();
                 if req.has_admin_request() {
                     origin_epoch = Some(self.region.get_region_epoch().clone());
                 }
@@ -1291,6 +1293,7 @@ where
             Err(e) => {
                 // clear dirty values.
                 ctx.kv_wb_mut().rollback_to_save_point().unwrap();
+                ctx.kv_wb_wotr_mut().rollback_to_save_point().unwrap();
                 match e {
                     Error::EpochNotMatch(..) => debug!(
                         "epoch not match";
@@ -4316,7 +4319,8 @@ mod tests {
     use crate::store::util::{new_learner_peer, new_peer};
     use engine_panic::PanicEngine;
     use engine_test::kv::{new_engine, KvTestEngine, KvTestSnapshot, KvTestWriteBatch};
-    use engine_traits::{Peekable as PeekableTrait, WriteBatchExt};
+    use engine_traits::{Peekable as PeekableTrait, WriteBatchExt, WOTR, WOTRExt};
+    use engine_rocks::{RocksWOTR};
     use kvproto::kvrpcpb::ApiVersion;
     use kvproto::metapb::{self, RegionEpoch};
     use kvproto::raft_cmdpb::*;
@@ -4596,7 +4600,9 @@ mod tests {
     fn test_basic_flow() {
         let (tx, rx) = mpsc::channel();
         let sender = Box::new(TestNotifier { tx });
-        let (_tmp, engine) = create_tmp_engine("apply-basic");
+        let (tmppath, engine) = create_tmp_engine("apply-basic");
+        let w = Rc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
+        assert!(engine.register_valuelog(w.clone()).is_ok());
         let (_dir, importer) = create_tmp_importer("apply-basic");
         let (region_scheduler, mut snapshot_rx) = dummy_scheduler();
         let cfg = Arc::new(VersionTrack::new(Config::default()));
@@ -4927,7 +4933,10 @@ mod tests {
 
     #[test]
     fn test_handle_raft_committed_entries() {
-        let (_path, engine) = create_tmp_engine("test-delegate");
+        let (tmppath, engine) = create_tmp_engine("test-delegate");
+        let w = Rc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
+        assert!(engine.register_valuelog(w.clone()).is_ok());
+
         let (import_dir, importer) = create_tmp_importer("test-delegate");
         let obs = ApplyObserver::default();
         let mut host = CoprocessorHost::<KvTestEngine>::default();
@@ -4991,9 +5000,9 @@ mod tests {
         let dk_k1 = keys::data_key(b"k1");
         let dk_k2 = keys::data_key(b"k2");
         let dk_k3 = keys::data_key(b"k3");
-        assert_eq!(engine.get_value(&dk_k1).unwrap().unwrap(), b"v1");
-        assert_eq!(engine.get_value(&dk_k2).unwrap().unwrap(), b"v1");
-        assert_eq!(engine.get_value(&dk_k3).unwrap().unwrap(), b"v1");
+        assert_eq!(engine.get_valuelog(&dk_k1).unwrap().unwrap(), b"v1");
+        assert_eq!(engine.get_valuelog(&dk_k2).unwrap().unwrap(), b"v1");
+        assert_eq!(engine.get_valuelog(&dk_k3).unwrap().unwrap(), b"v1");
         validate(&router, 1, |delegate| {
             assert_eq!(delegate.applied_index_term, 1);
             assert_eq!(delegate.apply_state.get_applied_index(), 1);
@@ -5015,7 +5024,7 @@ mod tests {
         assert_eq!(apply_res.metrics.size_diff_hint, 5);
         assert_eq!(apply_res.metrics.lock_cf_written_bytes, 5);
         assert_eq!(
-            engine.get_value_cf(CF_LOCK, &dk_k1).unwrap().unwrap(),
+            engine.get_value_cf_valuelog(CF_LOCK, &dk_k1).unwrap().unwrap(),
             b"v1"
         );
 
@@ -5060,7 +5069,7 @@ mod tests {
         assert_eq!(apply_res.applied_index_term, 2);
         assert_eq!(apply_res.apply_state.get_applied_index(), 4);
         // a writebatch should be atomic.
-        assert_eq!(engine.get_value(&dk_k3).unwrap().unwrap(), b"v1");
+        assert_eq!(engine.get_valuelog(&dk_k3).unwrap().unwrap(), b"v1");
 
         let put_entry = EntryBuilder::new(5, 3)
             .delete(b"k1")
@@ -5083,7 +5092,7 @@ mod tests {
         assert!(resp.get_header().get_error().has_stale_command());
         let resp = capture_rx.recv_timeout(Duration::from_secs(3)).unwrap();
         assert!(!resp.get_header().has_error(), "{:?}", resp);
-        assert!(engine.get_value(&dk_k1).unwrap().is_none());
+        assert!(engine.get_valuelog(&dk_k1).unwrap().is_none());
         let apply_res = fetch_apply_res(&rx);
         assert_eq!(apply_res.metrics.lock_cf_written_bytes, 3);
         assert_eq!(apply_res.metrics.delete_keys_hint, 2);
@@ -5120,7 +5129,7 @@ mod tests {
         );
         let resp = capture_rx.recv_timeout(Duration::from_secs(3)).unwrap();
         assert!(resp.get_header().get_error().has_key_not_in_region());
-        assert_eq!(engine.get_value(&dk_k3).unwrap().unwrap(), b"v1");
+        assert_eq!(engine.get_valuelog(&dk_k3).unwrap().unwrap(), b"v1");
         fetch_apply_res(&rx);
 
         let delete_range_entry = EntryBuilder::new(8, 3)
@@ -5141,9 +5150,9 @@ mod tests {
         );
         let resp = capture_rx.recv_timeout(Duration::from_secs(3)).unwrap();
         assert!(!resp.get_header().has_error(), "{:?}", resp);
-        assert!(engine.get_value(&dk_k1).unwrap().is_none());
-        assert!(engine.get_value(&dk_k2).unwrap().is_none());
-        assert!(engine.get_value(&dk_k3).unwrap().is_none());
+        assert!(engine.get_valuelog(&dk_k1).unwrap().is_none());
+        assert!(engine.get_valuelog(&dk_k2).unwrap().is_none());
+        assert!(engine.get_valuelog(&dk_k3).unwrap().is_none());
 
         // The region was rescheduled from normal-priority handler to
         // low-priority handler, so the first apple_res.exec_res should be empty.

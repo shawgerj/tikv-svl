@@ -47,6 +47,14 @@ pub trait Peekable {
         self.get_value_cf_opt(&ReadOptions::default(), cf, key)
     }
 
+    fn get_value_cf_valuelog_opt(&self, opts: &ReadOptions, cf: &str, key: &[u8]
+    ) -> Result<Option<Self::DBVector>>;
+
+    fn get_value_cf_valuelog(&self, cf: &str, key: &[u8]
+    ) -> Result<Option<Self::DBVector>> {
+        self.get_value_cf_valuelog_opt(&ReadOptions::default(), cf, key)
+    }
+
     fn get_valuelog_opt(&self,
                     readopts: &ReadOptions,
                     key: &[u8],
@@ -86,4 +94,18 @@ pub trait Peekable {
         m.merge_from_bytes(&value.unwrap())?;
         Ok(Some(m))
     }
+
+    fn get_msg_valuelog<M: protobuf::Message + Default>(
+        &self, key: &[u8],
+    ) -> Result<Option<M>> {
+        let value = self.get_valuelog(key)?;
+        if value.is_none() {
+            return Ok(None);
+        }
+
+        let mut m = M::default();
+        m.merge_from_bytes(&value.unwrap())?;
+        Ok(Some(m))
+    }
+
 }

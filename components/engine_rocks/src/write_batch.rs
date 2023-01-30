@@ -1,7 +1,6 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::sync::Arc;
-use std::rc::Rc;
 
 use crate::engine::RocksEngine;
 use crate::options::RocksWriteOptions;

@@ -530,8 +530,9 @@ where
                     );
                 });
 
-            // dbg!(&offsets);
-            // dbg!(&keys);
+            dbg!(size);
+            dbg!(&offsets);
+            dbg!(&keys);
             assert_eq!(offsets.len(), keys.len());
             let it = keys.iter().zip(offsets.iter());
 
