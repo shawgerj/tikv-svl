@@ -227,6 +227,24 @@ where
             .get_value_cf_opt(opts, cf, &data_key)
             .map_err(|e| self.handle_get_value_error(e, cf, key))
     }
+
+    fn get_valuelog_opt(&self,
+                    readopts: &ReadOptions,
+                    key: &[u8],
+    ) -> EngineResult<Option<Self::DBVector>> {
+        check_key_in_range(
+            key,
+            self.region.get_id(),
+            self.region.get_start_key(),
+            self.region.get_end_key(),
+        )
+            .map_err(|e| EngineError::Other(box_err!(e)))?;
+        let data_key = keys::data_key(key);
+        self.snap
+            .get_valuelog_opt(readopts, &data_key)
+            .map_err(|e| self.handle_get_value_error(e, "", key))
+    }
+
 }
 
 impl<S> RegionSnapshot<S>

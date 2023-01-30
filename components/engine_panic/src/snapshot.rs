@@ -30,6 +30,14 @@ impl Peekable for PanicSnapshot {
     ) -> Result<Option<Self::DBVector>> {
         panic!()
     }
+
+    fn get_valuelog_opt(&self,
+                readopts: &ReadOptions,
+                key: &[u8],
+    ) -> Result<Option<Self::DBVector>> {
+        panic!()
+    }
+    
 }
 
 impl Iterable for PanicSnapshot {

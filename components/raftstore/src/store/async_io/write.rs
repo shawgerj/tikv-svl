@@ -529,7 +529,9 @@ where
                         self.store_id, self.tag, e
                     );
                 });
-            
+
+            dbg!(&offsets);
+            dbg!(&keys);
             assert_eq!(offsets.len(), keys.len());
             let it = keys.iter().zip(offsets.iter());
 
@@ -551,6 +553,8 @@ where
             write_raft_time = duration_to_sec(now.saturating_elapsed());
             STORE_WRITE_RAFTDB_DURATION_HISTOGRAM.observe(write_raft_time);
         }
+
+//        dbg!(self.data_locations.lock().unwrap());
 
         fail_point!("raft_after_save");
 

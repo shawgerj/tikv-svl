@@ -163,15 +163,19 @@ impl RaftEngine for RocksEngine {
     }
 
     fn get_keys<'a>(&self, batch: &'a Self::LogBatch) -> Option<Vec<&'a [u8]>> {
-        // iterate through the batch, and return a vector of all the keys
-        let batch_iter = batch.as_inner().iter();
-        let mut keys = Vec::new();
+        // // iterate through the batch, and return a vector of all the keys
+        // let batch_iter = batch.as_inner().iter();
+        // let mut keys = Vec::new();
 
-        for i in batch_iter {
-            let (_value_type, _column_family, key, _val) = i;
-            keys.push(key);
-        }
-        Some(keys)
+        // for i in batch_iter {
+        //     let (value_type, _column_family, key, _val) = i;
+           
+        //     if value_type == DBValueType::TypeValue {
+        //         keys.push(key);
+        //     }
+        // }
+        // Some(keys)
+        batch.as_inner().keys_to_write()
     }
 
     fn consume(&self,

@@ -1,6 +1,7 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::sync::Arc;
+use std::rc::Rc;
 
 use crate::engine::RocksEngine;
 use crate::options::RocksWriteOptions;
@@ -350,7 +351,7 @@ mod tests {
     use super::super::RocksDBOptions;
     use super::*;
     use crate::{RocksWOTR};
-    use engine_traits::{WOTR, WOTRExt, WriteBatch, ReadOptions};
+    use engine_traits::{WOTR, WOTRExt, WriteBatch, Peekable, KvEngine};
     use rocksdb::DBOptions as RawDBOptions;
     use tempfile::Builder;
 
@@ -396,7 +397,7 @@ mod tests {
             .tempdir().
             unwrap();
                     
-        let w = RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap());
+        let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
         let opt = RawDBOptions::default();
         let engine = new_engine_opt(
             path.path().join("db").to_str().unwrap(),
@@ -404,7 +405,7 @@ mod tests {
             vec![],
         ).unwrap();
 
-        assert!(engine.register_valuelog(&w).is_ok());
+        assert!(engine.register_valuelog(w.clone()).is_ok());
 
         let mut wb = engine.write_batch();
         wb.put(b"k1", b"v1111");
@@ -414,10 +415,81 @@ mod tests {
         assert!(offsets.len() == 2);
         assert!(offsets[1] != 0);
 
-        let r = engine.get_valuelog(&ReadOptions::new(), b"k1");
+        let r = engine.get_valuelog(b"k1");
         assert!(r.unwrap().unwrap() == b"v1111");
-        let r2 = engine.get_valuelog(&ReadOptions::new(), b"k2");
+        let r2 = engine.get_valuelog(b"k2");
         assert!(r2.unwrap().unwrap() == b"v2222");
+    }
+    
+    #[test]
+    fn test_wotr_read_snapshot() {
+        let path = Builder::new()
+            .prefix("test-wotr-read-snapshot")
+            .tempdir().
+            unwrap();
+                    
+        let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog2.txt").to_str().unwrap()));
+        let opt = RawDBOptions::default();
+        let engine = new_engine_opt(
+            path.path().join("db").to_str().unwrap(),
+            RocksDBOptions::from_raw(opt),
+            vec![],
+        ).unwrap();
+
+        assert!(engine.register_valuelog(w.clone()).is_ok());
+
+        let mut wb = engine.write_batch();
+        wb.put(b"k1", b"v1111");
+        wb.put(b"k2", b"v2222");
+        // assert wb length is 2?
+        let offsets = wb.write_valuelog(&WriteOptions::new()).unwrap();
+        assert!(offsets.len() == 2);
+        assert!(offsets[1] != 0);
+
+        let snapshot = engine.snapshot();
+
+        let r = snapshot.get_valuelog(b"k1");
+        assert!(r.unwrap().unwrap() == b"v1111");
+        let r2 = snapshot.get_valuelog(b"k2");
+        assert!(r2.unwrap().unwrap() == b"v2222");
+    }
+
+    #[test]
+    fn test_wotr_write_delete() {
+        let path = Builder::new()
+            .prefix("test-wotr-write")
+            .tempdir().
+            unwrap();
+                    
+        let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+        let opt = RawDBOptions::default();
+        let engine = new_engine_opt(
+            path.path().join("db").to_str().unwrap(),
+            RocksDBOptions::from_raw(opt),
+            vec![],
+        ).unwrap();
+
+        assert!(engine.register_valuelog(w.clone()).is_ok());
+
+        let mut wb = engine.write_batch();
+        wb.put(b"k1", b"v1111");
+        wb.put(b"k2", b"v2222");
+        // assert wb length is 2?
+        let offsets = wb.write_valuelog(&WriteOptions::new()).unwrap();
+        assert!(offsets.len() == 2);
+        assert!(offsets[1] != 0);
+
+        let r = engine.get_valuelog(b"k1");
+        assert!(r.unwrap().unwrap() == b"v1111");
+        let r2 = engine.get_valuelog(b"k2");
+        assert!(r2.unwrap().unwrap() == b"v2222");
+
+        let mut wb2 = engine.write_batch();
+        wb2.delete(b"k1");
+        let offsets = wb2.write_valuelog(&WriteOptions::new()).unwrap();
+        assert_eq!(offsets.len(), 0);
+
+        assert!(engine.get_valuelog(b"k1").unwrap().is_none());
     }
 
     #[test]
@@ -427,7 +499,7 @@ mod tests {
             .tempdir()
             .unwrap();
     
-        let w = RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap());
+        let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
         let opt = RawDBOptions::default();
         opt.enable_multi_batch_write(true);
         opt.enable_unordered_write(false);
@@ -439,7 +511,7 @@ mod tests {
             vec![],
         ).unwrap();
 
-        assert!(engine.register_valuelog(&w).is_ok());
+        assert!(engine.register_valuelog(w.clone()).is_ok());
         assert!(engine.support_write_batch_vec());
         
         let mut wb = RocksWriteBatchVec::with_capacity(&engine, 1024);
@@ -451,8 +523,63 @@ mod tests {
         let offsets = wb.write_valuelog(&WriteOptions::new()).unwrap();
         assert!(offsets.len() == numrecords);
 
-        let r = engine.get_valuelog(&ReadOptions::new(), b"aaa");
+        let r = engine.get_valuelog(b"aaa");
         assert!(r.unwrap().unwrap() == b"bbb");
     }
+
+    fn engine_maker(path: &tempfile::TempDir, w: Rc<RocksWOTR>) -> (RocksEngine, RocksEngine) {
+        let path = Builder::new()
+            .prefix("test-wotr-write")
+            .tempdir().
+            unwrap();
+
+        let opt1 = RawDBOptions::default();
+        let opt2 = RawDBOptions::default();
+        let engine1 = new_engine_opt(
+            path.path().join("db").to_str().unwrap(),
+            RocksDBOptions::from_raw(opt1),
+            vec![],
+        ).unwrap();
+        let engine2 = new_engine_opt(
+            path.path().join("db2").to_str().unwrap(),
+            RocksDBOptions::from_raw(opt2),
+            vec![],
+        ).unwrap();
+
+        assert!(engine1.register_valuelog(w.clone()).is_ok());
+        assert!(engine2.register_valuelog(w.clone()).is_ok());
+
+        (engine1, engine2)
+    }
+
+    #[test]
+    fn test_wotr_two_dbs() {
+        let path = Builder::new()
+            .prefix("test-wotr-write")
+            .tempdir().
+            unwrap();
+        
+        let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+
+        let (engine1, engine2) = engine_maker(&path, w.clone());
+
+        let mut wb1 = engine1.write_batch();
+        wb1.put(b"wb1k1", b"wb1v1111").unwrap();
+        wb1.put(b"wb1k2", b"wb1v2222").unwrap();
+        let mut wb2 = engine2.write_batch();
+        wb2.put(b"wb2k1", b"wb2v1111").unwrap();
+        wb2.put(b"wb2k2", b"wb2v2222").unwrap();
+
+        let offsets = wb1.write_valuelog(&WriteOptions::new()).unwrap();
+        let offsets = wb2.write_valuelog(&WriteOptions::new()).unwrap();
+        assert!(offsets.len() == 2);
+        assert!(offsets[1] != 0);
+
+        let r = engine1.get_valuelog(b"wb1k1");
+        assert!(r.unwrap().unwrap() == b"wb1v1111");
+        let r2 = engine2.get_valuelog(b"wb2k1");
+        assert!(r2.unwrap().unwrap() == b"wb2v1111");
+    }
+    
 
 }

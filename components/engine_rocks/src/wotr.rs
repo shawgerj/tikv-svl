@@ -1,8 +1,9 @@
+use std::rc::Rc;
 use crate::engine::RocksEngine;
 //use crate::RocksWriteBatch;
-use crate::options::RocksReadOptions;
+//use crate::options::RocksReadOptions;
 use crate::db_vector::RocksDBVector;
-use engine_traits::{self, Result, WOTRExt, ReadOptions};
+use engine_traits::{self, Error, Result, WOTRExt};
 use rocksdb::{WOTR as RawWOTR};
 
 impl WOTRExt for RocksEngine {
@@ -10,20 +11,9 @@ impl WOTRExt for RocksEngine {
     type DBVector = RocksDBVector;
     type WOTR = RocksWOTR;
     
-    fn register_valuelog(&self, logobj: &Self::WOTR) -> Result<()> {
+    fn register_valuelog(&self, logobj: Rc<Self::WOTR>) -> Result<()> {
         let w = logobj.as_inner();
-        self.as_inner().set_wotr(w);
-        Ok(())
-    }
-
-    fn get_valuelog(&self,
-                readopts: &ReadOptions,
-                key: &[u8],
-    ) -> Result<Option<RocksDBVector>> {
-        let opt: RocksReadOptions = readopts.into();
-        let v = self.as_inner()
-            .get_external(key, &opt.into_raw())?;
-        Ok(v.map(RocksDBVector::from_raw))
+        self.as_inner().set_wotr(w).map_err(Error::Engine)
     }
 }
 
@@ -61,7 +51,7 @@ mod test {
             .tempdir().
             unwrap();
                     
-        let w = RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap());
+        let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
         let opt = RawDBOptions::default();
         let engine = new_engine_opt(
             path.path().join("db").to_str().unwrap(),
@@ -69,7 +59,7 @@ mod test {
             vec![],
         ).unwrap();
 
-        assert!(engine.register_valuelog(&w).is_ok());
+        assert!(engine.register_valuelog(w.clone()).is_ok());
     }
 }
 

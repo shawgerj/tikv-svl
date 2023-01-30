@@ -1,16 +1,17 @@
 // Copyright 2021 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::time::Duration;
+use std::rc::Rc;
 
 use crate::store::{Config, Transport};
 use crate::Result;
 
 use collections::HashSet;
 use crossbeam::channel::unbounded;
-use engine_rocks::RocksWriteBatch;
+use engine_rocks::{RocksWriteBatch, RocksWOTR};
 use engine_test::kv::KvTestEngine;
 use engine_test::new_temp_engine;
-use engine_traits::{Mutable, Peekable, WriteBatchExt};
+use engine_traits::{Mutable, Peekable, WriteBatchExt, WOTR, WOTRExt};
 use kvproto::raft_serverpb::RaftMessage;
 use tempfile::Builder;
 
@@ -230,9 +231,53 @@ impl TestWriters {
 }
 
 #[test]
+fn test_basic_two_engine() {
+    let path = Builder::new().prefix("test-basic-two-engine").tempdir().unwrap();
+    let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+    //    let engines = new_temp_engines_with_valuelog(&path, w.clone());
+    let engines = new_temp_engine(&path);
+    assert!(engines.kv.register_valuelog(w.clone()).is_ok());
+    assert!(engines.raft.register_valuelog(w.clone()).is_ok());
+
+    let mut kv_wb = engines.kv.write_batch();
+    let mut raft_wb = engines.raft.write_batch();
+
+    kv_wb.put(b"kv1", b"kvval1").unwrap();
+    kv_wb.put(b"kv2", b"kvval2").unwrap();
+    raft_wb.put(b"raft1", b"raftval1").unwrap();
+    raft_wb.put(b"raft2", b"raftval2").unwrap();
+
+    let write_opts = WriteOptions::new();
+    kv_wb.write_opt(&write_opts).unwrap_or_else(|e| {
+        panic!("kv write failed {:?}", e);
+    });
+
+    let (size, offsets) = engines.raft.consume(&raft_wb, true).unwrap_or_else(|e| {
+        panic!("raft write to wotr failed {:?}", e);
+    });
+
+    assert_eq!(offsets.len(), 2);
+    dbg!(&size);
+    dbg!(&offsets);
+                                                                              
+    let snapshot = engines.kv.snapshot();
+    // this works, because kv state was written directly to the LSM tree
+    assert_eq!(snapshot.get_value(b"kv1").unwrap().unwrap(), b"kvval1");
+    assert_eq!(snapshot.get_value(b"kv2").unwrap().unwrap(), b"kvval2");
+
+    let snapshot = engines.raft.snapshot();
+    assert_eq!(snapshot.get_valuelog(b"raft1").unwrap().unwrap(), b"raftval1");
+    assert_eq!(snapshot.get_valuelog(b"raft2").unwrap().unwrap(), b"raftval2");
+    
+}
+#[test]
 fn test_worker() {
     let path = Builder::new().prefix("async-io-worker").tempdir().unwrap();
+    let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
     let engines = new_temp_engine(&path);
+    assert!(engines.kv.register_valuelog(w.clone()).is_ok());
+    assert!(engines.raft.register_valuelog(w.clone()).is_ok());
+    
     let mut t = TestWorker::new(&Config::default(), &engines);
 
     let mut task_1 = WriteTask::<KvTestEngine, KvTestEngine>::new(1, 1, 10);
@@ -283,14 +328,15 @@ fn test_worker() {
     t.worker.write_to_db(true);
 
     let snapshot = engines.kv.snapshot();
+    // this works, because kv state was written directly to the LSM tree
     assert_eq!(snapshot.get_value(b"kv_k1").unwrap().unwrap(), b"kv_v1");
     assert_eq!(snapshot.get_value(b"kv_k2").unwrap().unwrap(), b"kv_v2");
     assert_eq!(snapshot.get_value(b"kv_k3").unwrap().unwrap(), b"kv_v3");
 
     let snapshot = engines.raft.snapshot();
-    assert!(snapshot.get_value(b"raft_k1").unwrap().is_none());
-    assert_eq!(snapshot.get_value(b"raft_k2").unwrap().unwrap(), b"raft_v2");
-    assert_eq!(snapshot.get_value(b"raft_k3").unwrap().unwrap(), b"raft_v3");
+    assert!(snapshot.get_valuelog(b"raft_k1").unwrap().is_none());
+    assert_eq!(snapshot.get_valuelog(b"raft_k2").unwrap().unwrap(), b"raft_v2");
+    assert_eq!(snapshot.get_valuelog(b"raft_k3").unwrap().unwrap(), b"raft_v3");
 
     must_have_same_notifies(vec![(1, (1, 11)), (2, (2, 15))], &t.notify_rx);
 

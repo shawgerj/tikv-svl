@@ -39,6 +39,14 @@ impl Peekable for PanicEngine {
     ) -> Result<Option<Self::DBVector>> {
         panic!()
     }
+
+    fn get_valuelog_opt(&self,
+                readopts: &ReadOptions,
+                key: &[u8],
+    ) -> Result<Option<Self::DBVector>> {
+        panic!()
+    }
+
 }
 
 impl SyncMutable for PanicEngine {

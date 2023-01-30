@@ -53,10 +53,12 @@
 //! storage engines, and that it be extracted into its own crate for use in
 //! TiKV, once the full requirements are better understood.
 
+
 /// Types and constructors for the "raft" engine
 pub mod raft {
+    use std::path::Path;
     use crate::ctor::{CFOptions, DBOptions, EngineConstructorExt};
-    use engine_traits::Result;
+    use engine_traits::{Result, WOTR, WOTRExt};
 
     #[cfg(feature = "test-engine-raft-panic")]
     pub use engine_panic::{
@@ -71,30 +73,47 @@ pub mod raft {
     };
 
     pub fn new_engine(
-        path: &str,
+        path: &Path,
         db_opt: Option<DBOptions>,
         cf: &str,
         opt: Option<CFOptions<'_>>,
     ) -> Result<RaftTestEngine> {
         let cfs = &[cf];
         let opts = opt.map(|o| vec![o]);
-        RaftTestEngine::new_engine(path, db_opt, cfs, opts)
+        
+        let engine = RaftTestEngine::new_engine(
+            path.join("raft").to_str().unwrap(),
+            db_opt,
+            cfs,
+            opts).unwrap();
+
+//        let w = RocksWOTR::new(path.join("wotrlog.txt").to_str().unwrap());
+//        assert!(engine.register_valuelog(&w).is_ok());
+        Ok(engine)
     }
 
     pub fn new_engine_opt(
-        path: &str,
+        path: &Path,
         db_opt: DBOptions,
         cf_opt: CFOptions<'_>,
     ) -> Result<RaftTestEngine> {
         let cfs_opts = vec![cf_opt];
-        RaftTestEngine::new_engine_opt(path, db_opt, cfs_opts)
+        let engine = RaftTestEngine::new_engine_opt(
+            path.join("raft").to_str().unwrap(),
+            db_opt,
+            cfs_opts).unwrap();
+
+//        let w = RocksWOTR::new(path.join("wotrlog.txt").to_str().unwrap());
+//        assert!(engine.register_valuelog(&w).is_ok());
+        Ok(engine)
     }
 }
 
 /// Types and constructors for the "kv" engine
 pub mod kv {
+    use std::path::Path;
     use crate::ctor::{CFOptions, DBOptions, EngineConstructorExt};
-    use engine_traits::Result;
+    use engine_traits::{Result, WOTR, WOTRExt};
 
     #[cfg(feature = "test-engine-kv-panic")]
     pub use engine_panic::{
@@ -109,20 +128,35 @@ pub mod kv {
     };
 
     pub fn new_engine(
-        path: &str,
+        path: &Path,
         db_opt: Option<DBOptions>,
         cfs: &[&str],
         opts: Option<Vec<CFOptions<'_>>>,
     ) -> Result<KvTestEngine> {
-        KvTestEngine::new_engine(path, db_opt, cfs, opts)
+        let engine = KvTestEngine::new_engine(
+            path.join("db").to_str().unwrap(),
+            db_opt,
+            cfs,
+            opts).unwrap();
+
+//        let w = RocksWOTR::new(path.join("wotrlog.txt").to_str().unwrap());
+//        assert!(engine.register_valuelog(&w).is_ok());
+        Ok(engine)
     }
 
     pub fn new_engine_opt(
-        path: &str,
+        path: &Path,
         db_opt: DBOptions,
         cfs_opts: Vec<CFOptions<'_>>,
     ) -> Result<KvTestEngine> {
-        KvTestEngine::new_engine_opt(path, db_opt, cfs_opts)
+        let engine = KvTestEngine::new_engine_opt(
+            path.join("db").to_str().unwrap(),
+            db_opt,
+            cfs_opts).unwrap();
+
+//        let w = RocksWOTR::new(path.join("wotrlog.txt").to_str().unwrap());
+//        assert!(engine.register_valuelog(&w).is_ok());
+        Ok(engine)
     }
 }
 
@@ -454,27 +488,27 @@ pub mod ctor {
     }
 }
 
+use crate::ctor::{ColumnFamilyOptions, CryptoOptions, DBOptions,};
 /// Create a new set of engines in a temporary directory
 ///
 /// This is little-used and probably shouldn't exist.
 pub fn new_temp_engine(
     path: &tempfile::TempDir,
 ) -> engine_traits::Engines<crate::kv::KvTestEngine, crate::raft::RaftTestEngine> {
-    let raft_path = path.path().join(std::path::Path::new("raft"));
     engine_traits::Engines::new(
         crate::kv::new_engine(
-            path.path().to_str().unwrap(),
+            path.path(),
             None,
             engine_traits::ALL_CFS,
             None,
         )
-        .unwrap(),
+            .unwrap(),
         crate::raft::new_engine(
-            raft_path.to_str().unwrap(),
+            path.path(),
             None,
             engine_traits::CF_DEFAULT,
             None,
         )
-        .unwrap(),
+            .unwrap(),
     )
 }
