@@ -1799,7 +1799,6 @@ mod tests {
     use raft::eraftpb::{ConfState, Entry};
     use raft::{Error as RaftError, StorageError};
     use std::cell::RefCell;
-    use std::path::Path;
     use std::sync::atomic::*;
     use std::sync::mpsc::*;
     use std::sync::*;
