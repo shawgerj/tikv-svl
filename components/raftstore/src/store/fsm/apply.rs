@@ -5277,7 +5277,10 @@ mod tests {
 
     #[test]
     fn test_handle_ingest_sst() {
-        let (_path, engine) = create_tmp_engine("test-ingest");
+        let (tmppath, engine) = create_tmp_engine("test-ingest");
+        let w = Rc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
+        assert!(engine.register_valuelog(w.clone()).is_ok());
+
         let (import_dir, importer) = create_tmp_importer("test-ingest");
         let obs = ApplyObserver::default();
         let mut host = CoprocessorHost::<KvTestEngine>::default();
@@ -5459,7 +5462,10 @@ mod tests {
 
     #[test]
     fn test_cmd_observer() {
-        let (_path, engine) = create_tmp_engine("test-delegate");
+        let (tmppath, engine) = create_tmp_engine("test-delegate");
+        let w = Rc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
+        assert!(engine.register_valuelog(w.clone()).is_ok());
+
         let (_import_dir, importer) = create_tmp_importer("test-delegate");
         let mut host = CoprocessorHost::<KvTestEngine>::default();
         let mut obs = ApplyObserver::default();
@@ -5545,7 +5551,7 @@ mod tests {
                     assert!(!resp.response.get_header().has_error());
                     assert!(resp.snapshot.is_some());
                     let snap = resp.snapshot.unwrap();
-                    assert_eq!(snap.get_value(b"k0").unwrap().unwrap(), b"v0");
+                    assert_eq!(snap.get_valuelog(b"k0").unwrap().unwrap(), b"v0");
                 })),
             },
         );
@@ -5739,7 +5745,10 @@ mod tests {
 
     #[test]
     fn test_split() {
-        let (_path, engine) = create_tmp_engine("test-delegate");
+        let (tmppath, engine) = create_tmp_engine("test-delegate");
+        let w = Rc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
+        assert!(engine.register_valuelog(w.clone()).is_ok());
+
         let (_import_dir, importer) = create_tmp_importer("test-delegate");
         let peer_id = 3;
         let mut reg = Registration {

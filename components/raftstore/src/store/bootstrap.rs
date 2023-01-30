@@ -122,11 +122,13 @@ pub fn clear_prepare_bootstrap_key(
 
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
     use tempfile::Builder;
 
     use super::*;
     use engine_traits::Engines;
-    use engine_traits::{Peekable, CF_DEFAULT};
+    use engine_traits::{Peekable, CF_DEFAULT, WOTR, WOTRExt};
+    use engine_rocks::RocksWOTR;
 
     #[test]
     fn test_bootstrap() {
@@ -143,6 +145,10 @@ mod tests {
             engine_test::raft::new_engine(path.path(), None, CF_DEFAULT, None)
                 .unwrap();
         let engines = Engines::new(kv_engine.clone(), raft_engine.clone());
+        let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+        assert!(engines.kv.register_valuelog(w.clone()).is_ok());
+        assert!(engines.raft.register_valuelog(w.clone()).is_ok());
+
         let region = initial_region(1, 1, 1);
 
         assert!(bootstrap_store(&engines, 1, 1).is_ok());

@@ -1792,8 +1792,9 @@ mod tests {
     use engine_test::kv::{KvTestEngine, KvTestSnapshot};
     use engine_test::raft::RaftTestEngine;
     use engine_traits::Engines;
-    use engine_traits::{Iterable, SyncMutable, WriteBatch, WriteBatchExt};
+    use engine_traits::{Iterable, SyncMutable, WriteBatch, WriteBatchExt, WOTR, WOTRExt};
     use engine_traits::{ALL_CFS, CF_DEFAULT};
+    use engine_rocks::RocksWOTR;
     use kvproto::raft_serverpb::RaftSnapshotData;
     use raft::eraftpb::HardState;
     use raft::eraftpb::{ConfState, Entry};
@@ -1802,6 +1803,7 @@ mod tests {
     use std::sync::atomic::*;
     use std::sync::mpsc::*;
     use std::sync::*;
+    use std::rc::Rc;
     use std::time::Duration;
     use tempfile::{Builder, TempDir};
     use tikv_util::worker::{LazyWorker, Scheduler, Worker};
@@ -1827,6 +1829,8 @@ mod tests {
         sched: Scheduler<RegionTask<KvTestSnapshot>>,
         path: &TempDir,
     ) -> PeerStorage<KvTestEngine, RaftTestEngine> {
+        let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+
         let kv_db = engine_test::kv::new_engine(path.path(), None, ALL_CFS, None)
             .unwrap();
 //        let raft_path = path.path().join(Path::new("raft"));
@@ -1834,6 +1838,8 @@ mod tests {
             engine_test::raft::new_engine(path.path(), None, CF_DEFAULT, None)
                 .unwrap();
         let engines = Engines::new(kv_db, raft_db);
+        assert!(engines.kv.register_valuelog(w.clone()).is_ok());
+        assert!(engines.raft.register_valuelog(w.clone()).is_ok());
         bootstrap_store(&engines, 1, 1).unwrap();
 
         let region = initial_region(1, 1, 1);
@@ -2672,8 +2678,11 @@ mod tests {
 //        let raft_path = td.path().join(Path::new("raft"));
         let raft_db =
             engine_test::raft::new_engine(td.path(), None, CF_DEFAULT, None)
-                .unwrap();
+            .unwrap();
+        let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
         let engines = Engines::new(kv_db, raft_db);
+        assert!(engines.kv.register_valuelog(w.clone()).is_ok());
+        assert!(engines.raft.register_valuelog(w.clone()).is_ok());
         bootstrap_store(&engines, 1, 1).unwrap();
 
         let region = initial_region(1, 1, 1);
