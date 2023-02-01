@@ -51,6 +51,11 @@ impl RaftEngine for PanicEngine {
         panic!()
     }
 
+    fn consume_to_lsm(&self, batch: &Self::LogBatch, sync_log: bool
+    ) -> Result<usize> {
+        panic!()
+    }
+
     fn consume_and_shrink(
         &self,
         batch: &mut Self::LogBatch,

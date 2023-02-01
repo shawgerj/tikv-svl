@@ -346,6 +346,7 @@ impl Mutable for RocksWriteBatchVec {
 
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
     use super::super::util::new_engine_opt;
     use super::super::RocksDBOptions;
     use super::*;

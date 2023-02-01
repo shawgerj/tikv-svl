@@ -29,7 +29,7 @@ fn must_have_entries_and_state(
             assert_eq!(val, e);
         }
         let val = snapshot
-            .get_msg_valuelog::<RaftLocalState>(&keys::raft_state_key(region_id))
+            .get_msg::<RaftLocalState>(&keys::raft_state_key(region_id))
             .unwrap()
             .unwrap();
         assert_eq!(val, state);

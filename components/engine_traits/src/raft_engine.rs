@@ -47,6 +47,11 @@ pub trait RaftEngine: RaftEngineReadOnly + Clone + Sync + Send + 'static {
                sync: bool
     ) -> Result<(usize, Vec<usize>)>;
 
+    fn consume_to_lsm(&self,
+                      batch: &Self::LogBatch,
+                      sync: bool
+    ) -> Result<usize>;
+
     /// Like `consume` but shrink `batch` if need.
     fn consume_and_shrink(
         &self,

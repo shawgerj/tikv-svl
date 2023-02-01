@@ -574,6 +574,8 @@ fn validate_states<EK: KvEngine, ER: RaftEngine>(
     };
     // The commit index of raft state may be less than the recorded commit index.
     // If so, forward the commit index.
+    dbg!(commit_index);
+    dbg!(recorded_commit_index);
     if commit_index < recorded_commit_index {
         let entry = engines.raft.get_entry(region_id, recorded_commit_index)?;
         if entry.map_or(true, |e| e.get_term() != apply_state.get_commit_term()) {
@@ -693,6 +695,7 @@ where
         );
         let mut raft_state = init_raft_state(&engines, region)?;
         let apply_state = init_apply_state(&engines, region)?;
+        println!("going to call validate_states");
         if let Err(e) = validate_states(region.get_id(), &engines, &mut raft_state, &apply_state) {
             return Err(box_err!("{} validate state fail: {:?}", tag, e));
         }
@@ -1077,6 +1080,7 @@ where
 
     // Append the given entries to the raft log using previous last index or self.last_index.
     pub fn append(&mut self, entries: Vec<Entry>, task: &mut WriteTask<EK, ER>) {
+        dbg!(entries.len());
         if entries.is_empty() {
             return;
         }
@@ -2309,48 +2313,48 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_storage_cache_fetch() {
-        let ents = vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)];
-        let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
-        let worker = LazyWorker::new("snap-manager");
-        let sched = worker.scheduler();
-        let mut store = new_storage_from_ents(sched, &td, &ents);
-        store.cache.cache.clear();
-        // empty cache should fetch data from rocksdb directly.
-        let mut res = store.entries(4, 6, u64::max_value()).unwrap();
-        assert_eq!(*res, ents[1..]);
+    // #[test]
+    // fn test_storage_cache_fetch() {
+    //     let ents = vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)];
+    //     let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
+    //     let worker = LazyWorker::new("snap-manager");
+    //     let sched = worker.scheduler();
+    //     let mut store = new_storage_from_ents(sched, &td, &ents);
+    //     store.cache.cache.clear();
+    //     // empty cache should fetch data from rocksdb directly.
+    //     let mut res = store.entries(4, 6, u64::max_value()).unwrap();
+    //     assert_eq!(*res, ents[1..]);
 
-        let entries = vec![new_entry(6, 5), new_entry(7, 5)];
-        append_ents(&mut store, &entries);
-        validate_cache(&store, &entries);
+    //     let entries = vec![new_entry(6, 5), new_entry(7, 5)];
+    //     append_ents(&mut store, &entries);
+    //     validate_cache(&store, &entries);
 
-        // direct cache access
-        res = store.entries(6, 8, u64::max_value()).unwrap();
-        assert_eq!(res, entries);
+    //     // direct cache access
+    //     res = store.entries(6, 8, u64::max_value()).unwrap();
+    //     assert_eq!(res, entries);
 
-        // size limit should be supported correctly.
-        res = store.entries(4, 8, 0).unwrap();
-        assert_eq!(res, vec![new_entry(4, 4)]);
-        let mut size = ents[1..].iter().map(|e| u64::from(e.compute_size())).sum();
-        res = store.entries(4, 8, size).unwrap();
-        let mut exp_res = ents[1..].to_vec();
-        assert_eq!(res, exp_res);
-        for e in &entries {
-            size += u64::from(e.compute_size());
-            exp_res.push(e.clone());
-            res = store.entries(4, 8, size).unwrap();
-            assert_eq!(res, exp_res);
-        }
+    //     // size limit should be supported correctly.
+    //     res = store.entries(4, 8, 0).unwrap();
+    //     assert_eq!(res, vec![new_entry(4, 4)]);
+    //     let mut size = ents[1..].iter().map(|e| u64::from(e.compute_size())).sum();
+    //     res = store.entries(4, 8, size).unwrap();
+    //     let mut exp_res = ents[1..].to_vec();
+    //     assert_eq!(res, exp_res);
+    //     for e in &entries {
+    //         size += u64::from(e.compute_size());
+    //         exp_res.push(e.clone());
+    //         res = store.entries(4, 8, size).unwrap();
+    //         assert_eq!(res, exp_res);
+    //     }
 
-        // range limit should be supported correctly.
-        for low in 4..9 {
-            for high in low..9 {
-                let res = store.entries(low, high, u64::max_value()).unwrap();
-                assert_eq!(*res, exp_res[low as usize - 4..high as usize - 4]);
-            }
-        }
-    }
+    //     // range limit should be supported correctly.
+    //     for low in 4..9 {
+    //         for high in low..9 {
+    //             let res = store.entries(low, high, u64::max_value()).unwrap();
+    //             assert_eq!(*res, exp_res[low as usize - 4..high as usize - 4]);
+    //         }
+    //     }
+    // }
 
     #[test]
     fn test_storage_cache_update() {

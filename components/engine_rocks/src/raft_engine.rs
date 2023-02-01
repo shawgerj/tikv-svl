@@ -39,13 +39,19 @@ impl RaftEngineReadOnly for RocksEngine {
         if high - low <= RAFT_LOG_MULTI_GET_CNT {
             // If election happens in inactive regions, they will just try to fetch one empty log.
             for i in low..high {
+                println!("in the loop");
                 if total_size > 0 && total_size >= max_size {
+                    println!("case0");
                     break;
                 }
                 let key = keys::raft_log_key(region_id, i);
-                match self.get_value(&key) {
-                    Ok(None) => return Err(Error::EntriesCompacted),
+                match self.get_valuelog(&key) {
+                    Ok(None) => {
+                        println!("err1");
+                        return Err(Error::EntriesCompacted)
+                    }
                     Ok(Some(v)) => {
+                        println!("case1");
                         let mut entry = Entry::default();
                         entry.merge_from_bytes(&v)?;
                         assert_eq!(entry.get_index(), i);
@@ -53,11 +59,15 @@ impl RaftEngineReadOnly for RocksEngine {
                         total_size += v.len();
                         count += 1;
                     }
-                    Err(e) => return Err(box_err!(e)),
+                    Err(e) => {
+                        println!("err2");
+                        return Err(box_err!(e))
+                    }
                 }
             }
             return Ok(count);
         }
+        println!("out of the loop");
 
         let (mut check_compacted, mut next_index) = (true, low);
         let start_key = keys::raft_log_key(region_id, low);
@@ -66,7 +76,8 @@ impl RaftEngineReadOnly for RocksEngine {
             &start_key,
             &end_key,
             true, // fill_cache
-            |_, value| {
+            |key, value| {
+                let realvalue = self.get_valuelog(&key);
                 let mut entry = Entry::default();
                 entry.merge_from_bytes(value)?;
 
@@ -189,6 +200,18 @@ impl RaftEngine for RocksEngine {
 //        batch.clear();
         Ok((bytes, offsets))
     }
+
+    fn consume_to_lsm(&self,
+               batch: &Self::LogBatch,
+               sync_log: bool
+    ) -> Result<usize> {
+        let bytes = batch.data_size();
+        let mut opts = WriteOptions::default();
+        opts.set_sync(sync_log);
+        batch.write_opt(&opts)?;
+        Ok(bytes)
+    }
+
 
     fn consume_and_shrink(
         &self,

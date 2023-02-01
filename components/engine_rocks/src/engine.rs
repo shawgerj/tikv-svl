@@ -158,9 +158,10 @@ impl Peekable for RocksEngine {
                 readopts: &ReadOptions,
                 key: &[u8],
     ) -> Result<Option<RocksDBVector>> {
+        println!("in get_valuelog");
         let opt: RocksReadOptions = readopts.into();
         let v = self.db.get_external(key, &opt.into_raw())?;
-//        dbg!(&v);
+        //        dbg!(&v);
         Ok(v.map(RocksDBVector::from_raw))
     }
 

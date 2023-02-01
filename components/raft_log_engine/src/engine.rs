@@ -273,6 +273,10 @@ impl RaftEngine for RaftLogEngine {
         //        self.0.write(&mut batch.0, sync).map_err(transfer_error)
         panic!()
     }
+    fn consume_to_lsm(&self, _: &Self::LogBatch, _: bool
+    ) -> Result<usize> {
+        panic!()
+    }
 
     fn consume_and_shrink(
         &self,
