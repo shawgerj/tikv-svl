@@ -83,6 +83,7 @@ pub struct Node<C: PdClient + 'static, EK: KvEngine, ER: RaftEngine> {
     state: Arc<Mutex<GlobalReplicationState>>,
     bg_worker: Worker,
     health_service: Option<HealthService>,
+    data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>
 }
 
 impl<C, EK, ER> Node<C, EK, ER>
@@ -137,6 +138,7 @@ where
             labels.push(label);
         }
         store.set_labels(labels.into());
+        let data_locations = Arc::new(Mutex::new(HashMap::default()));
 
         Node {
             cluster_id: cfg.cluster_id,
@@ -149,6 +151,7 @@ where
             state,
             bg_worker,
             health_service,
+            data_locations: data_locations,
         }
     }
 
@@ -184,7 +187,6 @@ where
         auto_split_controller: AutoSplitController,
         concurrency_manager: ConcurrencyManager,
         collector_reg_handle: CollectorRegHandle,
-        data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
     ) -> Result<()>
     where
         T: Transport + 'static,
@@ -221,7 +223,7 @@ where
             auto_split_controller,
             concurrency_manager,
             collector_reg_handle,
-            data_locations,
+            self.data_locations.clone(),
         )?;
 
         Ok(())

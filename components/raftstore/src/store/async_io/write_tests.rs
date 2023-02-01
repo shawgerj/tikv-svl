@@ -361,7 +361,7 @@ fn test_worker() {
 fn test_basic_flow() {
     let path = Builder::new().prefix("async-io-basic").tempdir().unwrap();
     let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
-    let engines = new_temp_engine(&path);
+    let engines =new_temp_engine(&path);
     assert!(engines.kv.register_valuelog(w.clone()).is_ok());
     assert!(engines.raft.register_valuelog(w.clone()).is_ok());
 

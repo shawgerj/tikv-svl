@@ -23,16 +23,16 @@ use std::{
     },
     time::Duration,
     u64,
+    rc::Rc,
 };
 
-use collections::HashMap;
 use cdc::{CdcConfigManager, MemoryQuota};
 use concurrency_manager::ConcurrencyManager;
 use encryption_export::{data_key_manager_from_config, DataKeyManager};
 use engine_rocks::{from_rocks_compression_type, get_env, FlowInfo, RocksEngine, RocksWOTR};
 use engine_traits::{
     compaction_job::CompactionJobInfo, CFOptionsExt, ColumnFamilyOptions, Engines,
-    FlowControlFactorsExt, KvEngine, MiscExt, RaftEngine, CF_DEFAULT, CF_LOCK, CF_WRITE, WOTR,
+    FlowControlFactorsExt, KvEngine, MiscExt, RaftEngine, CF_DEFAULT, CF_LOCK, CF_WRITE, WOTR, WOTRExt,
 };
 use error_code::ErrorCodeExt;
 use file_system::{
@@ -139,7 +139,6 @@ pub fn run_tikv(config: TiKvConfig) {
             tikv.init_encryption();
             let fetcher = tikv.init_io_utility();
             let listener = tikv.init_flow_receiver();
-            tikv.init_valuelog();
             let (engines, engines_info) = tikv.init_raw_engines(listener);
             tikv.init_engines(engines.clone());
             let server_config = tikv.init_servers();
@@ -192,8 +191,7 @@ struct TiKVServer<ER: RaftEngine> {
     concurrency_manager: ConcurrencyManager,
     env: Arc<Environment>,
     background_worker: Worker,
-    valuelog_mgr: Option<RocksWOTR>,
-    data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
+    valuelog_mgr: Rc<RocksWOTR>,
 }
 
 struct TiKVEngines<EK: KvEngine, ER: RaftEngine> {
@@ -261,6 +259,8 @@ impl<ER: RaftEngine> TiKVServer<ER> {
         let latest_ts = block_on(pd_client.get_tso()).expect("failed to get timestamp from PD");
         let concurrency_manager = ConcurrencyManager::new(latest_ts);
 
+        let valuelog_mgr = Rc::new(RocksWOTR::new(&config.valuelog.path));
+
         TiKVServer {
             config,
             cfg_controller: Some(cfg_controller),
@@ -284,8 +284,7 @@ impl<ER: RaftEngine> TiKVServer<ER> {
             background_worker,
             flow_info_sender: None,
             flow_info_receiver: None,
-            valuelog_mgr: None,
-            data_locations: Arc::new(Mutex::new(HashMap::default())),
+            valuelog_mgr,
         }
     }
 
@@ -511,12 +510,6 @@ impl<ER: RaftEngine> TiKVServer<ER> {
         self.flow_info_sender = Some(tx.clone());
         self.flow_info_receiver = Some(rx);
         engine_rocks::FlowListener::new(tx)
-    }
-
-    fn init_valuelog(&mut self) {
-        self.valuelog_mgr = Some(RocksWOTR::new(&self.config.valuelog.path));
-//        let w = engine_rocks::raw_util::new_wotr(self.config.valuelog.path).unwrap_or_else(|s| fatal!("failed to create raft engine: {}", s));
-//        self.valuelog_mgr = Some(w);
     }
 
     fn init_engines(&mut self, engines: Engines<RocksEngine, ER>) {
@@ -882,7 +875,6 @@ impl<ER: RaftEngine> TiKVServer<ER> {
             auto_split_controller,
             self.concurrency_manager.clone(),
             collector_reg_handle,
-            self.data_locations.clone(),
         )
         .unwrap_or_else(|e| fatal!("failed to start node: {}", e));
 
@@ -1290,8 +1282,6 @@ impl TiKVServer<RocksEngine> {
             raft_db_cf_opts,
         )
         .unwrap_or_else(|s| fatal!("failed to create raft engine: {}", s));
-//        assert!(raft_engine.set_wotr(&self.valuelog_mgr.unwrap().as_inner()).is_ok());
-        assert!(raft_engine.set_wotr(&self.valuelog_mgr.as_ref().unwrap().as_inner()).is_ok());
 
         // Create kv engine.
         let mut kv_db_opts = self.config.rocksdb.build_opt();
@@ -1310,14 +1300,16 @@ impl TiKVServer<RocksEngine> {
             kv_cfs_opts,
         )
         .unwrap_or_else(|s| fatal!("failed to create kv engine: {}", s));
-        assert!(kv_engine.set_wotr(&self.valuelog_mgr.as_ref().unwrap().as_inner()).is_ok());
 
         let mut kv_engine = RocksEngine::from_db(Arc::new(kv_engine));
         let mut raft_engine = RocksEngine::from_db(Arc::new(raft_engine));
         let shared_block_cache = block_cache.is_some();
         kv_engine.set_shared_block_cache(shared_block_cache);
         raft_engine.set_shared_block_cache(shared_block_cache);
+
         let engines = Engines::new(kv_engine, raft_engine);
+        assert!(engines.raft.register_valuelog(self.valuelog_mgr.clone()).is_ok());
+        assert!(engines.kv.register_valuelog(self.valuelog_mgr.clone()).is_ok());
 
         check_and_dump_raft_engine(
             &self.config,
