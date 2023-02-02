@@ -480,9 +480,9 @@ mod tests {
             .prefix("test_debug")
             .tempdir()
             .unwrap();
-        let path = tmp.path().to_str().unwrap();
+//        let path = tmp.path().to_str().unwrap();
         let engine = engine_test::kv::new_engine_opt(
-            path,
+            tmp.path(),
             DBOptions::new(),
             vec![
                 CFOptions::new(CF_DEFAULT, ColumnFamilyOptions::new()),

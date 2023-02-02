@@ -2,8 +2,10 @@
 
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
+use std::rc::Rc;
 
-use engine_rocks::RocksEngine;
+use collections::HashMap;
+use engine_rocks::{RocksEngine, RocksWOTR};
 use kvproto::raft_serverpb::RaftMessage;
 use raftstore::coprocessor::CoprocessorHost;
 use raftstore::store::config::{Config, RaftstoreConfigManager};
@@ -15,7 +17,7 @@ use tikv::config::{ConfigController, Module, TiKvConfig};
 use tikv::import::SSTImporter;
 
 use concurrency_manager::ConcurrencyManager;
-use engine_traits::{Engines, ALL_CFS};
+use engine_traits::{Engines, ALL_CFS, WOTR, WOTRExt};
 use resource_metering::CollectorRegHandle;
 use tempfile::TempDir;
 use test_raftstore::TestPdClient;
@@ -37,6 +39,7 @@ impl Transport for MockTransport {
 }
 
 fn create_tmp_engine(dir: &TempDir) -> Engines<RocksEngine, RocksEngine> {
+    let w = Rc::new(RocksWOTR::new(dir.path().join("wotrlog.txt").to_str().unwrap()));
     let db = Arc::new(
         engine_rocks::raw_util::new_engine(
             dir.path().join("db").to_str().unwrap(),
@@ -55,7 +58,10 @@ fn create_tmp_engine(dir: &TempDir) -> Engines<RocksEngine, RocksEngine> {
         )
         .unwrap(),
     );
-    Engines::new(RocksEngine::from_db(db), RocksEngine::from_db(raft_db))
+    let engines = Engines::new(RocksEngine::from_db(db), RocksEngine::from_db(raft_db));
+    assert!(engines.kv.register_valuelog(w.clone()).is_ok());
+    assert!(engines.raft.register_valuelog(w.clone()).is_ok());
+    engines
 }
 
 fn start_raftstore(
@@ -91,6 +97,7 @@ fn start_raftstore(
     let store_meta = Arc::new(Mutex::new(StoreMeta::new(0)));
     let cfg_track = Arc::new(VersionTrack::new(cfg.raft_store.clone()));
     let pd_worker = LazyWorker::new("store-config");
+    let data_locations = Arc::new(Mutex::new(HashMap::default()));
     let (split_check_scheduler, _) = dummy_scheduler();
 
     system
@@ -112,6 +119,7 @@ fn start_raftstore(
             ConcurrencyManager::new(1.into()),
             CollectorRegHandle::new_for_test(),
             None,
+            data_locations,
         )
         .unwrap();
 

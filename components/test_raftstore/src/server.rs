@@ -512,7 +512,6 @@ impl Simulator for ServerCluster {
             auto_split_controller,
             concurrency_manager.clone(),
             collector_reg_handle,
-            Arc::new(Mutex::new(HashMap::default()));
         )?;
         assert!(node_id == 0 || node_id == node.id());
         let node_id = node.id();
