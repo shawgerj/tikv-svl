@@ -107,5 +107,18 @@ pub trait Peekable {
         m.merge_from_bytes(&value.unwrap())?;
         Ok(Some(m))
     }
+    
+    fn get_msg_cf_valuelog<M: protobuf::Message + Default>(
+        &self, cf: &str, key: &[u8],
+    ) -> Result<Option<M>> {
+        let value = self.get_value_cf_valuelog(cf, key)?;
+        if value.is_none() {
+            return Ok(None);
+        }
+
+        let mut m = M::default();
+        m.merge_from_bytes(&value.unwrap())?;
+        Ok(Some(m))
+    }
 
 }

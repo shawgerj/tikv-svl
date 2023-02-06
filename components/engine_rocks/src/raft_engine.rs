@@ -23,7 +23,7 @@ impl RaftEngineReadOnly for RocksEngine {
 
     fn get_entry(&self, raft_group_id: u64, index: u64) -> Result<Option<Entry>> {
         let key = keys::raft_log_key(raft_group_id, index);
-        self.get_msg_cf(CF_DEFAULT, &key)
+        self.get_msg_cf_valuelog(CF_DEFAULT, &key)
     }
 
     fn fetch_entries_to(
@@ -77,9 +77,9 @@ impl RaftEngineReadOnly for RocksEngine {
             &end_key,
             true, // fill_cache
             |key, value| {
-                let realvalue = self.get_valuelog(&key);
+                let realvalue = self.get_valuelog(&key).unwrap().unwrap();
                 let mut entry = Entry::default();
-                entry.merge_from_bytes(value)?;
+                entry.merge_from_bytes(&realvalue)?;
 
                 if check_compacted {
                     if entry.get_index() != low {
@@ -93,7 +93,7 @@ impl RaftEngineReadOnly for RocksEngine {
                 next_index += 1;
 
                 buf.push(entry);
-                total_size += value.len();
+                total_size += realvalue.len();
                 count += 1;
                 Ok(total_size < max_size)
             },
@@ -190,14 +190,14 @@ impl RaftEngine for RocksEngine {
     }
 
     fn consume(&self,
-               batch: &Self::LogBatch,
+               batch: &mut Self::LogBatch,
                sync_log: bool
     ) -> Result<(usize, Vec<usize>)> {
         let bytes = batch.data_size();
         let mut opts = WriteOptions::default();
         opts.set_sync(sync_log);
         let offsets = batch.write_valuelog(&opts)?;
-//        batch.clear();
+        batch.clear();
         Ok((bytes, offsets))
     }
 
@@ -234,7 +234,7 @@ impl RaftEngine for RocksEngine {
         max_capacity: usize,
         shrink_to: usize,
     ) -> Result<()> {
-        batch.clear();
+//        batch.clear();
         if data_size > max_capacity {
             *batch = self.write_batch_with_cap(shrink_to);
         }

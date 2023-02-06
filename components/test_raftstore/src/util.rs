@@ -1,5 +1,6 @@
 // Copyright 2018 TiKV Project Authors. Licensed under Apache-2.0.
 
+use std::rc::Rc;
 use std::fmt::Write;
 use std::path::Path;
 use std::sync::{mpsc, Arc, Mutex};
@@ -13,9 +14,9 @@ use encryption_export::{
 use engine_rocks::config::BlobRunMode;
 use engine_rocks::raw::DB;
 use engine_rocks::{
-    get_env, CompactionListener, Compat, RocksCompactionJobInfo, RocksEngine, RocksSnapshot,
+    get_env, CompactionListener, Compat, RocksCompactionJobInfo, RocksEngine, RocksSnapshot, RocksWOTR
 };
-use engine_traits::{Engines, Iterable, Peekable, ALL_CFS, CF_DEFAULT, CF_RAFT};
+use engine_traits::{Engines, Iterable, Peekable, ALL_CFS, CF_DEFAULT, CF_RAFT, WOTR, WOTRExt};
 use file_system::IORateLimiter;
 use futures::executor::block_on;
 use grpcio::{ChannelBuilder, Environment};
@@ -52,7 +53,7 @@ pub use raftstore::store::util::{find_peer, new_learner_peer, new_peer};
 
 pub fn must_get(engine: &Arc<DB>, cf: &str, key: &[u8], value: Option<&[u8]>) {
     for _ in 1..300 {
-        let res = engine.c().get_value_cf(cf, &keys::data_key(key)).unwrap();
+        let res = engine.c().get_value_cf_valuelog(cf, &keys::data_key(key)).unwrap();
         if let (Some(value), Some(res)) = (value, res.as_ref()) {
             assert_eq!(value, &res[..]);
             return;
@@ -63,7 +64,7 @@ pub fn must_get(engine: &Arc<DB>, cf: &str, key: &[u8], value: Option<&[u8]>) {
         thread::sleep(Duration::from_millis(20));
     }
     debug!("last try to get {}", log_wrappers::hex_encode_upper(key));
-    let res = engine.c().get_value_cf(cf, &keys::data_key(key)).unwrap();
+    let res = engine.c().get_value_cf_valuelog(cf, &keys::data_key(key)).unwrap();
     if value.is_none() && res.is_none()
         || value.is_some() && res.is_some() && value.unwrap() == &*res.unwrap()
     {
@@ -679,7 +680,12 @@ pub fn create_test_engine(
     let shared_block_cache = cache.is_some();
     engine.set_shared_block_cache(shared_block_cache);
     raft_engine.set_shared_block_cache(shared_block_cache);
+
+    let wotr = Rc::new(RocksWOTR::new(dir.path().join("wotrlog.txt").to_str().unwrap()));
     let engines = Engines::new(engine, raft_engine);
+    assert!(engines.kv.register_valuelog(wotr.clone()).is_ok());
+    assert!(engines.raft.register_valuelog(wotr.clone()).is_ok());
+    
     (engines, key_manager, dir)
 }
 

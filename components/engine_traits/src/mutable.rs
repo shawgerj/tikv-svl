@@ -7,6 +7,10 @@ pub trait SyncMutable {
 
     fn put_cf(&self, cf: &str, key: &[u8], value: &[u8]) -> Result<()>;
 
+    fn put_valuelog(&self, key: &[u8], value: &[u8]) -> Result<usize>;
+
+    fn put_cf_valuelog(&self, cf: &str, key: &[u8], value: &[u8]) -> Result<usize>;
+
     fn delete(&self, key: &[u8]) -> Result<()>;
 
     fn delete_cf(&self, cf: &str, key: &[u8]) -> Result<()>;
@@ -19,7 +23,23 @@ pub trait SyncMutable {
         self.put(key, &m.write_to_bytes()?)
     }
 
-    fn put_msg_cf<M: protobuf::Message>(&self, cf: &str, key: &[u8], m: &M) -> Result<()> {
+    fn put_msg_valuelog<M: protobuf::Message>(&self, key: &[u8], m: &M)
+                                              -> Result<usize> {
+        self.put_valuelog(key, &m.write_to_bytes()?)
+    }
+
+    fn put_msg_cf<M: protobuf::Message>(&self, cf: &str, key: &[u8], m: &M)
+                                        -> Result<()> {
         self.put_cf(cf, key, &m.write_to_bytes()?)
     }
+
+    fn put_msg_cf_valuelog<M: protobuf::Message>(
+        &self,
+        cf: &str,
+        key: &[u8],
+        m: &M
+    ) -> Result<usize> {
+        self.put_cf_valuelog(cf, key, &m.write_to_bytes()?)
+    }
+    
 }

@@ -43,7 +43,7 @@ pub trait RaftEngine: RaftEngineReadOnly + Clone + Sync + Send + 'static {
     /// Consume the write batch by moving the content into the engine itself
     /// and return written bytes.
     fn consume(&self,
-               batch: &Self::LogBatch,
+               batch: &mut Self::LogBatch,
                sync: bool
     ) -> Result<(usize, Vec<usize>)>;
 

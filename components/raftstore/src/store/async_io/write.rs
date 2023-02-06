@@ -527,7 +527,7 @@ where
             let (size, offsets) = self.engines
                 .raft
                 .consume(
-                    &self.batch.raft_wb,
+                    &mut self.batch.raft_wb,
                     true,
                 )
                 .unwrap_or_else(|e| {
@@ -536,14 +536,16 @@ where
                         self.store_id, self.tag, e
                     );
                 });
+            dbg!(&offsets);
+            // dbg!(keys.len());
 
-            let it = keys.iter().zip(offsets.iter());
+            // let it = keys.iter().zip(offsets.iter());
 
-            // add key-offset pairs to hashmap
-            let mut locs = self.data_locations.lock().unwrap();
-            for (k, o) in it {
-                locs.insert(k.to_vec(), *o);
-            }
+            // // add key-offset pairs to hashmap
+            // let mut locs = self.data_locations.lock().unwrap();
+            // for (k, o) in it {
+            //     locs.insert(k.to_vec(), *o);
+            // }
 
             // shrink (split up operation from original)
             self.engines.raft.shrink(
@@ -780,13 +782,14 @@ where
     }
 
     if !batch.raft_wb.is_empty() {
-        engines
+        let (size, offsets) = engines
             .raft
             .consume(&mut batch.raft_wb, true)
             .unwrap_or_else(|e| {
                 panic!("test failed to write to raft engine valuelog: {:?}", e);
             });
     }
+
     if !batch.raft_wb_lsm.is_empty() {
         engines
             .raft

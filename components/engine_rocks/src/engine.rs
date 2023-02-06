@@ -188,6 +188,16 @@ impl SyncMutable for RocksEngine {
         self.db.put_cf(handle, key, value).map_err(Error::Engine)
     }
 
+    fn put_valuelog(&self, key: &[u8], value: &[u8]) -> Result<usize> {
+        self.db.put_external(key, value).map_err(Error::Engine)
+    }
+
+    fn put_cf_valuelog(&self, cf: &str, key: &[u8], value: &[u8])
+                       -> Result<usize> {
+        let handle = get_cf_handle(&self.db, cf)?;
+        self.db.put_cf_external(handle, key, value).map_err(Error::Engine)
+    }
+
     fn delete(&self, key: &[u8]) -> Result<()> {
         self.db.delete(key).map_err(Error::Engine)
     }

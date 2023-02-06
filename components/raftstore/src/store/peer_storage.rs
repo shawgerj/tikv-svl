@@ -574,8 +574,6 @@ fn validate_states<EK: KvEngine, ER: RaftEngine>(
     };
     // The commit index of raft state may be less than the recorded commit index.
     // If so, forward the commit index.
-    dbg!(commit_index);
-    dbg!(recorded_commit_index);
     if commit_index < recorded_commit_index {
         let entry = engines.raft.get_entry(region_id, recorded_commit_index)?;
         if entry.map_or(true, |e| e.get_term() != apply_state.get_commit_term()) {
@@ -695,7 +693,6 @@ where
         );
         let mut raft_state = init_raft_state(&engines, region)?;
         let apply_state = init_apply_state(&engines, region)?;
-        println!("going to call validate_states");
         if let Err(e) = validate_states(region.get_id(), &engines, &mut raft_state, &apply_state) {
             return Err(box_err!("{} validate state fail: {:?}", tag, e));
         }
@@ -1080,7 +1077,6 @@ where
 
     // Append the given entries to the raft log using previous last index or self.last_index.
     pub fn append(&mut self, entries: Vec<Entry>, task: &mut WriteTask<EK, ER>) {
-        dbg!(entries.len());
         if entries.is_empty() {
             return;
         }
@@ -1808,6 +1804,7 @@ mod tests {
     use std::sync::mpsc::*;
     use std::sync::*;
     use std::rc::Rc;
+    use std::thread;
     use std::time::Duration;
     use tempfile::{Builder, TempDir};
     use tikv_util::worker::{LazyWorker, Scheduler, Worker};
@@ -1832,9 +1829,8 @@ mod tests {
     fn new_storage(
         sched: Scheduler<RegionTask<KvTestSnapshot>>,
         path: &TempDir,
+        wotr: Rc<RocksWOTR>,
     ) -> PeerStorage<KvTestEngine, RaftTestEngine> {
-        let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
-
         let kv_db = engine_test::kv::new_engine(path.path(), None, ALL_CFS, None)
             .unwrap();
 //        let raft_path = path.path().join(Path::new("raft"));
@@ -1842,8 +1838,8 @@ mod tests {
             engine_test::raft::new_engine(path.path(), None, CF_DEFAULT, None)
                 .unwrap();
         let engines = Engines::new(kv_db, raft_db);
-        assert!(engines.kv.register_valuelog(w.clone()).is_ok());
-        assert!(engines.raft.register_valuelog(w.clone()).is_ok());
+        assert!(engines.kv.register_valuelog(wotr.clone()).is_ok());
+        assert!(engines.raft.register_valuelog(wotr.clone()).is_ok());
         bootstrap_store(&engines, 1, 1).unwrap();
 
         let region = initial_region(1, 1, 1);
@@ -1855,10 +1851,12 @@ mod tests {
         sched: Scheduler<RegionTask<KvTestSnapshot>>,
         path: &TempDir,
         ents: &[Entry],
+        wotr: Rc<RocksWOTR>,
     ) -> PeerStorage<KvTestEngine, RaftTestEngine> {
-        let mut store = new_storage(sched, path);
+        let mut store = new_storage(sched, path, wotr);
         let mut write_task = WriteTask::new(store.get_region_id(), store.peer_id, 1);
         store.append(ents[1..].to_vec(), &mut write_task);
+        
         store
             .apply_state
             .mut_truncated_state()
@@ -1895,7 +1893,7 @@ mod tests {
         assert_eq!(store.cache.cache, exp_ents);
         for e in exp_ents {
             let key = keys::raft_log_key(store.get_region_id(), e.get_index());
-            let bytes = store.engines.raft.get_value(&key).unwrap().unwrap();
+            let bytes = store.engines.raft.get_valuelog(&key).unwrap().unwrap();
             let mut entry = Entry::default();
             entry.merge_from_bytes(&bytes).unwrap();
             assert_eq!(entry, *e);
@@ -1927,7 +1925,9 @@ mod tests {
             let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
             let worker = Worker::new("snap-manager").lazy_build("snap-manager");
             let sched = worker.scheduler();
-            let store = new_storage_from_ents(sched, &td, &ents);
+            let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+
+            let store = new_storage_from_ents(sched, &td, &ents, w.clone());
             let t = store.term(idx);
             if wterm != t {
                 panic!("#{}: expect res {:?}, got {:?}", i, wterm, t);
@@ -1983,7 +1983,9 @@ mod tests {
         for (first_index, left) in cases {
             let td = Builder::new().prefix("tikv-store").tempdir().unwrap();
             let sched = worker.scheduler();
-            let mut store = new_storage_from_ents(sched, &td, &[new_entry(3, 3), new_entry(4, 4)]);
+            let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+            
+            let mut store = new_storage_from_ents(sched, &td, &[new_entry(3, 3), new_entry(4, 4)], w.clone());
             append_ents(&mut store, &[new_entry(5, 5), new_entry(6, 6)]);
 
             assert_eq!(6, get_meta_key_count(&store));
@@ -2064,7 +2066,9 @@ mod tests {
             let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
             let worker = Worker::new("snap-manager").lazy_build("snap-manager");
             let sched = worker.scheduler();
-            let store = new_storage_from_ents(sched, &td, &ents);
+            let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+
+            let store = new_storage_from_ents(sched, &td, &ents, w.clone());
             let e = store.entries(lo, hi, maxsize);
             if e != wentries {
                 panic!("#{}: expect entries {:?}, got {:?}", i, wentries, e);
@@ -2088,7 +2092,9 @@ mod tests {
             let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
             let worker = Worker::new("snap-manager").lazy_build("snap-manager");
             let sched = worker.scheduler();
-            let mut store = new_storage_from_ents(sched, &td, &ents);
+            let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+            
+            let mut store = new_storage_from_ents(sched, &td, &ents, w.clone());
             let res = store
                 .term(idx)
                 .map_err(From::from)
@@ -2140,7 +2146,9 @@ mod tests {
         let mgr = SnapManager::new(snap_dir.path().to_str().unwrap());
         let mut worker = Worker::new("region-worker").lazy_build("la");
         let sched = worker.scheduler();
-        let mut s = new_storage_from_ents(sched.clone(), &td, &ents);
+        let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+
+        let mut s = new_storage_from_ents(sched.clone(), &td, &ents, w.clone());
         let (router, _) = mpsc::sync_channel(100);
         let runner = RegionRunner::new(
             s.engines.kv.clone(),
@@ -2303,7 +2311,9 @@ mod tests {
             let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
             let worker = LazyWorker::new("snap-manager");
             let sched = worker.scheduler();
-            let mut store = new_storage_from_ents(sched, &td, &ents);
+            let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+            
+            let mut store = new_storage_from_ents(sched, &td, &ents, w.clone());
             append_ents(&mut store, &entries);
             let li = store.last_index();
             let actual_entries = store.entries(4, li + 1, u64::max_value()).unwrap();
@@ -2362,14 +2372,18 @@ mod tests {
         let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
         let worker = LazyWorker::new("snap-manager");
         let sched = worker.scheduler();
-        let mut store = new_storage_from_ents(sched, &td, &ents);
+        let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+
+        let mut store = new_storage_from_ents(sched, &td, &ents, w.clone());
         store.cache.cache.clear();
 
         // initial cache
         let mut entries = vec![new_entry(6, 5), new_entry(7, 5)];
         append_ents(&mut store, &entries);
         validate_cache(&store, &entries);
+        
 
+        println!("got past initial cache");
         // rewrite
         entries = vec![new_entry(6, 6), new_entry(7, 6)];
         append_ents(&mut store, &entries);
@@ -2518,7 +2532,9 @@ mod tests {
         let mgr = SnapManager::new(snap_dir.path().to_str().unwrap());
         let mut worker = LazyWorker::new("snap-manager");
         let sched = worker.scheduler();
-        let s1 = new_storage_from_ents(sched.clone(), &td1, &ents);
+        let w = Rc::new(RocksWOTR::new(td1.path().join("wotrlog.txt").to_str().unwrap()));
+
+        let s1 = new_storage_from_ents(sched.clone(), &td1, &ents, w.clone());
         let (router, _) = mpsc::sync_channel(100);
         let runner = RegionRunner::new(
             s1.engines.kv.clone(),
@@ -2545,7 +2561,9 @@ mod tests {
         worker.stop();
 
         let td2 = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
-        let mut s2 = new_storage(sched.clone(), &td2);
+        let w0 = Rc::new(RocksWOTR::new(td2.path().join("wotrlog.txt").to_str().unwrap()));
+
+        let mut s2 = new_storage(sched.clone(), &td2, w0.clone());
         assert_eq!(s2.first_index(), s2.applied_index() + 1);
         let mut write_task = WriteTask::new(s2.get_region_id(), s2.peer_id, 1);
         let snap_region = s2.apply_snapshot(&snap1, &mut write_task, &[]).unwrap();
@@ -2562,7 +2580,9 @@ mod tests {
 
         let td3 = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
         let ents = &[new_entry(3, 3), new_entry(4, 3)];
-        let mut s3 = new_storage_from_ents(sched, &td3, ents);
+        let w = Rc::new(RocksWOTR::new(td3.path().join("wotrlog.txt").to_str().unwrap()));
+
+        let mut s3 = new_storage_from_ents(sched, &td3, ents, w.clone());
         validate_cache(&s3, &ents[1..]);
         let mut write_task = WriteTask::new(s3.get_region_id(), s3.peer_id, 1);
         let snap_region = s3.apply_snapshot(&snap1, &mut write_task, &[]).unwrap();
@@ -2582,7 +2602,9 @@ mod tests {
         let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
         let worker = LazyWorker::new("snap-manager");
         let sched = worker.scheduler();
-        let mut s = new_storage(sched, &td);
+        let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+
+        let mut s = new_storage(sched, &td, w.clone());
 
         // PENDING can be canceled directly.
         s.snap_state = RefCell::new(SnapState::Applying(Arc::new(AtomicUsize::new(
@@ -2628,7 +2650,9 @@ mod tests {
         let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
         let worker = LazyWorker::new("snap-manager");
         let sched = worker.scheduler();
-        let mut s = new_storage(sched, &td);
+        let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+
+        let mut s = new_storage(sched, &td, w.clone());
 
         // PENDING can be finished.
         let mut snap_state = SnapState::Applying(Arc::new(AtomicUsize::new(JOB_STATUS_PENDING)));
@@ -2708,7 +2732,7 @@ mod tests {
         let log_key = keys::raft_log_key(1, 11);
         engines
             .raft
-            .put_msg(&log_key, &new_entry(11, RAFT_INIT_LOG_TERM))
+            .put_msg_valuelog(&log_key, &new_entry(11, RAFT_INIT_LOG_TERM))
             .unwrap();
         raft_state.mut_hard_state().set_commit(12);
         engines.raft.put_msg(&raft_state_key, &raft_state).unwrap();
@@ -2717,7 +2741,7 @@ mod tests {
         let log_key = keys::raft_log_key(1, 20);
         engines
             .raft
-            .put_msg(&log_key, &new_entry(20, RAFT_INIT_LOG_TERM))
+            .put_msg_valuelog(&log_key, &new_entry(20, RAFT_INIT_LOG_TERM))
             .unwrap();
         raft_state.set_last_index(20);
         engines.raft.put_msg(&raft_state_key, &raft_state).unwrap();
@@ -2730,7 +2754,7 @@ mod tests {
         assert!(build_storage().is_err());
         engines
             .raft
-            .put_msg(&log_key, &new_entry(20, RAFT_INIT_LOG_TERM))
+            .put_msg_valuelog(&log_key, &new_entry(20, RAFT_INIT_LOG_TERM))
             .unwrap();
 
         // applied_index > commit_index is invalid.
@@ -2759,7 +2783,7 @@ mod tests {
         let log_key = keys::raft_log_key(1, 14);
         engines
             .raft
-            .put_msg(&log_key, &new_entry(14, RAFT_INIT_LOG_TERM))
+            .put_msg_valuelog(&log_key, &new_entry(14, RAFT_INIT_LOG_TERM))
             .unwrap();
         raft_state.mut_hard_state().set_commit(14);
         s = build_storage().unwrap();
@@ -2769,14 +2793,14 @@ mod tests {
         // log term miss match is invalid.
         engines
             .raft
-            .put_msg(&log_key, &new_entry(14, RAFT_INIT_LOG_TERM - 1))
+            .put_msg_valuelog(&log_key, &new_entry(14, RAFT_INIT_LOG_TERM - 1))
             .unwrap();
         assert!(build_storage().is_err());
 
         // hard state term miss match is invalid.
         engines
             .raft
-            .put_msg(&log_key, &new_entry(14, RAFT_INIT_LOG_TERM))
+            .put_msg_valuelog(&log_key, &new_entry(14, RAFT_INIT_LOG_TERM))
             .unwrap();
         raft_state.mut_hard_state().set_term(RAFT_INIT_LOG_TERM - 1);
         engines.raft.put_msg(&raft_state_key, &raft_state).unwrap();
@@ -2788,7 +2812,7 @@ mod tests {
         let log_key = keys::raft_log_key(1, 13);
         engines
             .raft
-            .put_msg(&log_key, &new_entry(13, RAFT_INIT_LOG_TERM))
+            .put_msg_valuelog(&log_key, &new_entry(13, RAFT_INIT_LOG_TERM))
             .unwrap();
         engines.raft.put_msg(&raft_state_key, &raft_state).unwrap();
         assert!(build_storage().is_err());

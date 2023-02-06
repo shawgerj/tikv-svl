@@ -66,6 +66,14 @@ impl SyncMutable for PanicEngine {
         panic!()
     }
 
+    fn put_valuelog(&self, key: &[u8], value: &[u8]) -> Result<usize> {
+        panic!();
+    }
+
+    fn put_cf_valuelog(&self, cf: &str, key: &[u8], value: &[u8]) -> Result<usize> {
+        panic!();
+    }
+
     fn delete(&self, key: &[u8]) -> Result<()> {
         panic!()
     }

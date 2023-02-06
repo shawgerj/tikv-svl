@@ -534,7 +534,7 @@ where
         if !self.kv_wb_wotr_mut().is_empty() {
             let mut write_opts = engine_traits::WriteOptions::new();
             write_opts.set_sync(need_sync);
-            self.kv_wb_wotr().write_valuelog(&write_opts).unwrap_or_else(|e| {
+            let offsets = self.kv_wb_wotr().write_valuelog(&write_opts).unwrap_or_else(|e| {
                 panic!("failed to write to engine: {:?}", e);
             });
             self.perf_context.report_metrics();

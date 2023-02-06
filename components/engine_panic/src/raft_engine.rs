@@ -46,7 +46,7 @@ impl RaftEngine for PanicEngine {
         panic!()
     }
 
-    fn consume(&self, batch: &Self::LogBatch, sync_log: bool
+    fn consume(&self, batch: &mut Self::LogBatch, sync_log: bool
     ) -> Result<(usize, Vec<usize>)> {
         panic!()
     }
