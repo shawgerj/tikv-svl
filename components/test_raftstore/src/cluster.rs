@@ -145,7 +145,6 @@ pub struct Cluster<T: Simulator> {
 
     pub paths: Vec<TempDir>,
     pub dbs: Vec<Engines<RocksEngine, RocksEngine>>,
-    pub wtrs: Vec<Arc<RocksWOTR>>,
     pub store_metas: HashMap<u64, Arc<Mutex<StoreMeta>>>,
     key_managers: Vec<Option<Arc<DataKeyManager>>>,
     pub io_rate_limiter: Option<Arc<IORateLimiter>>,
@@ -176,7 +175,6 @@ impl<T: Simulator> Cluster<T> {
             count,
             paths: vec![],
             dbs: vec![],
-            wtrs: vec![],
             store_metas: HashMap::default(),
             key_managers: vec![],
             io_rate_limiter: None,
@@ -219,11 +217,10 @@ impl<T: Simulator> Cluster<T> {
     }
 
     fn create_engine(&mut self, router: Option<RaftRouter<RocksEngine, RocksEngine>>) {
-        let (engines, key_manager, dir, wotr) =
+        let (engines, key_manager, dir) =
             create_test_engine(router, self.io_rate_limiter.clone(), &self.cfg);
 
         self.dbs.push(engines);
-        self.wtrs.push(wotr);
         self.key_managers.push(key_manager);
         self.paths.push(dir);
     }

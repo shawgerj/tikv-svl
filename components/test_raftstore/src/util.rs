@@ -627,7 +627,6 @@ pub fn create_test_engine(
     Engines<RocksEngine, RocksEngine>,
     Option<Arc<DataKeyManager>>,
     TempDir,
-    Arc<RocksWOTR>,
 ) {
     let dir = test_util::temp_dir("test_cluster", cfg.prefer_mem);
     let key_manager =
@@ -690,7 +689,7 @@ pub fn create_test_engine(
 
     let engines = Engines::new(engine, raft_engine);
     
-    (engines, key_manager, dir, wotr)
+    (engines, key_manager, dir)
 }
 
 pub fn configure_for_request_snapshot<T: Simulator>(cluster: &mut Cluster<T>) {

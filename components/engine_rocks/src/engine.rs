@@ -72,7 +72,7 @@ impl RocksEngine {
     }
 
     pub fn have_wotr(&self) {
-        assert!(self.wotr.is_some());
+        dbg!(&self.wotr);
     }
 }
 
@@ -182,7 +182,6 @@ impl Peekable for RocksEngine {
         cf: &str,
         key: &[u8],
     ) -> Result<Option<RocksDBVector>> {
-        dbg!(&key);
         let opt: RocksReadOptions = opts.into();
         let handle = get_cf_handle(&self.db, cf)?;
         let v = self.db.get_external_cf(handle, key, &opt.into_raw())?;

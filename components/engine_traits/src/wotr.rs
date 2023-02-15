@@ -12,6 +12,7 @@ pub trait WOTRExt: Sized {
     type DBVector: DBVector;
     
     fn register_valuelog(&mut self, logobj: Arc<Self::WOTR>) -> Result<()>;
+    fn have_wotr(&self); 
 }
 
 // wotr interface (for now, just create)

@@ -16,6 +16,10 @@ impl WOTRExt for RocksEngine {
         let w = logobj.as_inner();
         self.as_inner().set_wotr(w).map_err(Error::Engine)
     }
+
+    fn have_wotr(&self) {
+        self.have_wotr();
+    }
 }
 
 #[derive(Debug)]
@@ -53,9 +57,9 @@ mod test {
             .tempdir().
             unwrap();
                     
-        let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+        let w = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
         let opt = RawDBOptions::default();
-        let engine = new_engine_opt(
+        let mut engine = new_engine_opt(
             path.path().join("db").to_str().unwrap(),
             RocksDBOptions::from_raw(opt),
             vec![],

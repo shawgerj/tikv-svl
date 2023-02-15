@@ -28,7 +28,7 @@ use crate::store::{
 use crate::Error;
 use crate::Result;
 
-use engine_traits::{KvEngine, RaftEngine, Snapshot};
+use engine_traits::{KvEngine, RaftEngine, Snapshot, WOTRExt};
 use tikv_util::codec::number::decode_u64;
 use tikv_util::lru::LruCache;
 use tikv_util::time::monotonic_raw_now;
@@ -51,7 +51,6 @@ pub trait ReadExecutor<E: KvEngine> {
         let mut resp = Response::default();
         let res = if !req.get_get().get_cf().is_empty() {
             dbg!("first case");
-            engine.have_wotr();
             let cf = req.get_get().get_cf();
             engine
                 .get_msg_cf_valuelog(cf, &keys::data_key(key))

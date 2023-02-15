@@ -554,6 +554,7 @@ where
 
         // this writebatch contains <key, offset> pairs
         if !self.kv_wb_mut().is_empty() {
+            dbg!(self.kv_wb().count());
             let mut write_opts = engine_traits::WriteOptions::new();
             write_opts.set_sync(need_sync);
             self.kv_wb().write_opt(&write_opts).unwrap_or_else(|e| {
@@ -1567,7 +1568,7 @@ where
         
         let locs = ctx.data_locations.lock().unwrap();
         if let Some(offset) = locs.get(&lockey.to_vec()) {
-            let value = &offset.to_be_bytes();
+            let value = format!("{}", &offset).into_bytes();
 
             self.metrics.size_diff_hint += key.len() as i64;
             self.metrics.size_diff_hint += value.len() as i64;
@@ -1579,23 +1580,23 @@ where
                     self.metrics.lock_cf_written_bytes += value.len() as u64;
                 }
                 // TODO: check whether cf exists or not.
-                ctx.kv_wb.put_cf(cf, key, value).unwrap_or_else(|e| {
+                ctx.kv_wb.put_cf(cf, key, &value).unwrap_or_else(|e| {
                     panic!(
                         "{} failed to write ({}, {}) to cf {}: {:?}",
                         self.tag,
                         log_wrappers::Value::key(key),
-                        log_wrappers::Value::value(value),
+                        log_wrappers::Value::value(&value),
                         cf,
                         e
                     )
                 });
             } else {
-                ctx.kv_wb.put(key, value).unwrap_or_else(|e| {
+                ctx.kv_wb.put(key, &value).unwrap_or_else(|e| {
                     panic!(
                         "{} failed to write ({}, {}): {:?}",
                         self.tag,
                         log_wrappers::Value::key(key),
-                        log_wrappers::Value::value(value),
+                        log_wrappers::Value::value(&value),
                         e
                     );
                 });

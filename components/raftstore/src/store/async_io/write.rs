@@ -547,17 +547,11 @@ where
                         self.store_id, self.tag, e
                     );
                 });
-            dbg!(&size);
-            dbg!(&offsets);
-            // dbg!(keys.len());
-
-            // let it = keys.iter().zip(offsets.iter());
 
             // pair offsets to keys we have inserted and add to hashmap
             let mut locs = self.data_locations.lock().unwrap();
             for o in offsets {
                 let key = key_queue.pop_front();
-                dbg!(&key);
                 match key {
                     Some(k) => { locs.insert(k.to_vec(), o); },
                     None => {

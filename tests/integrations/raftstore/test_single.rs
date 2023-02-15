@@ -35,6 +35,28 @@ fn test_simple_put<T: Simulator>(cluster: &mut Cluster<T>) {
     }
 }
 
+fn test_even_simpler_put<T: Simulator>(cluster: &mut Cluster<T>) {
+    cluster.run();
+
+    let mut kvs: Vec<_> = (1..2)
+        .map(|i| {
+            (
+                format!("key{}", i).into_bytes(),
+                format!("value{}", i).into_bytes(),
+            )
+        })
+        .collect();
+
+    for kv in kvs.iter() {
+        cluster.must_put(&kv.0, &kv.1);
+    }
+
+    for kv in kvs.iter() {
+        let v = cluster.get(&kv.0);
+        assert_eq!(v.as_ref(), Some(&kv.1));
+    }
+}
+
 fn test_put<T: Simulator>(cluster: &mut Cluster<T>) {
     cluster.run();
 
@@ -177,6 +199,12 @@ fn test_put_large_entry<T: Simulator>(cluster: &mut Cluster<T>) {
 fn test_node_simple_put() {
     let mut cluster = new_node_cluster(0, 1);
     test_simple_put(&mut cluster);
+}
+
+#[test]
+fn test_node_simplest_put() {
+    let mut cluster = new_node_cluster(0, 1);
+    test_even_simpler_put(&mut cluster);
 }    
 
 #[test]

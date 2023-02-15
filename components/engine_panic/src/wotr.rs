@@ -12,6 +12,10 @@ impl WOTRExt for PanicEngine {
     fn register_valuelog(&mut self, logobj: Arc<Self::WOTR>) -> Result<()> {
         panic!()
     }
+
+    fn have_wotr(&self) {
+        panic!()
+    }
 }
 
 #[derive(Debug)]
