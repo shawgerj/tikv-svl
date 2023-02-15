@@ -10,6 +10,30 @@ use tikv_util::config::*;
 use tikv_util::time::Instant;
 
 // TODO add epoch not match test cases.
+fn test_simple_put<T: Simulator>(cluster: &mut Cluster<T>) {
+    cluster.run();
+
+    let mut kvs: Vec<_> = (1..100)
+        .map(|i| {
+            (
+                format!("key{}", i).into_bytes(),
+                format!("value{}", i).into_bytes(),
+            )
+        })
+        .collect();
+
+    for kv in kvs.iter() {
+        cluster.must_put(&kv.0, &kv.1);
+    }
+
+    let mut rng = rand::thread_rng();
+    for _ in 0..50 {
+        let (key, value) = kvs.choose(&mut rng).unwrap();
+        let v = cluster.get(key);
+
+        assert_eq!(v.as_ref(), Some(value));
+    }
+}
 
 fn test_put<T: Simulator>(cluster: &mut Cluster<T>) {
     cluster.run();
@@ -148,6 +172,12 @@ fn test_put_large_entry<T: Simulator>(cluster: &mut Cluster<T>) {
     let res = cluster.put(b"key", large_value.as_slice());
     assert!(res.as_ref().err().unwrap().has_raft_entry_too_large());
 }
+
+#[test]
+fn test_node_simple_put() {
+    let mut cluster = new_node_cluster(0, 1);
+    test_simple_put(&mut cluster);
+}    
 
 #[test]
 fn test_node_put() {
