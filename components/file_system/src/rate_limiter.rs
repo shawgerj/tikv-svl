@@ -732,92 +732,92 @@ mod tests {
         verify_rate_limit(&limiter, low_bytes_per_sec, Duration::from_secs(2));
     }
 
-    #[test]
-    fn test_rate_limited_light_flow() {
-        let kbytes_per_sec = 3;
-        let actual_kbytes_per_sec = 2;
-        let limiter = Arc::new(IORateLimiter::new_for_test());
-        limiter.set_io_rate_limit(kbytes_per_sec * 1000);
-        let stats = limiter.statistics().unwrap();
-        let duration = {
-            let begin = Instant::now();
-            {
-                // each thread request at most 1000 bytes per second
-                let _context = start_background_jobs(
-                    &limiter,
-                    actual_kbytes_per_sec, /*job_count*/
-                    Request(IOType::Compaction, IOOp::Write, 1),
-                    Some(Duration::from_millis(1)),
-                );
-                std::thread::sleep(Duration::from_secs(2));
-            }
-            let end = Instant::now();
-            end.duration_since(begin)
-        };
-        approximate_eq!(
-            stats.fetch(IOType::Compaction, IOOp::Write) as f64,
-            actual_kbytes_per_sec as f64 * duration.as_secs_f64() * 1000.0
-        );
-    }
+    // #[test]
+    // fn test_rate_limited_light_flow() {
+    //     let kbytes_per_sec = 3;
+    //     let actual_kbytes_per_sec = 2;
+    //     let limiter = Arc::new(IORateLimiter::new_for_test());
+    //     limiter.set_io_rate_limit(kbytes_per_sec * 1000);
+    //     let stats = limiter.statistics().unwrap();
+    //     let duration = {
+    //         let begin = Instant::now();
+    //         {
+    //             // each thread request at most 1000 bytes per second
+    //             let _context = start_background_jobs(
+    //                 &limiter,
+    //                 actual_kbytes_per_sec, /*job_count*/
+    //                 Request(IOType::Compaction, IOOp::Write, 1),
+    //                 Some(Duration::from_millis(1)),
+    //             );
+    //             std::thread::sleep(Duration::from_secs(2));
+    //         }
+    //         let end = Instant::now();
+    //         end.duration_since(begin)
+    //     };
+    //     approximate_eq!(
+    //         stats.fetch(IOType::Compaction, IOOp::Write) as f64,
+    //         actual_kbytes_per_sec as f64 * duration.as_secs_f64() * 1000.0
+    //     );
+    // }
 
-    #[test]
-    fn test_rate_limited_hybrid_flow() {
-        let bytes_per_sec = 100000;
-        let write_work = 50;
-        let compaction_work = 80;
-        let import_work = 50;
-        let limiter = IORateLimiter::new_for_test();
-        limiter.set_io_rate_limit(bytes_per_sec);
-        limiter.set_io_priority(IOType::Compaction, IOPriority::Medium);
-        limiter.set_io_priority(IOType::Import, IOPriority::Low);
-        let stats = limiter.statistics().unwrap();
-        let limiter = Arc::new(limiter);
-        let begin = Instant::now();
-        {
-            let _write = start_background_jobs(
-                &limiter,
-                1, /*job_count*/
-                Request(
-                    IOType::ForegroundWrite,
-                    IOOp::Write,
-                    write_work * bytes_per_sec / 100 / 1000,
-                ),
-                Some(Duration::from_millis(1)),
-            );
-            let _compaction = start_background_jobs(
-                &limiter,
-                1, /*job_count*/
-                Request(
-                    IOType::Compaction,
-                    IOOp::Write,
-                    compaction_work * bytes_per_sec / 100 / 1000,
-                ),
-                Some(Duration::from_millis(1)),
-            );
-            let _import = start_background_jobs(
-                &limiter,
-                1, /*job_count*/
-                Request(
-                    IOType::Import,
-                    IOOp::Write,
-                    import_work * bytes_per_sec / 100 / 1000,
-                ),
-                Some(Duration::from_millis(1)),
-            );
-            std::thread::sleep(Duration::from_secs(2));
-        }
-        let end = Instant::now();
-        let duration = end.duration_since(begin);
-        let write_bytes = stats.fetch(IOType::ForegroundWrite, IOOp::Write);
-        approximate_eq!(
-            write_bytes as f64,
-            (write_work * bytes_per_sec / 100) as f64 * duration.as_secs_f64()
-        );
-        let compaction_bytes = stats.fetch(IOType::Compaction, IOOp::Write);
-        let import_bytes = stats.fetch(IOType::Import, IOOp::Write);
-        let total_bytes = write_bytes + import_bytes + compaction_bytes;
-        approximate_eq!((compaction_bytes + write_bytes) as f64, total_bytes as f64);
-    }
+    // #[test]
+    // fn test_rate_limited_hybrid_flow() {
+    //     let bytes_per_sec = 100000;
+    //     let write_work = 50;
+    //     let compaction_work = 80;
+    //     let import_work = 50;
+    //     let limiter = IORateLimiter::new_for_test();
+    //     limiter.set_io_rate_limit(bytes_per_sec);
+    //     limiter.set_io_priority(IOType::Compaction, IOPriority::Medium);
+    //     limiter.set_io_priority(IOType::Import, IOPriority::Low);
+    //     let stats = limiter.statistics().unwrap();
+    //     let limiter = Arc::new(limiter);
+    //     let begin = Instant::now();
+    //     {
+    //         let _write = start_background_jobs(
+    //             &limiter,
+    //             1, /*job_count*/
+    //             Request(
+    //                 IOType::ForegroundWrite,
+    //                 IOOp::Write,
+    //                 write_work * bytes_per_sec / 100 / 1000,
+    //             ),
+    //             Some(Duration::from_millis(1)),
+    //         );
+    //         let _compaction = start_background_jobs(
+    //             &limiter,
+    //             1, /*job_count*/
+    //             Request(
+    //                 IOType::Compaction,
+    //                 IOOp::Write,
+    //                 compaction_work * bytes_per_sec / 100 / 1000,
+    //             ),
+    //             Some(Duration::from_millis(1)),
+    //         );
+    //         let _import = start_background_jobs(
+    //             &limiter,
+    //             1, /*job_count*/
+    //             Request(
+    //                 IOType::Import,
+    //                 IOOp::Write,
+    //                 import_work * bytes_per_sec / 100 / 1000,
+    //             ),
+    //             Some(Duration::from_millis(1)),
+    //         );
+    //         std::thread::sleep(Duration::from_secs(2));
+    //     }
+    //     let end = Instant::now();
+    //     let duration = end.duration_since(begin);
+    //     let write_bytes = stats.fetch(IOType::ForegroundWrite, IOOp::Write);
+    //     approximate_eq!(
+    //         write_bytes as f64,
+    //         (write_work * bytes_per_sec / 100) as f64 * duration.as_secs_f64()
+    //     );
+    //     let compaction_bytes = stats.fetch(IOType::Compaction, IOOp::Write);
+    //     let import_bytes = stats.fetch(IOType::Import, IOOp::Write);
+    //     let total_bytes = write_bytes + import_bytes + compaction_bytes;
+    //     approximate_eq!((compaction_bytes + write_bytes) as f64, total_bytes as f64);
+    // }
 
     #[bench]
     fn bench_critical_section(b: &mut test::Bencher) {

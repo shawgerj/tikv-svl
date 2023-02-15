@@ -52,6 +52,8 @@ use pd_client::PdClient;
 pub use raftstore::store::util::{find_peer, new_learner_peer, new_peer};
 
 pub fn must_get(engine: &Arc<DB>, cf: &str, key: &[u8], value: Option<&[u8]>) {
+    dbg!(&key);
+    
     for _ in 1..300 {
         let res = engine.c().get_value_cf_valuelog(cf, &keys::data_key(key)).unwrap();
         if let (Some(value), Some(res)) = (value, res.as_ref()) {
@@ -625,6 +627,7 @@ pub fn create_test_engine(
     Engines<RocksEngine, RocksEngine>,
     Option<Arc<DataKeyManager>>,
     TempDir,
+    Arc<RocksWOTR>,
 ) {
     let dir = test_util::temp_dir("test_cluster", cfg.prefer_mem);
     let key_manager =
@@ -681,12 +684,13 @@ pub fn create_test_engine(
     engine.set_shared_block_cache(shared_block_cache);
     raft_engine.set_shared_block_cache(shared_block_cache);
 
-    let wotr = Rc::new(RocksWOTR::new(dir.path().join("wotrlog.txt").to_str().unwrap()));
+    let wotr = Arc::new(RocksWOTR::new(dir.path().join("wotrlog.txt").to_str().unwrap()));
+    assert!(engine.register_valuelog(wotr.clone()).is_ok());
+    assert!(raft_engine.register_valuelog(wotr.clone()).is_ok());
+
     let engines = Engines::new(engine, raft_engine);
-    assert!(engines.kv.register_valuelog(wotr.clone()).is_ok());
-    assert!(engines.raft.register_valuelog(wotr.clone()).is_ok());
     
-    (engines, key_manager, dir)
+    (engines, key_manager, dir, wotr)
 }
 
 pub fn configure_for_request_snapshot<T: Simulator>(cluster: &mut Cluster<T>) {

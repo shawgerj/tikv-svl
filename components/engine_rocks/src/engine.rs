@@ -10,6 +10,7 @@ use engine_traits::{
 };
 use rocksdb::{DBIterator, Writable, DB};
 
+use crate::RocksWOTR;
 use crate::db_vector::RocksDBVector;
 use crate::options::RocksReadOptions;
 use crate::rocks_metrics::{
@@ -25,6 +26,7 @@ use crate::{RocksEngineIterator, RocksSnapshot};
 #[derive(Clone, Debug)]
 pub struct RocksEngine {
     db: Arc<DB>,
+    wotr: Option<Arc<RocksWOTR>>,
     shared_block_cache: bool,
 }
 
@@ -32,6 +34,7 @@ impl RocksEngine {
     pub fn from_db(db: Arc<DB>) -> Self {
         RocksEngine {
             db,
+            wotr: None,
             shared_block_cache: false,
         }
     }
@@ -62,6 +65,14 @@ impl RocksEngine {
 
     pub fn set_shared_block_cache(&mut self, enable: bool) {
         self.shared_block_cache = enable;
+    }
+
+    pub fn set_wotr(&mut self, logobj: Arc<RocksWOTR>) {
+        self.wotr = Some(logobj);
+    }
+
+    pub fn have_wotr(&self) {
+        assert!(self.wotr.is_some());
     }
 }
 
@@ -171,6 +182,7 @@ impl Peekable for RocksEngine {
         cf: &str,
         key: &[u8],
     ) -> Result<Option<RocksDBVector>> {
+        dbg!(&key);
         let opt: RocksReadOptions = opts.into();
         let handle = get_cf_handle(&self.db, cf)?;
         let v = self.db.get_external_cf(handle, key, &opt.into_raw())?;

@@ -60,13 +60,13 @@ pub mod raft {
     use crate::ctor::{CFOptions, DBOptions, EngineConstructorExt};
     use engine_traits::Result;
 
-    #[cfg(feature = "test-engine-raft-panic")]
-    pub use engine_panic::{
-        PanicEngine as RaftTestEngine, PanicEngineIterator as RaftTestEngineIterator,
-        PanicSnapshot as RaftTestSnapshot, PanicWriteBatch as RaftTestWriteBatch,
-    };
+    // #[cfg(feature = "test-engine-raft-panic")]
+    // pub use engine_panic::{
+    //     PanicEngine as RaftTestEngine, PanicEngineIterator as RaftTestEngineIterator,
+    //     PanicSnapshot as RaftTestSnapshot, PanicWriteBatch as RaftTestWriteBatch,
+    // };
 
-    #[cfg(feature = "test-engine-raft-rocksdb")]
+    // #[cfg(feature = "test-engine-raft-rocksdb")]
     pub use engine_rocks::{
         RocksEngine as RaftTestEngine, RocksEngineIterator as RaftTestEngineIterator,
         RocksSnapshot as RaftTestSnapshot, RocksWriteBatch as RaftTestWriteBatch,
@@ -115,13 +115,13 @@ pub mod kv {
     use crate::ctor::{CFOptions, DBOptions, EngineConstructorExt};
     use engine_traits::Result;
 
-    #[cfg(feature = "test-engine-kv-panic")]
-    pub use engine_panic::{
-        PanicEngine as KvTestEngine, PanicEngineIterator as KvTestEngineIterator,
-        PanicSnapshot as KvTestSnapshot, PanicWriteBatch as KvTestWriteBatch,
-    };
+    // #[cfg(feature = "test-engine-kv-panic")]
+    // pub use engine_panic::{
+    //     PanicEngine as KvTestEngine, PanicEngineIterator as KvTestEngineIterator,
+    //     PanicSnapshot as KvTestSnapshot, PanicWriteBatch as KvTestWriteBatch,
+    // };
 
-    #[cfg(feature = "test-engine-kv-rocksdb")]
+    // #[cfg(feature = "test-engine-kv-rocksdb")]
     pub use engine_rocks::{
         RocksEngine as KvTestEngine, RocksEngineIterator as KvTestEngineIterator,
         RocksSnapshot as KvTestSnapshot, RocksWriteBatch as KvTestWriteBatch,

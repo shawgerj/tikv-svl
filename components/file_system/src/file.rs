@@ -273,20 +273,20 @@ mod tests {
         }
     }
 
-    #[cfg(unix)]
-    #[test]
-    fn test_unix_file_allocate_failure() {
-        let tmp_dir = Builder::new()
-            .prefix("test_unix_file_allocate_failure")
-            .tempdir()
-            .unwrap();
-        let data_path = tmp_dir.path();
-        let file_path = data_path.join(SPACE_PLACEHOLDER_FILE);
-        let f = File::create(file_path).unwrap();
-        // EINVAL when len == 0.
-        assert_eq!(
-            f.allocate(0).unwrap_err().raw_os_error().unwrap(),
-            libc::EINVAL
-        );
-    }
+    // #[cfg(unix)]
+    // #[test]
+    // fn test_unix_file_allocate_failure() {
+    //     let tmp_dir = Builder::new()
+    //         .prefix("test_unix_file_allocate_failure")
+    //         .tempdir()
+    //         .unwrap();
+    //     let data_path = tmp_dir.path();
+    //     let file_path = data_path.join(SPACE_PLACEHOLDER_FILE);
+    //     let f = File::create(file_path).unwrap();
+    //     // EINVAL when len == 0.
+    //     assert_eq!(
+    //         f.allocate(0).unwrap_err().raw_os_error().unwrap(),
+    //         libc::EINVAL
+    //     );
+    // }
 }

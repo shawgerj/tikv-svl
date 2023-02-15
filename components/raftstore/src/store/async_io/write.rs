@@ -20,6 +20,7 @@ use crate::store::util::LatencyInspector;
 use crate::store::PeerMsg;
 use crate::Result;
 
+use std::collections::VecDeque;
 use collections::HashMap;
 use crossbeam::channel::{bounded, Receiver, Sender, TryRecvError};
 use engine_traits::{
@@ -344,6 +345,7 @@ where
     batch: WriteTaskBatch<EK, ER>,
     cfg_tracker: Tracker<Config>,
     data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
+    written_keys: Arc<Mutex<VecDeque<Vec<u8>>>>,
     raft_write_size_limit: usize,
     metrics: StoreWriteMetrics,
     message_metrics: RaftSendMessageMetrics,
@@ -367,6 +369,7 @@ where
         trans: T,
         cfg: &Arc<VersionTrack<Config>>,
         locs_hm: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
+        key_queue: Arc<Mutex<VecDeque<Vec<u8>>>>,
     ) -> Self {
         let batch = WriteTaskBatch::new(
             engines.kv.write_batch_with_cap(KV_WB_DEFAULT_SIZE),
@@ -378,6 +381,7 @@ where
             .get_perf_context(cfg.value().perf_level, PerfContextKind::RaftstoreStore);
         let cfg_tracker = cfg.clone().tracker(tag.clone());
         let data_locations = locs_hm.clone();
+        let written_keys = key_queue.clone();
         Self {
             store_id,
             tag,
@@ -388,6 +392,7 @@ where
             batch,
             cfg_tracker,
             data_locations,
+            written_keys,
             raft_write_size_limit: cfg.value().raft_write_size_limit.0 as usize,
             metrics: StoreWriteMetrics::new(cfg.value().waterfall_metrics),
             message_metrics: Default::default(),
@@ -483,6 +488,12 @@ where
         let timer = Instant::now();
 
         self.batch.before_write_to_db(&self.metrics);
+        
+        let mut key_queue = self.written_keys.lock().unwrap();
+        let keys = self.engines.raft.get_keys(&self.batch.raft_wb).unwrap();
+        for k in keys {
+            key_queue.push_back(k.to_vec());
+        }
 
         fail_point!("raft_before_save");
 
@@ -536,16 +547,24 @@ where
                         self.store_id, self.tag, e
                     );
                 });
+            dbg!(&size);
             dbg!(&offsets);
             // dbg!(keys.len());
 
             // let it = keys.iter().zip(offsets.iter());
 
-            // // add key-offset pairs to hashmap
-            // let mut locs = self.data_locations.lock().unwrap();
-            // for (k, o) in it {
-            //     locs.insert(k.to_vec(), *o);
-            // }
+            // pair offsets to keys we have inserted and add to hashmap
+            let mut locs = self.data_locations.lock().unwrap();
+            for o in offsets {
+                let key = key_queue.pop_front();
+                dbg!(&key);
+                match key {
+                    Some(k) => { locs.insert(k.to_vec(), o); },
+                    None => {
+                        panic!("tried to match an offset but missing key");
+                    }
+                };
+            }
 
             // shrink (split up operation from original)
             self.engines.raft.shrink(
@@ -724,6 +743,7 @@ where
         trans: &T,
         cfg: &Arc<VersionTrack<Config>>,
         data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
+        key_queue: Arc<Mutex<VecDeque<Vec<u8>>>>,
     ) -> Result<()> {
         let pool_size = cfg.value().store_io_pool_size;
         for i in 0..pool_size {
@@ -738,6 +758,7 @@ where
                 trans.clone(),
                 cfg,
                 data_locations.clone(),
+                key_queue.clone(),
             );
             info!("starting store writer {}", i);
             let t = thread::Builder::new().name(thd_name!(tag)).spawn(move || {

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 use crate::engine::RocksEngine;
 //use crate::RocksWriteBatch;
 //use crate::options::RocksReadOptions;
@@ -11,12 +11,14 @@ impl WOTRExt for RocksEngine {
     type DBVector = RocksDBVector;
     type WOTR = RocksWOTR;
     
-    fn register_valuelog(&self, logobj: Rc<Self::WOTR>) -> Result<()> {
+    fn register_valuelog(&mut self, logobj: Arc<Self::WOTR>) -> Result<()> {
+        self.set_wotr(logobj.clone());
         let w = logobj.as_inner();
         self.as_inner().set_wotr(w).map_err(Error::Engine)
     }
 }
 
+#[derive(Debug)]
 pub struct RocksWOTR {
     w: RawWOTR,
 }

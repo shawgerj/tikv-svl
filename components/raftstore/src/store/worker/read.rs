@@ -16,6 +16,7 @@ use kvproto::metapb;
 use kvproto::raft_cmdpb::{
     CmdType, RaftCmdRequest, RaftCmdResponse, ReadIndexResponse, Request, Response,
 };
+use raft::eraftpb::Entry;
 use time::Timespec;
 
 use crate::errors::RAFTSTORE_IS_BUSY;
@@ -49,9 +50,11 @@ pub trait ReadExecutor<E: KvEngine> {
         let engine = self.get_engine();
         let mut resp = Response::default();
         let res = if !req.get_get().get_cf().is_empty() {
+            dbg!("first case");
+            engine.have_wotr();
             let cf = req.get_get().get_cf();
             engine
-                .get_value_cf(cf, &keys::data_key(key))
+                .get_msg_cf_valuelog(cf, &keys::data_key(key))
                 .unwrap_or_else(|e| {
                     panic!(
                         "[region {}] failed to get {} with cf {}: {:?}",
@@ -62,7 +65,7 @@ pub trait ReadExecutor<E: KvEngine> {
                     )
                 })
         } else {
-            engine.get_value(&keys::data_key(key)).unwrap_or_else(|e| {
+            engine.get_msg_valuelog(&keys::data_key(key)).unwrap_or_else(|e| {
                 panic!(
                     "[region {}] failed to get {}: {:?}",
                     region.get_id(),
@@ -71,10 +74,30 @@ pub trait ReadExecutor<E: KvEngine> {
                 )
             })
         };
-        if let Some(res) = res {
-            resp.mut_get().set_value(res.to_vec());
-        }
+        let entry: Entry = match res {
+            None => panic!("couldn't match to raft entry"),
+            Some(entry) => entry,
+        };
 
+        let index = entry.get_index();
+        let term = entry.get_term();
+        let data = entry.get_data();
+        
+        if !data.is_empty() {
+            let cmd: RaftCmdRequest = util::parse_data_at(data, index, "tag");
+            let requests = cmd.get_requests();
+
+            for req in requests {
+                let cmd_type = req.get_cmd_type();
+                match cmd_type {
+                    CmdType::Put => {
+                        let (key, value) = (req.get_put().get_key(), req.get_put().get_value());
+                        resp.mut_get().set_value(value.to_vec());
+                    }
+                    _ => {}
+                };
+            }
+        }
         Ok(resp)
     }
 

@@ -1,4 +1,5 @@
-use std::rc::Rc;
+use std::fmt::Debug;
+use std::sync::Arc;
 use crate::engine::PanicEngine;
 use crate::db_vector::PanicDBVector;
 use engine_traits::{Result, WOTRExt, WOTR, ReadOptions};
@@ -8,11 +9,12 @@ impl WOTRExt for PanicEngine {
     type DBVector = PanicDBVector;
     type WOTR = PanicWOTR;
 
-    fn register_valuelog(&self, logobj: Rc<Self::WOTR>) -> Result<()> {
+    fn register_valuelog(&mut self, logobj: Arc<Self::WOTR>) -> Result<()> {
         panic!()
     }
 }
 
+#[derive(Debug)]
 pub struct PanicWOTR;
 
 impl WOTR for PanicWOTR {

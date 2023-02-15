@@ -2,8 +2,8 @@
 
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
-use std::rc::Rc;
 
+use std::collections::VecDeque;
 use collections::HashMap;
 use engine_rocks::{RocksEngine, RocksWOTR};
 use kvproto::raft_serverpb::RaftMessage;
@@ -39,7 +39,7 @@ impl Transport for MockTransport {
 }
 
 fn create_tmp_engine(dir: &TempDir) -> Engines<RocksEngine, RocksEngine> {
-    let w = Rc::new(RocksWOTR::new(dir.path().join("wotrlog.txt").to_str().unwrap()));
+    let w = Arc::new(RocksWOTR::new(dir.path().join("wotrlog.txt").to_str().unwrap()));
     let db = Arc::new(
         engine_rocks::raw_util::new_engine(
             dir.path().join("db").to_str().unwrap(),
@@ -58,7 +58,7 @@ fn create_tmp_engine(dir: &TempDir) -> Engines<RocksEngine, RocksEngine> {
         )
         .unwrap(),
     );
-    let engines = Engines::new(RocksEngine::from_db(db), RocksEngine::from_db(raft_db));
+    let mut engines = Engines::new(RocksEngine::from_db(db), RocksEngine::from_db(raft_db));
     assert!(engines.kv.register_valuelog(w.clone()).is_ok());
     assert!(engines.raft.register_valuelog(w.clone()).is_ok());
     engines
@@ -98,6 +98,7 @@ fn start_raftstore(
     let cfg_track = Arc::new(VersionTrack::new(cfg.raft_store.clone()));
     let pd_worker = LazyWorker::new("store-config");
     let data_locations = Arc::new(Mutex::new(HashMap::default()));
+    let key_queue = Arc::new(Mutex::new(VecDeque::default()));
     let (split_check_scheduler, _) = dummy_scheduler();
 
     system
@@ -120,6 +121,7 @@ fn start_raftstore(
             CollectorRegHandle::new_for_test(),
             None,
             data_locations,
+            key_queue,
         )
         .unwrap();
 

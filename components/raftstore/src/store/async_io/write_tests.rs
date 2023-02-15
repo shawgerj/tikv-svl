@@ -177,6 +177,7 @@ impl TestWorker {
         let (notify_tx, notify_rx) = unbounded();
         let notifier = TestNotifier { tx: notify_tx };
         let locs_hm = Arc::new(Mutex::new(HashMap::default()));
+        let key_queue = Arc::new(Mutex::new(VecDeque::default()));
         Self {
             worker: Worker::new(
                 1,
@@ -187,6 +188,7 @@ impl TestWorker {
                 trans,
                 &Arc::new(VersionTrack::new(cfg.clone())),
                 locs_hm,
+                key_queue,
             ),
             msg_rx,
             notify_rx,
@@ -208,6 +210,7 @@ impl TestWriters {
         let notifier = TestNotifier { tx: notify_tx };
         let mut writers = StoreWriters::new();
         let locs_hm = Arc::new(Mutex::new(HashMap::default()));
+        let key_queue = Arc::new(Mutex::new(VecDeque::default()));
         writers
             .spawn(
                 1,
@@ -216,6 +219,7 @@ impl TestWriters {
                 &trans,
                 &Arc::new(VersionTrack::new(cfg.clone())),
                 locs_hm,
+                key_queue,
             )
             .unwrap();
         Self {

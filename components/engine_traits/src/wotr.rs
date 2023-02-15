@@ -1,4 +1,5 @@
-use std::rc::Rc;
+use std::fmt::Debug;
+use std::sync::Arc;
 use crate::*;
 //use crate::options::{ReadOptions};
 
@@ -10,10 +11,10 @@ pub trait WOTRExt: Sized {
 //    type WriteBatch: WriteBatch<E>;
     type DBVector: DBVector;
     
-    fn register_valuelog(&self, logobj: Rc<Self::WOTR>) -> Result<()>;
+    fn register_valuelog(&mut self, logobj: Arc<Self::WOTR>) -> Result<()>;
 }
 
 // wotr interface (for now, just create)
-pub trait WOTR: Sized {
+pub trait WOTR: Debug + Sized + Sync + Send + 'static {
     fn new(logpath: &str) -> Self;
 }

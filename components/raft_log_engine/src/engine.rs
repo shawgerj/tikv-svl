@@ -268,7 +268,7 @@ impl RaftEngine for RaftLogEngine {
         panic!()
     }
 
-    fn consume(&self, _: &Self::LogBatch, _: bool
+    fn consume(&self, _: &mut Self::LogBatch, _: bool
     ) -> Result<(usize, Vec<usize>)> {
         //        self.0.write(&mut batch.0, sync).map_err(transfer_error)
         panic!()

@@ -1,5 +1,6 @@
 // Copyright 2016 TiKV Project Authors. Licensed under Apache-2.0.
 
+use std::rc::Rc;
 use std::collections::hash_map::Entry;
 use std::error::Error as StdError;
 use std::sync::{mpsc, Arc, Mutex, RwLock};
@@ -23,10 +24,10 @@ use crate::Config;
 use collections::{HashMap, HashSet};
 use encryption_export::DataKeyManager;
 use engine_rocks::raw::DB;
-use engine_rocks::{Compat, RocksEngine, RocksSnapshot};
+use engine_rocks::{Compat, RocksEngine, RocksSnapshot, RocksWOTR};
 use engine_traits::{
     CompactExt, Engines, Iterable, MiscExt, Mutable, Peekable, WriteBatch, WriteBatchExt,
-    CF_DEFAULT, CF_RAFT,
+    CF_DEFAULT, CF_RAFT, WOTRExt,
 };
 use file_system::IORateLimiter;
 use pd_client::PdClient;
@@ -144,6 +145,7 @@ pub struct Cluster<T: Simulator> {
 
     pub paths: Vec<TempDir>,
     pub dbs: Vec<Engines<RocksEngine, RocksEngine>>,
+    pub wtrs: Vec<Arc<RocksWOTR>>,
     pub store_metas: HashMap<u64, Arc<Mutex<StoreMeta>>>,
     key_managers: Vec<Option<Arc<DataKeyManager>>>,
     pub io_rate_limiter: Option<Arc<IORateLimiter>>,
@@ -174,6 +176,7 @@ impl<T: Simulator> Cluster<T> {
             count,
             paths: vec![],
             dbs: vec![],
+            wtrs: vec![],
             store_metas: HashMap::default(),
             key_managers: vec![],
             io_rate_limiter: None,
@@ -216,9 +219,11 @@ impl<T: Simulator> Cluster<T> {
     }
 
     fn create_engine(&mut self, router: Option<RaftRouter<RocksEngine, RocksEngine>>) {
-        let (engines, key_manager, dir) =
+        let (engines, key_manager, dir, wotr) =
             create_test_engine(router, self.io_rate_limiter.clone(), &self.cfg);
+
         self.dbs.push(engines);
+        self.wtrs.push(wotr);
         self.key_managers.push(key_manager);
         self.paths.push(dir);
     }
