@@ -554,7 +554,6 @@ where
 
         // this writebatch contains <key, offset> pairs
         if !self.kv_wb_mut().is_empty() {
-            dbg!(self.kv_wb().count());
             let mut write_opts = engine_traits::WriteOptions::new();
             write_opts.set_sync(need_sync);
             self.kv_wb().write_opt(&write_opts).unwrap_or_else(|e| {
@@ -1602,7 +1601,6 @@ where
                 });
             }
         } else {
-            dbg!("second case");
             // this will probably have to change because we should be
             // writing to WOTR. Different write batch?
             self.metrics.size_diff_hint += key.len() as i64;

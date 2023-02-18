@@ -50,7 +50,6 @@ pub trait ReadExecutor<E: KvEngine> {
         let engine = self.get_engine();
         let mut resp = Response::default();
         let res = if !req.get_get().get_cf().is_empty() {
-            dbg!("first case");
             let cf = req.get_get().get_cf();
             engine
                 .get_msg_cf_valuelog(cf, &keys::data_key(key))
@@ -74,7 +73,7 @@ pub trait ReadExecutor<E: KvEngine> {
             })
         };
         let entry: Entry = match res {
-            None => panic!("couldn't match to raft entry"),
+            None => { return Ok(resp) }, // not found
             Some(entry) => entry,
         };
 

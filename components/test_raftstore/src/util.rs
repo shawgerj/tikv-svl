@@ -1,6 +1,5 @@
 // Copyright 2018 TiKV Project Authors. Licensed under Apache-2.0.
 
-use std::rc::Rc;
 use std::fmt::Write;
 use std::path::Path;
 use std::sync::{mpsc, Arc, Mutex};
@@ -33,7 +32,7 @@ use kvproto::raft_cmdpb::{
 };
 use kvproto::raft_serverpb::{PeerState, RaftLocalState, RegionLocalState};
 use kvproto::tikvpb::TikvClient;
-use raft::eraftpb::ConfChangeType;
+use raft::eraftpb::{ConfChangeType, Entry};
 use raftstore::store::fsm::RaftRouter;
 use raftstore::store::*;
 use raftstore::Result;
@@ -51,11 +50,35 @@ use pd_client::PdClient;
 
 pub use raftstore::store::util::{find_peer, new_learner_peer, new_peer};
 
+pub fn get_value_from_entry<'a>(engine: &'a Arc<DB>,
+                        cf: &'a str,
+                        key: &'a [u8]
+) -> Option<Vec<u8>> {
+    let res = engine.c().get_msg_cf_valuelog(cf, &keys::data_key(key)).unwrap();
+    let entry: Entry = match res {
+        None => return None,
+        Some(entry) => entry,
+    };
+
+    let index = entry.get_index();
+    let data = entry.get_data();
+    
+    let cmd: RaftCmdRequest = util::parse_data_at(data, index, "tag");
+    
+    Some(cmd.get_requests().iter()
+         .filter(|r| r.get_cmd_type() == CmdType::Put)
+         .filter(|q| q.get_put().get_key() == key)
+         .map(|s| s.get_put().get_value())
+         .collect::<Vec<&[u8]>>()
+         .last().unwrap().to_vec())
+
+}   
+
 pub fn must_get(engine: &Arc<DB>, cf: &str, key: &[u8], value: Option<&[u8]>) {
     dbg!(&key);
     
     for _ in 1..300 {
-        let res = engine.c().get_value_cf_valuelog(cf, &keys::data_key(key)).unwrap();
+        let res = get_value_from_entry(engine, cf, key);
         if let (Some(value), Some(res)) = (value, res.as_ref()) {
             assert_eq!(value, &res[..]);
             return;
@@ -66,7 +89,7 @@ pub fn must_get(engine: &Arc<DB>, cf: &str, key: &[u8], value: Option<&[u8]>) {
         thread::sleep(Duration::from_millis(20));
     }
     debug!("last try to get {}", log_wrappers::hex_encode_upper(key));
-    let res = engine.c().get_value_cf_valuelog(cf, &keys::data_key(key)).unwrap();
+    let res = get_value_from_entry(engine, cf, key);
     if value.is_none() && res.is_none()
         || value.is_some() && res.is_some() && value.unwrap() == &*res.unwrap()
     {

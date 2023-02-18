@@ -13,7 +13,7 @@ use tikv_util::time::Instant;
 fn test_simple_put<T: Simulator>(cluster: &mut Cluster<T>) {
     cluster.run();
 
-    let mut kvs: Vec<_> = (1..100)
+    let kvs: Vec<_> = (1..100)
         .map(|i| {
             (
                 format!("key{}", i).into_bytes(),
@@ -38,7 +38,7 @@ fn test_simple_put<T: Simulator>(cluster: &mut Cluster<T>) {
 fn test_even_simpler_put<T: Simulator>(cluster: &mut Cluster<T>) {
     cluster.run();
 
-    let mut kvs: Vec<_> = (1..2)
+    let kvs: Vec<_> = (1..2)
         .map(|i| {
             (
                 format!("key{}", i).into_bytes(),

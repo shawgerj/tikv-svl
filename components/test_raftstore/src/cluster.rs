@@ -1,6 +1,5 @@
 // Copyright 2016 TiKV Project Authors. Licensed under Apache-2.0.
 
-use std::rc::Rc;
 use std::collections::hash_map::Entry;
 use std::error::Error as StdError;
 use std::sync::{mpsc, Arc, Mutex, RwLock};
@@ -24,10 +23,10 @@ use crate::Config;
 use collections::{HashMap, HashSet};
 use encryption_export::DataKeyManager;
 use engine_rocks::raw::DB;
-use engine_rocks::{Compat, RocksEngine, RocksSnapshot, RocksWOTR};
+use engine_rocks::{Compat, RocksEngine, RocksSnapshot};
 use engine_traits::{
     CompactExt, Engines, Iterable, MiscExt, Mutable, Peekable, WriteBatch, WriteBatchExt,
-    CF_DEFAULT, CF_RAFT, WOTRExt,
+    CF_DEFAULT, CF_RAFT,
 };
 use file_system::IORateLimiter;
 use pd_client::PdClient;
