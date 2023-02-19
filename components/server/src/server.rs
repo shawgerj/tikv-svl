@@ -23,7 +23,6 @@ use std::{
     },
     time::Duration,
     u64,
-    rc::Rc,
 };
 
 use cdc::{CdcConfigManager, MemoryQuota};
@@ -191,7 +190,7 @@ struct TiKVServer<ER: RaftEngine> {
     concurrency_manager: ConcurrencyManager,
     env: Arc<Environment>,
     background_worker: Worker,
-    valuelog_mgr: Rc<RocksWOTR>,
+    valuelog_mgr: Arc<RocksWOTR>,
 }
 
 struct TiKVEngines<EK: KvEngine, ER: RaftEngine> {
@@ -259,7 +258,7 @@ impl<ER: RaftEngine> TiKVServer<ER> {
         let latest_ts = block_on(pd_client.get_tso()).expect("failed to get timestamp from PD");
         let concurrency_manager = ConcurrencyManager::new(latest_ts);
 
-        let valuelog_mgr = Rc::new(RocksWOTR::new(&config.valuelog.path));
+        let valuelog_mgr = Arc::new(RocksWOTR::new(&config.valuelog.path));
 
         TiKVServer {
             config,
@@ -1307,7 +1306,7 @@ impl TiKVServer<RocksEngine> {
         kv_engine.set_shared_block_cache(shared_block_cache);
         raft_engine.set_shared_block_cache(shared_block_cache);
 
-        let engines = Engines::new(kv_engine, raft_engine);
+        let mut engines = Engines::new(kv_engine, raft_engine);
         assert!(engines.raft.register_valuelog(self.valuelog_mgr.clone()).is_ok());
         assert!(engines.kv.register_valuelog(self.valuelog_mgr.clone()).is_ok());
 

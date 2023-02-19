@@ -533,8 +533,6 @@ where
             };
             raft_before_save_on_store_1();
 
-
-            let keys = self.engines.raft.get_keys(&self.batch.raft_wb).unwrap();
             let (size, offsets) = self.engines
                 .raft
                 .consume(

@@ -28,7 +28,7 @@ use crate::store::{
 use crate::Error;
 use crate::Result;
 
-use engine_traits::{KvEngine, RaftEngine, Snapshot, WOTRExt};
+use engine_traits::{KvEngine, RaftEngine, Snapshot};
 use tikv_util::codec::number::decode_u64;
 use tikv_util::lru::LruCache;
 use tikv_util::time::monotonic_raw_now;
@@ -78,7 +78,6 @@ pub trait ReadExecutor<E: KvEngine> {
         };
 
         let index = entry.get_index();
-        let term = entry.get_term();
         let data = entry.get_data();
         
         if !data.is_empty() {
@@ -89,7 +88,7 @@ pub trait ReadExecutor<E: KvEngine> {
                 let cmd_type = req.get_cmd_type();
                 match cmd_type {
                     CmdType::Put => {
-                        let (key, value) = (req.get_put().get_key(), req.get_put().get_value());
+                        let value = req.get_put().get_value();
                         resp.mut_get().set_value(value.to_vec());
                     }
                     _ => {}

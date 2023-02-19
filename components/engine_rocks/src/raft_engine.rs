@@ -76,7 +76,7 @@ impl RaftEngineReadOnly for RocksEngine {
             &start_key,
             &end_key,
             true, // fill_cache
-            |key, value| {
+            |key, _value| {
                 let realvalue = self.get_valuelog(&key).unwrap().unwrap();
                 let mut entry = Entry::default();
                 entry.merge_from_bytes(&realvalue)?;
