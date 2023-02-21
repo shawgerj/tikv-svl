@@ -2626,9 +2626,11 @@ impl TiKvConfig {
     pub fn infer_valuelog_path(&self, data_dir: Option<&str>) -> Result<String, Box<dyn Error>> {
         if self.valuelog.path.is_empty() {
             let data_dir = data_dir.unwrap_or(&self.storage.data_dir);
-            config::canonicalize_sub_path(data_dir, "valuelog")
+            let p = config::canonicalize_path(data_dir).unwrap();
+            Ok(format!("{}/{}", p, "valuelog.txt"))
         } else {
-            config::canonicalize_path(&self.valuelog.path)
+            let p = config::canonicalize_path(&self.valuelog.path).unwrap();
+            Ok(format!("{}/{}", p, "valuelog.txt"))
         }
     }
 

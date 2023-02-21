@@ -533,7 +533,7 @@ where
         // do writes to wotr first (does it matter?)
         if !self.kv_wb_wotr_mut().is_empty() {
             let mut write_opts = engine_traits::WriteOptions::new();
-            write_opts.set_sync(need_sync);
+            write_opts.set_sync(true);
             self.kv_wb_wotr().write_valuelog(&write_opts).unwrap_or_else(|e| {
                 panic!("failed to write to engine: {:?}", e);
             });
@@ -555,7 +555,8 @@ where
         // this writebatch contains <key, offset> pairs
         if !self.kv_wb_mut().is_empty() {
             let mut write_opts = engine_traits::WriteOptions::new();
-            write_opts.set_sync(need_sync);
+            write_opts.set_sync(false);
+            write_opts.set_disable_wal(true);
             self.kv_wb().write_opt(&write_opts).unwrap_or_else(|e| {
                 panic!("failed to write to engine: {:?}", e);
             });

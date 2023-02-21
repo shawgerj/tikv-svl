@@ -196,6 +196,7 @@ impl RaftEngine for RocksEngine {
         let bytes = batch.data_size();
         let mut opts = WriteOptions::default();
         opts.set_sync(sync_log);
+        opts.set_disable_wal(true);
         let offsets = batch.write_valuelog(&opts)?;
         batch.clear();
         Ok((bytes, offsets))
