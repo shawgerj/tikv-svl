@@ -7,12 +7,16 @@ use crate::{
     self as kv, Error, Error as KvError, ErrorInner, Iterator as EngineIterator,
     Snapshot as EngineSnapshot, SnapshotExt,
 };
+
+use kvproto::raft_cmdpb::{RaftCmdRequest, CmdType};
+use raft::eraftpb::Entry;
 use engine_traits::CfName;
 use engine_traits::{IterOptions, Peekable, ReadOptions, Snapshot};
 use kvproto::kvrpcpb::ExtraOp as TxnExtraOp;
 use raftstore::store::{RegionIterator, RegionSnapshot, TxnExt};
 use raftstore::Error as RaftServerError;
 use txn_types::{Key, Value};
+use raftstore::store::*;
 
 impl From<RaftServerError> for Error {
     fn from(e: RaftServerError) -> Error {
@@ -69,6 +73,33 @@ impl<S: Snapshot> EngineSnapshot for RegionSnapshot<S> {
         )));
         let v = box_try!(self.get_value_cf(cf, key.as_encoded()));
         Ok(v.map(|v| v.to_vec()))
+    }
+
+    fn get_cf_wotr(&self, cf: CfName, key: &Key) -> kv::Result<Option<Value>> {
+        fail_point!("raftkv_snapshot_get_cf_wotr", |_| Err(box_err!(
+            "injected error for get_cf"
+        )));
+        
+        let key = key.as_encoded();
+        let res = self.get_msg_cf_valuelog(cf, key)?;
+        
+        let entry: Entry = match res {
+            None => return Ok(None),
+            Some(entry) => entry,
+        };
+        
+        let index = entry.get_index();
+        let data = entry.get_data();
+        
+        let cmd: RaftCmdRequest = util::parse_data_at(data, index, "tag");
+        
+        Ok(Some(cmd.get_requests().iter()
+                .filter(|r| r.get_cmd_type() == CmdType::Put)
+                .filter(|q| q.get_put().get_key() == key)
+                .map(|s| s.get_put().get_value())
+                .collect::<Vec<&[u8]>>()
+                .last().unwrap().to_vec()))
+
     }
 
     fn get_cf_opt(&self, opts: ReadOptions, cf: CfName, key: &Key) -> kv::Result<Option<Value>> {

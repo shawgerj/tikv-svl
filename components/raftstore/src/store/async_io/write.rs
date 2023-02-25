@@ -381,7 +381,7 @@ where
             .get_perf_context(cfg.value().perf_level, PerfContextKind::RaftstoreStore);
         let cfg_tracker = cfg.clone().tracker(tag.clone());
         let data_locations = locs_hm.clone();
-        let written_keys = key_queue.clone();
+//        let keys = key_queue.clone();
         Self {
             store_id,
             tag,
@@ -392,7 +392,7 @@ where
             batch,
             cfg_tracker,
             data_locations,
-            written_keys,
+            written_keys: key_queue,
             raft_write_size_limit: cfg.value().raft_write_size_limit.0 as usize,
             metrics: StoreWriteMetrics::new(cfg.value().waterfall_metrics),
             message_metrics: Default::default(),

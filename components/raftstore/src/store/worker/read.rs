@@ -86,12 +86,9 @@ pub trait ReadExecutor<E: KvEngine> {
 
             for req in requests {
                 let cmd_type = req.get_cmd_type();
-                match cmd_type {
-                    CmdType::Put => {
+                if cmd_type == CmdType::Put {
                         let value = req.get_put().get_value();
                         resp.mut_get().set_value(value.to_vec());
-                    }
-                    _ => {}
                 };
             }
         }

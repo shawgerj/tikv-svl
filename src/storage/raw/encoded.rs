@@ -81,6 +81,10 @@ impl<S: Snapshot, API: APIVersion> Snapshot for RawEncodeSnapshot<S, API> {
         self.map_value(self.snap.get_cf_opt(opts, cf, key))
     }
 
+    fn get_cf_wotr(&self, _cf: CfName, _key: &Key) -> Result<Option<Value>> {
+        panic!()
+    }
+
     fn iter(&self, iter_opt: IterOptions) -> Result<Self::Iter> {
         Ok(RawEncodeIterator::new(
             self.snap.iter(iter_opt)?,

@@ -5,6 +5,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use kvproto::raft_cmdpb::{RaftCmdRequest, CmdType};
+use raft::eraftpb::Entry;
 use engine_rocks::get_env;
 use engine_rocks::raw::DBOptions;
 use engine_rocks::raw_util::CFOptions;
@@ -17,6 +19,7 @@ use file_system::IORateLimiter;
 use kvproto::kvrpcpb::Context;
 use tempfile::{Builder, TempDir};
 use txn_types::{Key, Value};
+use raftstore::store::*;
 
 use tikv_util::worker::{Runnable, Scheduler, Worker};
 
@@ -239,6 +242,29 @@ impl Snapshot for Arc<RocksSnapshot> {
         trace!("RocksSnapshot: get_cf"; "cf" => cf, "key" => %key);
         let v = self.get_value_cf(cf, key.as_encoded())?;
         Ok(v.map(|v| v.to_vec()))
+    }
+
+    fn get_cf_wotr(&self, cf: CfName, key: &Key) -> Result<Option<Value>> {
+        trace!("RocksSnapshot: get_cf_wotr"; "cf" => cf, "key" => %key);
+        let key = key.as_encoded();
+        let res = self.get_msg_cf_valuelog(cf, key)?;
+        
+        let entry: Entry = match res {
+            None => return Ok(None),
+            Some(entry) => entry,
+        };
+        
+        let index = entry.get_index();
+        let data = entry.get_data();
+        
+        let cmd: RaftCmdRequest = util::parse_data_at(data, index, "tag");
+        
+        Ok(Some(cmd.get_requests().iter()
+                .filter(|r| r.get_cmd_type() == CmdType::Put)
+                .filter(|q| q.get_put().get_key() == key)
+                .map(|s| s.get_put().get_value())
+                .collect::<Vec<&[u8]>>()
+                .last().unwrap().to_vec()))
     }
 
     fn get_cf_opt(&self, opts: ReadOptions, cf: CfName, key: &Key) -> Result<Option<Value>> {

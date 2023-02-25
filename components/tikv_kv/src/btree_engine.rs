@@ -243,6 +243,11 @@ impl Snapshot for BTreeEngineSnapshot {
     fn get_cf_opt(&self, _: ReadOptions, cf: CfName, key: &Key) -> EngineResult<Option<Value>> {
         self.get_cf(cf, key)
     }
+
+    fn get_cf_wotr(&self, _cf: CfName, _key: &Key) -> EngineResult<Option<Value>> {
+        panic!()
+    }
+    
     fn iter(&self, iter_opt: IterOptions) -> EngineResult<Self::Iter> {
         self.iter_cf(CF_DEFAULT, iter_opt)
     }

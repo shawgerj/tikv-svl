@@ -2493,6 +2493,11 @@ impl<S: Snapshot> Snapshot for TxnTestSnapshot<S> {
         self.snapshot.get_cf_opt(opts, cf, key)
     }
 
+    fn get_cf_wotr(&self, _cf: CfName, _key: &Key)
+                   -> tikv_kv::Result<Option<Value>> {
+        panic!()
+    }
+
     fn iter(&self, iter_opt: engine_traits::IterOptions) -> tikv_kv::Result<Self::Iter> {
         self.snapshot.iter(iter_opt)
     }

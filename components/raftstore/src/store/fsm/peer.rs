@@ -3595,11 +3595,10 @@ where
         // which are added before applying snapshot
         if let Some(wait_destroy_regions) = meta.atomic_snap_regions.remove(&self.fsm.region_id()) {
             for (source_region_id, _) in wait_destroy_regions {
-                assert_eq!(
+                assert!(
                     meta.destroyed_region_for_snap
                         .remove(&source_region_id)
                         .is_some(),
-                    true
                 );
             }
         }

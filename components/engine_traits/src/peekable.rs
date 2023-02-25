@@ -98,20 +98,19 @@ pub trait Peekable {
     fn get_msg_valuelog<M: protobuf::Message + Default>(
         &self, key: &[u8],
     ) -> Result<Option<M>> {
-        let value = self.get_valuelog(key)?;
-        if value.is_none() {
-            return Ok(None);
-        }
-
-        let mut m = M::default();
-        m.merge_from_bytes(&value.unwrap())?;
-        Ok(Some(m))
+        self.get_msg_valuelog_opt(&ReadOptions::default(), key)
     }
-    
+
     fn get_msg_cf_valuelog<M: protobuf::Message + Default>(
         &self, cf: &str, key: &[u8],
     ) -> Result<Option<M>> {
-        let value = self.get_value_cf_valuelog(cf, key)?;
+        self.get_msg_cf_valuelog_opt(&ReadOptions::default(), cf, key)
+    }
+
+    fn get_msg_valuelog_opt<M: protobuf::Message + Default>(
+        &self, opts: &ReadOptions, key: &[u8],
+    ) -> Result<Option<M>> {
+        let value = self.get_valuelog_opt(opts, key)?;
         if value.is_none() {
             return Ok(None);
         }
@@ -120,5 +119,17 @@ pub trait Peekable {
         m.merge_from_bytes(&value.unwrap())?;
         Ok(Some(m))
     }
+        
+    fn get_msg_cf_valuelog_opt<M: protobuf::Message + Default>(
+        &self, opts: &ReadOptions, cf: &str, key: &[u8],
+    ) -> Result<Option<M>> {
+        let value = self.get_value_cf_valuelog_opt(opts, cf, key)?;
+        if value.is_none() {
+            return Ok(None);
+        }
 
+        let mut m = M::default();
+        m.merge_from_bytes(&value.unwrap())?;
+        Ok(Some(m))
+    }        
 }

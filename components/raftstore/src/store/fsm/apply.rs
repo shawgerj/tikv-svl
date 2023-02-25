@@ -3451,7 +3451,7 @@ where
     fn handle_destroy<W: WriteBatch<EK>>(&mut self, ctx: &mut ApplyContext<EK, W>, d: Destroy) {
         assert_eq!(d.region_id, self.delegate.region_id());
         if d.merge_from_snapshot {
-            assert_eq!(self.delegate.stopped, false);
+            assert!(self.delegate.stopped);
         }
         if !self.delegate.stopped {
             self.destroy(ctx);

@@ -77,7 +77,7 @@ impl RaftEngineReadOnly for RocksEngine {
             &end_key,
             true, // fill_cache
             |key, _value| {
-                let realvalue = self.get_valuelog(&key).unwrap().unwrap();
+                let realvalue = self.get_valuelog(key).unwrap().unwrap();
                 let mut entry = Entry::default();
                 entry.merge_from_bytes(&realvalue)?;
 
@@ -235,7 +235,7 @@ impl RaftEngine for RocksEngine {
         max_capacity: usize,
         shrink_to: usize,
     ) -> Result<()> {
-//        batch.clear();
+        batch.clear();
         if data_size > max_capacity {
             *batch = self.write_batch_with_cap(shrink_to);
         }
