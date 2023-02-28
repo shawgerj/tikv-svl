@@ -812,6 +812,9 @@ mod tests {
         fn get_cf_opt(&self, _: ReadOptions, _: CfName, _: &Key) -> EngineResult<Option<Value>> {
             Ok(None)
         }
+        fn get_cf_wotr(&self, _: CfName, _: &Key) -> EngineResult<Option<Value>> {
+            Ok(None)
+        }
         fn iter(&self, _: IterOptions) -> EngineResult<Self::Iter> {
             Ok(MockRangeSnapshotIter::default())
         }

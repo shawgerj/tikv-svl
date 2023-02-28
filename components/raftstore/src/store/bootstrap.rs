@@ -122,7 +122,7 @@ pub fn clear_prepare_bootstrap_key(
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
+    use std::sync::Arc;
     use tempfile::Builder;
 
     use super::*;
@@ -144,8 +144,8 @@ mod tests {
         let raft_engine =
             engine_test::raft::new_engine(path.path(), None, CF_DEFAULT, None)
                 .unwrap();
-        let engines = Engines::new(kv_engine.clone(), raft_engine.clone());
-        let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+        let mut engines = Engines::new(kv_engine.clone(), raft_engine.clone());
+        let w = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
         assert!(engines.kv.register_valuelog(w.clone()).is_ok());
         assert!(engines.raft.register_valuelog(w.clone()).is_ok());
 

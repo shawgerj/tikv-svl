@@ -1,7 +1,6 @@
 // Copyright 2021 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::time::Duration;
-use std::rc::Rc;
 
 use crate::store::{Config, Transport};
 use crate::Result;
@@ -237,9 +236,9 @@ impl TestWriters {
 #[test]
 fn test_basic_two_engine() {
     let path = Builder::new().prefix("test-basic-two-engine").tempdir().unwrap();
-    let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+    let w = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
     //    let engines = new_temp_engines_with_valuelog(&path, w.clone());
-    let engines = new_temp_engine(&path);
+    let mut engines = new_temp_engine(&path);
     assert!(engines.kv.register_valuelog(w.clone()).is_ok());
     assert!(engines.raft.register_valuelog(w.clone()).is_ok());
 
@@ -275,8 +274,8 @@ fn test_basic_two_engine() {
 #[test]
 fn test_worker() {
     let path = Builder::new().prefix("async-io-worker").tempdir().unwrap();
-    let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
-    let engines = new_temp_engine(&path);
+    let w = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+    let mut engines = new_temp_engine(&path);
     assert!(engines.kv.register_valuelog(w.clone()).is_ok());
     assert!(engines.raft.register_valuelog(w.clone()).is_ok());
     
@@ -365,8 +364,8 @@ fn test_worker() {
 fn test_basic_flow() {
     let path = Builder::new().prefix("async-io-basic").tempdir().unwrap();
 
-    let w = Rc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
-    let engines = new_temp_engine(&path);
+    let w = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+    let mut engines = new_temp_engine(&path);
     assert!(engines.kv.register_valuelog(w.clone()).is_ok());
     assert!(engines.raft.register_valuelog(w.clone()).is_ok());
 

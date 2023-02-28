@@ -1783,10 +1783,9 @@ impl CachedEntries {
 
 #[cfg(test)]
 mod tests {
-    use crate::coprocessor::CoprocessorHost;
     use crate::store::async_io::write::write_to_db_for_test;
     use crate::store::fsm::apply::compact_raft_log;
-    use crate::store::worker::RegionRunner;
+//    use crate::store::worker::RegionRunner;
     use crate::store::worker::RegionTask;
     use crate::store::{bootstrap_store, initial_region, prepare_bootstrap_cluster};
     use engine_test::kv::{KvTestEngine, KvTestSnapshot};
@@ -1795,17 +1794,14 @@ mod tests {
     use engine_traits::{Iterable, SyncMutable, WriteBatch, WriteBatchExt, WOTR, WOTRExt};
     use engine_traits::{ALL_CFS, CF_DEFAULT};
     use engine_rocks::RocksWOTR;
-    use kvproto::raft_serverpb::RaftSnapshotData;
-    use raft::eraftpb::HardState;
-    use raft::eraftpb::{ConfState, Entry};
+//    use kvproto::raft_serverpb::RaftSnapshotData;
+//    use raft::eraftpb::HardState;
+    use raft::eraftpb::Entry;
     use raft::{Error as RaftError, StorageError};
     use std::cell::RefCell;
     use std::sync::atomic::*;
     use std::sync::mpsc::*;
     use std::sync::*;
-    use std::rc::Rc;
-    use std::thread;
-    use std::time::Duration;
     use tempfile::{Builder, TempDir};
     use tikv_util::worker::{LazyWorker, Scheduler, Worker};
 
@@ -1829,7 +1825,7 @@ mod tests {
     fn new_storage(
         sched: Scheduler<RegionTask<KvTestSnapshot>>,
         path: &TempDir,
-        wotr: Rc<RocksWOTR>,
+        wotr: Arc<RocksWOTR>,
     ) -> PeerStorage<KvTestEngine, RaftTestEngine> {
         let kv_db = engine_test::kv::new_engine(path.path(), None, ALL_CFS, None)
             .unwrap();
@@ -1837,7 +1833,7 @@ mod tests {
         let raft_db =
             engine_test::raft::new_engine(path.path(), None, CF_DEFAULT, None)
                 .unwrap();
-        let engines = Engines::new(kv_db, raft_db);
+        let mut engines = Engines::new(kv_db, raft_db);
         assert!(engines.kv.register_valuelog(wotr.clone()).is_ok());
         assert!(engines.raft.register_valuelog(wotr.clone()).is_ok());
         bootstrap_store(&engines, 1, 1).unwrap();
@@ -1851,7 +1847,7 @@ mod tests {
         sched: Scheduler<RegionTask<KvTestSnapshot>>,
         path: &TempDir,
         ents: &[Entry],
-        wotr: Rc<RocksWOTR>,
+        wotr: Arc<RocksWOTR>,
     ) -> PeerStorage<KvTestEngine, RaftTestEngine> {
         let mut store = new_storage(sched, path, wotr);
         let mut write_task = WriteTask::new(store.get_region_id(), store.peer_id, 1);
@@ -1925,7 +1921,7 @@ mod tests {
             let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
             let worker = Worker::new("snap-manager").lazy_build("snap-manager");
             let sched = worker.scheduler();
-            let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+            let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
 
             let store = new_storage_from_ents(sched, &td, &ents, w.clone());
             let t = store.term(idx);
@@ -1983,7 +1979,7 @@ mod tests {
         for (first_index, left) in cases {
             let td = Builder::new().prefix("tikv-store").tempdir().unwrap();
             let sched = worker.scheduler();
-            let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+            let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
             
             let mut store = new_storage_from_ents(sched, &td, &[new_entry(3, 3), new_entry(4, 4)], w.clone());
             append_ents(&mut store, &[new_entry(5, 5), new_entry(6, 6)]);
@@ -2066,7 +2062,7 @@ mod tests {
             let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
             let worker = Worker::new("snap-manager").lazy_build("snap-manager");
             let sched = worker.scheduler();
-            let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+            let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
 
             let store = new_storage_from_ents(sched, &td, &ents, w.clone());
             let e = store.entries(lo, hi, maxsize);
@@ -2092,7 +2088,7 @@ mod tests {
             let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
             let worker = Worker::new("snap-manager").lazy_build("snap-manager");
             let sched = worker.scheduler();
-            let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+            let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
             
             let mut store = new_storage_from_ents(sched, &td, &ents, w.clone());
             let res = store
@@ -2311,7 +2307,7 @@ mod tests {
             let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
             let worker = LazyWorker::new("snap-manager");
             let sched = worker.scheduler();
-            let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+            let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
             
             let mut store = new_storage_from_ents(sched, &td, &ents, w.clone());
             append_ents(&mut store, &entries);
@@ -2372,7 +2368,7 @@ mod tests {
         let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
         let worker = LazyWorker::new("snap-manager");
         let sched = worker.scheduler();
-        let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+        let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
 
         let mut store = new_storage_from_ents(sched, &td, &ents, w.clone());
         store.cache.cache.clear();
@@ -2602,7 +2598,7 @@ mod tests {
         let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
         let worker = LazyWorker::new("snap-manager");
         let sched = worker.scheduler();
-        let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+        let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
 
         let mut s = new_storage(sched, &td, w.clone());
 
@@ -2650,7 +2646,7 @@ mod tests {
         let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
         let worker = LazyWorker::new("snap-manager");
         let sched = worker.scheduler();
-        let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+        let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
 
         let mut s = new_storage(sched, &td, w.clone());
 
@@ -2707,8 +2703,8 @@ mod tests {
         let raft_db =
             engine_test::raft::new_engine(td.path(), None, CF_DEFAULT, None)
             .unwrap();
-        let w = Rc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
-        let engines = Engines::new(kv_db, raft_db);
+        let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+        let mut engines = Engines::new(kv_db, raft_db);
         assert!(engines.kv.register_valuelog(w.clone()).is_ok());
         assert!(engines.raft.register_valuelog(w.clone()).is_ok());
         bootstrap_store(&engines, 1, 1).unwrap();

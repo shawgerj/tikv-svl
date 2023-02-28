@@ -4601,8 +4601,8 @@ mod tests {
     fn test_basic_flow() {
         let (tx, rx) = mpsc::channel();
         let sender = Box::new(TestNotifier { tx });
-        let (tmppath, engine) = create_tmp_engine("apply-basic");
-        let w = Rc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
+        let (tmppath, mut engine) = create_tmp_engine("apply-basic");
+        let w = Arc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
         assert!(engine.register_valuelog(w.clone()).is_ok());
         let (_dir, importer) = create_tmp_importer("apply-basic");
         let (region_scheduler, mut snapshot_rx) = dummy_scheduler();
@@ -4934,8 +4934,8 @@ mod tests {
 
     #[test]
     fn test_handle_raft_committed_entries() {
-        let (tmppath, engine) = create_tmp_engine("test-delegate");
-        let w = Rc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
+        let (tmppath, mut engine) = create_tmp_engine("test-delegate");
+        let w = Arc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
         assert!(engine.register_valuelog(w.clone()).is_ok());
 
         let (import_dir, importer) = create_tmp_importer("test-delegate");
@@ -5463,8 +5463,8 @@ mod tests {
 
     #[test]
     fn test_cmd_observer() {
-        let (tmppath, engine) = create_tmp_engine("test-delegate");
-        let w = Rc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
+        let (tmppath, mut engine) = create_tmp_engine("test-delegate");
+        let w = Arc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
         assert!(engine.register_valuelog(w.clone()).is_ok());
 
         let (_import_dir, importer) = create_tmp_importer("test-delegate");
@@ -5746,8 +5746,8 @@ mod tests {
 
     #[test]
     fn test_split() {
-        let (tmppath, engine) = create_tmp_engine("test-delegate");
-        let w = Rc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
+        let (tmppath, mut engine) = create_tmp_engine("test-delegate");
+        let w = Arc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
         assert!(engine.register_valuelog(w.clone()).is_ok());
 
         let (_import_dir, importer) = create_tmp_importer("test-delegate");

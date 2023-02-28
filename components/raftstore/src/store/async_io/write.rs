@@ -795,7 +795,7 @@ where
     }
 
     if !batch.raft_wb.is_empty() {
-        let (size, offsets) = engines
+        let (_size, _offsets) = engines
             .raft
             .consume(&mut batch.raft_wb, true)
             .unwrap_or_else(|e| {
