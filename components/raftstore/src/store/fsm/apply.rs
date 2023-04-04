@@ -1560,6 +1560,10 @@ where
         let lockey = keys::raft_log_key(self.region_id(), ctx.exec_log_index);
         
         let (key, value) = (req.get_put().get_key(), req.get_put().get_value());
+        // adding 20 accounts for the fixed-width fields of the Entry
+        let value_offset = req.get_put().get_value_offset() + 20;
+        let value_length = value.len();
+        
         // region key range has no data prefix, so we must use origin key to check.
         util::check_key_in_region(key, &self.region)?;
 
@@ -1568,7 +1572,12 @@ where
         
         let locs = ctx.data_locations.lock().unwrap();
         if let Some(offset) = locs.get(&lockey.to_vec()) {
-            let value = format!("{}", &offset).into_bytes();
+            offset += value_offset;
+            let offset_bytes: [u8; 8] = value_offset.to_be_bytes();
+            let length_bytes: [u8; 8] = value_length.to_be_bytes();
+            let mut value = [0; 16];
+            value[..8].copy_from_slice(&offset_bytes);
+            value[8..].copy_from_slice(&length_bytes);
 
             self.metrics.size_diff_hint += key.len() as i64;
             self.metrics.size_diff_hint += value.len() as i64;
