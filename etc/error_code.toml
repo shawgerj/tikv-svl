@@ -293,10 +293,10 @@ error = '''
 KV:Raft:RequestSnapshotDropped
 '''
 
-["KV:Raft:ConfChangeError"]
-error = '''
-KV:Raft:ConfChangeError
-'''
+# ["KV:Raft:ConfChangeError"]
+# error = '''
+# KV:Raft:ConfChangeError
+# '''
 
 ["KV:Raftstore:ProposalInMergingMode"]
 error = '''

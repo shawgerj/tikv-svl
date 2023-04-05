@@ -45,7 +45,7 @@ use prometheus::local::LocalHistogram;
 use raft::eraftpb::{
     ConfChange, ConfChangeType, ConfChangeV2, Entry, EntryType, Snapshot as RaftSnapshot,
 };
-use raft_proto::ConfChangeI;
+//use raft_proto::ConfChangeI;
 use smallvec::{smallvec, SmallVec};
 use sst_importer::SSTImporter;
 use tikv_alloc::trace::TraceEvent;

@@ -115,7 +115,7 @@ pin-project = "1.0"
 pnet_datalink = "0.23"
 pprof = { version = "^0.6", default-features = false, features = ["flamegraph", "protobuf"] }
 protobuf = { version = "2.8", features = ["bytes"] }
-raft = { version = "0.6.0-alpha", default-features = false, features = ["protobuf-codec"] }
+raft = { version = "0.6.0", default-features = false, features = ["protobuf-codec"] }
 raftstore = { path = "components/raftstore", default-features = false }
 raft_log_engine = { path = "components/raft_log_engine", default-features = false }
 rand = "0.7.3"
@@ -176,12 +176,14 @@ hyper-openssl = "0.9"
 
 [patch.crates-io]
 # TODO: remove this when new raft-rs is published.
-raft = { git = "https://github.com/shawgerj/raft-rs", branch = "master" }
-raft-proto = { git = "https://github.com/shawgerj/raft-rs", branch = "master" }
+raft = { git = "https://github.com/shawgerj/raft-rs", branch = "0.6.x-patched" }
+raft-proto = { git = "https://github.com/shawgerj/raft-rs", branch = "0.6.x-patched" }
 protobuf = { git = "https://github.com/shawgerj/rust-protobuf", branch = "v2.8" }
 protobuf-codegen = { git = "https://github.com/shawgerj/rust-protobuf", branch = "v2.8" }
+protobuf-codegen-pure = { git = "https://github.com/shawgerj/rust-protobuf", branch = "v2.8" }
 grpcio = { git = "https://github.com/shawgerj/grpc-rs", branch = "v0.9.1-patched" }
 grpcio-health = { git = "https://github.com/shawgerj/grpc-rs", branch = "v0.9.1-patched" }
+prometheus = { git = "https://github.com/shawgerj/rust-prometheus", branch = "master" }
 
 # TODO: remove this replacement after rusoto_s3 truly supports virtual-host style (https://github.com/rusoto/rusoto/pull/1823).
 rusoto_core = { git = "https://github.com/tikv/rusoto", branch = "gh1482-s3-addr-styles" }
