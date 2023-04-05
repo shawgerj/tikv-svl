@@ -45,7 +45,7 @@ use prometheus::local::LocalHistogram;
 use raft::eraftpb::{
     ConfChange, ConfChangeType, ConfChangeV2, Entry, EntryType, Snapshot as RaftSnapshot,
 };
-//use raft_proto::ConfChangeI;
+use raft_proto::ConfChangeI;
 use smallvec::{smallvec, SmallVec};
 use sst_importer::SSTImporter;
 use tikv_alloc::trace::TraceEvent;
@@ -1572,7 +1572,7 @@ where
         
         let locs = ctx.data_locations.lock().unwrap();
         if let Some(offset) = locs.get(&lockey.to_vec()) {
-            offset += value_offset;
+            let offset = offset + value_offset as usize;
             let offset_bytes: [u8; 8] = value_offset.to_be_bytes();
             let length_bytes: [u8; 8] = value_length.to_be_bytes();
             let mut value = [0; 16];
