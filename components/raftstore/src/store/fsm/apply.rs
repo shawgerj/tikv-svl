@@ -1560,8 +1560,12 @@ where
         let lockey = keys::raft_log_key(self.region_id(), ctx.exec_log_index);
         
         let (key, value) = (req.get_put().get_key(), req.get_put().get_value());
-        // adding 20 accounts for the fixed-width fields of the Entry
-        let value_offset = req.get_put().get_value_offset() + 20;
+        // offset from start of WOTR logentry is equal to:
+        // 24 bytes fixed-width of WOTR item_header +
+        // 20 bytes fixed-width beginning of Entry protobuf (I hope!) + 
+        // size of Entry key + 
+        // the offset of the value field in Put<key, value>
+        let value_offset = req.get_put().get_value_offset() + 20 + 24 + lockey.len() as u64;
         let value_length = value.len();
         
         // region key range has no data prefix, so we must use origin key to check.
@@ -1573,7 +1577,7 @@ where
         let locs = ctx.data_locations.lock().unwrap();
         if let Some(offset) = locs.get(&lockey.to_vec()) {
             let offset = offset + value_offset as usize;
-            let offset_bytes: [u8; 8] = value_offset.to_be_bytes();
+            let offset_bytes: [u8; 8] = offset.to_be_bytes();
             let length_bytes: [u8; 8] = value_length.to_be_bytes();
             let mut value = [0; 16];
             value[..8].copy_from_slice(&offset_bytes);
