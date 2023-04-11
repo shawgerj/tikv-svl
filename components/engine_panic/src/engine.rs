@@ -56,6 +56,22 @@ impl Peekable for PanicEngine {
         panic!()
     }
 
+    fn get_value_p_opt(&self,
+                readopts: &ReadOptions,
+                key: &[u8],
+    ) -> Result<Option<Self::DBVector>> {
+        panic!()
+    }
+
+    fn get_value_p_cf_opt(
+        &self,
+        opts: &ReadOptions,
+        cf: &str,
+        key: &[u8],
+    ) -> Result<Option<Self::DBVector>> {
+        panic!()
+    }
+
 }
 
 impl SyncMutable for PanicEngine {

@@ -16,7 +16,6 @@ use kvproto::metapb;
 use kvproto::raft_cmdpb::{
     CmdType, RaftCmdRequest, RaftCmdResponse, ReadIndexResponse, Request, Response,
 };
-use raft::eraftpb::Entry;
 use time::Timespec;
 
 use crate::errors::RAFTSTORE_IS_BUSY;
@@ -49,10 +48,10 @@ pub trait ReadExecutor<E: KvEngine> {
 
         let engine = self.get_engine();
         let mut resp = Response::default();
+
         let res = if !req.get_get().get_cf().is_empty() {
             let cf = req.get_get().get_cf();
-            engine
-                .get_msg_cf_valuelog(cf, &keys::data_key(key))
+            engine.get_value_p_cf(cf, &keys::data_key(key))
                 .unwrap_or_else(|e| {
                     panic!(
                         "[region {}] failed to get {} with cf {}: {:?}",
@@ -60,10 +59,9 @@ pub trait ReadExecutor<E: KvEngine> {
                         log_wrappers::Value::key(key),
                         cf,
                         e
-                    )
-                })
+                    )})
         } else {
-            engine.get_msg_valuelog(&keys::data_key(key)).unwrap_or_else(|e| {
+            engine.get_value_p(&keys::data_key(key)).unwrap_or_else(|e| {
                 panic!(
                     "[region {}] failed to get {}: {:?}",
                     region.get_id(),
@@ -72,26 +70,7 @@ pub trait ReadExecutor<E: KvEngine> {
                 )
             })
         };
-        let entry: Entry = match res {
-            None => { return Ok(resp) }, // not found
-            Some(entry) => entry,
-        };
-
-        let index = entry.get_index();
-        let data = entry.get_data();
-        
-        if !data.is_empty() {
-            let cmd: RaftCmdRequest = util::parse_data_at(data, index, "tag");
-            let requests = cmd.get_requests();
-
-            for req in requests {
-                let cmd_type = req.get_cmd_type();
-                if cmd_type == CmdType::Put {
-                        let value = req.get_put().get_value();
-                        resp.mut_get().set_value(value.to_vec());
-                };
-            }
-        }
+        resp.mut_get().set_value(res.unwrap().to_vec());
         Ok(resp)
     }
 

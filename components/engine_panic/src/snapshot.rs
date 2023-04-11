@@ -46,7 +46,21 @@ impl Peekable for PanicSnapshot {
     ) -> Result<Option<Self::DBVector>> {
         panic!()
     }
-    
+
+    fn get_value_p_opt(&self,
+                       opts: &ReadOptions,
+                       key: &[u8],
+    ) ->Result<Option<Self::DBVector>> {
+        panic!()
+    }
+
+    fn get_value_p_cf_opt(&self,
+                          opts: &ReadOptions,
+                          cf: &str,
+                          key: &[u8]
+    ) -> Result<Option<Self::DBVector>> {
+        panic!()
+    }
 }
 
 impl Iterable for PanicSnapshot {

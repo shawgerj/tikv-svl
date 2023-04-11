@@ -244,7 +244,7 @@ impl Snapshot for BTreeEngineSnapshot {
         self.get_cf(cf, key)
     }
 
-    fn get_cf_wotr(&self, _cf: CfName, _key: &Key) -> EngineResult<Option<Value>> {
+    fn pget_cf_wotr(&self, _cf: CfName, _key: &Key) -> EngineResult<Option<Value>> {
         panic!()
     }
     

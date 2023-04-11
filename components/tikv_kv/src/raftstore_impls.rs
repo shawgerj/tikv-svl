@@ -75,31 +75,13 @@ impl<S: Snapshot> EngineSnapshot for RegionSnapshot<S> {
         Ok(v.map(|v| v.to_vec()))
     }
 
-    fn get_cf_wotr(&self, cf: CfName, key: &Key) -> kv::Result<Option<Value>> {
-        fail_point!("raftkv_snapshot_get_cf_wotr", |_| Err(box_err!(
-            "injected error for get_cf"
+    fn pget_cf_wotr(&self, cf: CfName, key: &Key) -> kv::Result<Option<Value>> {
+        fail_point!("raftkv_snapshot_pget_cf_wotr", |_| Err(box_err!(
+            "injected error for pget_cf_wotr"
         )));
-        
-        let key = key.as_encoded();
-        let res = self.get_msg_cf_valuelog(cf, key)?;
-        
-        let entry: Entry = match res {
-            None => return Ok(None),
-            Some(entry) => entry,
-        };
-        
-        let index = entry.get_index();
-        let data = entry.get_data();
-        
-        let cmd: RaftCmdRequest = util::parse_data_at(data, index, "tag");
-        
-        Ok(Some(cmd.get_requests().iter()
-                .filter(|r| r.get_cmd_type() == CmdType::Put)
-                .filter(|q| q.get_put().get_key() == key)
-                .map(|s| s.get_put().get_value())
-                .collect::<Vec<&[u8]>>()
-                .last().unwrap().to_vec()))
 
+        let v = self.get_value_p_cf(cf, key.as_encoded())?;
+        Ok(v.map(|v| v.to_vec()))
     }
 
     fn get_cf_opt(&self, opts: ReadOptions, cf: CfName, key: &Key) -> kv::Result<Option<Value>> {

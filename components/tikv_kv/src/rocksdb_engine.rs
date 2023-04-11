@@ -244,27 +244,10 @@ impl Snapshot for Arc<RocksSnapshot> {
         Ok(v.map(|v| v.to_vec()))
     }
 
-    fn get_cf_wotr(&self, cf: CfName, key: &Key) -> Result<Option<Value>> {
-        trace!("RocksSnapshot: get_cf_wotr"; "cf" => cf, "key" => %key);
-        let key = key.as_encoded();
-        let res = self.get_msg_cf_valuelog(cf, key)?;
-        
-        let entry: Entry = match res {
-            None => return Ok(None),
-            Some(entry) => entry,
-        };
-        
-        let index = entry.get_index();
-        let data = entry.get_data();
-        
-        let cmd: RaftCmdRequest = util::parse_data_at(data, index, "tag");
-        
-        Ok(Some(cmd.get_requests().iter()
-                .filter(|r| r.get_cmd_type() == CmdType::Put)
-                .filter(|q| q.get_put().get_key() == key)
-                .map(|s| s.get_put().get_value())
-                .collect::<Vec<&[u8]>>()
-                .last().unwrap().to_vec()))
+    fn pget_cf_wotr(&self, cf: CfName, key: &Key) -> Result<Option<Value>> {
+        trace!("RocksSnapshot: pget_cf_wotr"; "cf" => cf, "key" => %key);
+        let v = self.get_value_p_cf(cf, key.as_encoded())?;
+        Ok(v.map(|v| v.to_vec()))
     }
 
     fn get_cf_opt(&self, opts: ReadOptions, cf: CfName, key: &Key) -> Result<Option<Value>> {
