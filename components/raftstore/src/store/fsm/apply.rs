@@ -407,6 +407,7 @@ where
 
     key_buffer: Vec<u8>,
     data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
+    entry_size: usize,
 }
 
 impl<EK, W> ApplyContext<EK, W>
@@ -472,7 +473,16 @@ where
             apply_time: APPLY_TIME_HISTOGRAM.local(),
             key_buffer: Vec::with_capacity(1024),
             data_locations,
+            entry_size: 0,
         }
+    }
+
+    pub fn set_entry_size(&mut self, size: usize) {
+        self.entry_size = size;
+    }
+
+    pub fn get_entry_size(&self) -> usize {
+        self.entry_size
     }
 
     /// Prepares for applying entries for `delegate`.
@@ -1090,6 +1100,7 @@ where
         let index = entry.get_index();
         let term = entry.get_term();
         let data = entry.get_data();
+        apply_ctx.set_entry_size(data.len());
 
         if !data.is_empty() {
             let cmd = util::parse_data_at(data, index, &self.tag);
@@ -1560,12 +1571,19 @@ where
         let lockey = keys::raft_log_key(self.region_id(), ctx.exec_log_index);
         
         let (key, value) = (req.get_put().get_key(), req.get_put().get_value());
+        let mut sizebytes = 0;
+        let mut entry_size = ctx.get_entry_size();
+        while (entry_size != 0) {
+            entry_size >>= 8;
+            sizebytes += 1;
+        }
         // offset from start of WOTR logentry is equal to:
         // 24 bytes fixed-width of WOTR item_header +
-        // 20 bytes fixed-width beginning of Entry protobuf (I hope!) + 
-        // size of Entry key + 
+        // 19 bytes fixed-width beginning of Entry protobuf + 
+        // size of Entry key +
+        // varint size for entry bytes field
         // the offset of the value field in Put<key, value>
-        let value_offset = req.get_put().get_value_offset() + 20 + 24 + lockey.len() as u64;
+        let value_offset = req.get_put().get_value_offset() + 19 + 24 + sizebytes as u64 + lockey.len() as u64;
         let value_length = value.len();
         
         // region key range has no data prefix, so we must use origin key to check.
