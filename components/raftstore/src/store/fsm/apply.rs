@@ -1100,7 +1100,20 @@ where
         let index = entry.get_index();
         let term = entry.get_term();
         let data = entry.get_data();
-        apply_ctx.set_entry_size(data.len());
+        let mut datasize = data.len();
+        let mut entry_size_bytes = 0;
+
+        // this Request is part of the data field of the entry, which is
+        // prefixed by a varint-encoded length. We need to figure out how
+        // many bytes are in the varint so we can calculate the offset
+        // correctly
+
+        while datasize != 0 {
+            datasize >>= 7;
+            entry_size_bytes += 1;
+        }
+
+        apply_ctx.set_entry_size(entry_size_bytes);
 
         if !data.is_empty() {
             let cmd = util::parse_data_at(data, index, &self.tag);
@@ -1571,18 +1584,15 @@ where
         let lockey = keys::raft_log_key(self.region_id(), ctx.exec_log_index);
         
         let (key, value) = (req.get_put().get_key(), req.get_put().get_value());
-        let mut sizebytes = 0;
-        let mut entry_size = ctx.get_entry_size();
-        while (entry_size != 0) {
-            entry_size >>= 8;
-            sizebytes += 1;
-        }
+        let sizebytes = ctx.get_entry_size();
+
         // offset from start of WOTR logentry is equal to:
         // 24 bytes fixed-width of WOTR item_header +
         // 19 bytes fixed-width beginning of Entry protobuf + 
         // size of Entry key +
         // varint size for entry bytes field
         // the offset of the value field in Put<key, value>
+
         let value_offset = req.get_put().get_value_offset() + 19 + 24 + sizebytes as u64 + lockey.len() as u64;
         let value_length = value.len();
         

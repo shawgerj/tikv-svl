@@ -298,7 +298,10 @@ impl RaftEngine for RocksEngine {
         }
         // TODO: disable WAL here.
         if !WriteBatch::is_empty(&raft_wb) {
-            raft_wb.write()?;
+            let mut opts = WriteOptions::default();
+            opts.set_disable_wal(true);
+            opts.set_sync(false);
+            raft_wb.write_opt(&opts)?;
         }
         Ok(total)
     }
@@ -308,7 +311,10 @@ impl RaftEngine for RocksEngine {
         let total = self.gc_impl(raft_group_id, from, to, &mut raft_wb)?;
         // TODO: disable WAL here.
         if !WriteBatch::is_empty(&raft_wb) {
-            raft_wb.write()?;
+            let mut opts = WriteOptions::default();
+            opts.set_disable_wal(true);
+            opts.set_sync(false);
+            raft_wb.write_opt(&opts)?;
         }
         Ok(total)
     }

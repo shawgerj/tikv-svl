@@ -12,12 +12,14 @@ use tikv_util::time::Instant;
 // TODO add epoch not match test cases.
 fn test_simple_put<T: Simulator>(cluster: &mut Cluster<T>) {
     cluster.run();
+    let large_value = [b'v'; 2048];
 
     let kvs: Vec<_> = (1..100)
         .map(|i| {
             (
                 format!("key{}", i).into_bytes(),
-                format!("value{}", i).into_bytes(),
+                large_value.to_vec(),
+//                format!("value{}", i).into_bytes(),
             )
         })
         .collect();
@@ -27,7 +29,7 @@ fn test_simple_put<T: Simulator>(cluster: &mut Cluster<T>) {
     }
 
     let mut rng = rand::thread_rng();
-    for _ in 0..50 {
+    for _ in 0..100 {
         let (key, value) = kvs.choose(&mut rng).unwrap();
         let v = cluster.get(key);
 
@@ -56,6 +58,51 @@ fn test_even_simpler_put<T: Simulator>(cluster: &mut Cluster<T>) {
         assert_eq!(v.as_ref(), Some(&kv.1));
     }
 }
+
+fn test_1k_put<T: Simulator>(cluster: &mut Cluster<T>) {
+    cluster.run();
+    let large_value = [b'v'; 1024];
+
+    let mut data_set: Vec<_> = (1..1000)
+        .map(|i| {
+            (
+                format!("key{}", i).into_bytes(),
+                large_value.to_vec(),
+            )
+        })
+        .collect();
+
+    for kvs in data_set.chunks(50) {
+        let requests = kvs.iter().map(|(k, v)| new_put_cmd(k, v)).collect();
+        // key9 is always the last region.
+        cluster.batch_put(b"key9", requests).unwrap();
+    }
+    let mut rng = rand::thread_rng();
+    for _ in 0..50 {
+        let (key, value) = data_set.choose(&mut rng).unwrap();
+        let v = cluster.get(key);
+        assert_eq!(v.as_ref(), Some(value));
+    }
+
+    data_set = data_set
+        .into_iter()
+        .enumerate()
+        .map(|(i, (k, _))| (k, large_value.to_vec()))
+        .collect();
+
+    for kvs in data_set.chunks(50) {
+        let requests = kvs.iter().map(|(k, v)| new_put_cmd(k, v)).collect();
+        // key9 is always the last region.
+        cluster.batch_put(b"key9", requests).unwrap();
+    }
+    // value should be overwrited.
+    for _ in 0..50 {
+        let (key, value) = data_set.choose(&mut rng).unwrap();
+        let v = cluster.get(key);
+        assert_eq!(v.as_ref(), Some(value));
+    }
+}
+
 
 fn test_put<T: Simulator>(cluster: &mut Cluster<T>) {
     cluster.run();
@@ -211,6 +258,12 @@ fn test_node_simplest_put() {
 fn test_node_put() {
     let mut cluster = new_node_cluster(0, 1);
     test_put(&mut cluster);
+}
+
+#[test]
+fn test_node_1k_put() {
+    let mut cluster = new_node_cluster(0, 1);
+    test_1k_put(&mut cluster);
 }
 
 #[test]

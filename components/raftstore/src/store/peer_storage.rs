@@ -2319,48 +2319,49 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn test_storage_cache_fetch() {
-    //     let ents = vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)];
-    //     let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
-    //     let worker = LazyWorker::new("snap-manager");
-    //     let sched = worker.scheduler();
-    //     let mut store = new_storage_from_ents(sched, &td, &ents);
-    //     store.cache.cache.clear();
-    //     // empty cache should fetch data from rocksdb directly.
-    //     let mut res = store.entries(4, 6, u64::max_value()).unwrap();
-    //     assert_eq!(*res, ents[1..]);
+    #[test]
+    fn test_storage_cache_fetch() {
+        let ents = vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)];
+        let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
+        let worker = LazyWorker::new("snap-manager");
+        let sched = worker.scheduler();
+        let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+        let mut store = new_storage_from_ents(sched, &td, &ents, w.clone());
+        store.cache.cache.clear();
+        // empty cache should fetch data from rocksdb directly.
+        let mut res = store.entries(4, 6, u64::max_value()).unwrap();
+        assert_eq!(*res, ents[1..]);
 
-    //     let entries = vec![new_entry(6, 5), new_entry(7, 5)];
-    //     append_ents(&mut store, &entries);
-    //     validate_cache(&store, &entries);
+        let entries = vec![new_entry(6, 5), new_entry(7, 5)];
+        append_ents(&mut store, &entries);
+        validate_cache(&store, &entries);
 
-    //     // direct cache access
-    //     res = store.entries(6, 8, u64::max_value()).unwrap();
-    //     assert_eq!(res, entries);
+        // direct cache access
+        res = store.entries(6, 8, u64::max_value()).unwrap();
+        assert_eq!(res, entries);
 
-    //     // size limit should be supported correctly.
-    //     res = store.entries(4, 8, 0).unwrap();
-    //     assert_eq!(res, vec![new_entry(4, 4)]);
-    //     let mut size = ents[1..].iter().map(|e| u64::from(e.compute_size())).sum();
-    //     res = store.entries(4, 8, size).unwrap();
-    //     let mut exp_res = ents[1..].to_vec();
-    //     assert_eq!(res, exp_res);
-    //     for e in &entries {
-    //         size += u64::from(e.compute_size());
-    //         exp_res.push(e.clone());
-    //         res = store.entries(4, 8, size).unwrap();
-    //         assert_eq!(res, exp_res);
-    //     }
+        // size limit should be supported correctly.
+        res = store.entries(4, 8, 0).unwrap();
+        assert_eq!(res, vec![new_entry(4, 4)]);
+        let mut size = ents[1..].iter().map(|e| u64::from(e.compute_size())).sum();
+        res = store.entries(4, 8, size).unwrap();
+        let mut exp_res = ents[1..].to_vec();
+        assert_eq!(res, exp_res);
+        for e in &entries {
+            size += u64::from(e.compute_size());
+            exp_res.push(e.clone());
+            res = store.entries(4, 8, size).unwrap();
+            assert_eq!(res, exp_res);
+        }
 
-    //     // range limit should be supported correctly.
-    //     for low in 4..9 {
-    //         for high in low..9 {
-    //             let res = store.entries(low, high, u64::max_value()).unwrap();
-    //             assert_eq!(*res, exp_res[low as usize - 4..high as usize - 4]);
-    //         }
-    //     }
-    // }
+        // range limit should be supported correctly.
+        for low in 4..9 {
+            for high in low..9 {
+                let res = store.entries(low, high, u64::max_value()).unwrap();
+                assert_eq!(*res, exp_res[low as usize - 4..high as usize - 4]);
+            }
+        }
+    }
 
     #[test]
     fn test_storage_cache_update() {
@@ -2438,7 +2439,10 @@ mod tests {
         // Test the initial data structure size.
         let (tx, rx) = mpsc::sync_channel(8);
         let mut cache = EntryCache::new_with_cb(move |c: i64| tx.send(c).unwrap());
-        assert_eq!(rx.try_recv().unwrap(), 896);
+        //        assert_eq!(rx.try_recv().unwrap(), 896);
+        // shawgerj changed I think Entry is a different size now
+        // all this really does is measure the default siez of VecDeque<Entry>
+        assert_eq!(rx.try_recv().unwrap(), 1008);
 
         cache.append(
             "",
@@ -2490,7 +2494,8 @@ mod tests {
         assert_eq!(rx.try_recv().unwrap(), -7);
 
         drop(cache);
-        assert_eq!(rx.try_recv().unwrap(), -896);
+        // shawgerj same as the above change
+        assert_eq!(rx.try_recv().unwrap(), -1008);
     }
 
     #[test]

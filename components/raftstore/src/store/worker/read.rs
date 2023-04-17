@@ -70,7 +70,11 @@ pub trait ReadExecutor<E: KvEngine> {
                 )
             })
         };
-        resp.mut_get().set_value(res.unwrap().to_vec());
+        let value = match res {
+            None => { return Ok(resp) },
+            Some(value) => value,
+        };
+        resp.mut_get().set_value(value.to_vec());
         Ok(resp)
     }
 

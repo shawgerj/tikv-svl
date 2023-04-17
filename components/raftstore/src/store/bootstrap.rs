@@ -99,7 +99,7 @@ pub fn clear_prepare_bootstrap_cluster(
             .raft
             .clean(region_id, 0, &RaftLocalState::default(), &mut wb)
     );
-    box_try!(engines.raft.consume(&mut wb, true));
+    box_try!(engines.raft.consume_to_lsm(&mut wb, true));
 
     let mut wb = engines.kv.write_batch();
     box_try!(wb.delete(keys::PREPARE_BOOTSTRAP_KEY));
