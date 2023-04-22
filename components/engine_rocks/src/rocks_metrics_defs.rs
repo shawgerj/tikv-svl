@@ -113,6 +113,9 @@ pub const ENGINE_TICKER_TYPES: &[TickerType] = &[
     TickerType::FlushWriteBytes,
     TickerType::ReadAmpEstimateUsefulBytes,
     TickerType::ReadAmpTotalReadBytes,
+    TickerType::WotrFileSynced,
+    TickerType::WotrFileBytes,
+    TickerType::WriteWithWotr,
 ];
 
 pub const TITAN_ENGINE_TICKER_TYPES: &[TickerType] = &[
@@ -170,6 +173,8 @@ pub const ENGINE_HIST_TYPES: &[HistType] = &[
     HistType::CompressionTimesNanos,
     HistType::DecompressionTimesNanos,
     HistType::DbWriteWalTime,
+    HistType::WotrFileSyncMicros,
+    HistType::DbWriteWotrTime,
 ];
 
 pub const TITAN_ENGINE_HIST_TYPES: &[HistType] = &[

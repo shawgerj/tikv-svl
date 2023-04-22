@@ -16,6 +16,7 @@ macro_rules! report_perf_context {
             let pre_and_post_process = perf_context.write_pre_and_post_process_time();
             let write_thread_wait = perf_context.write_thread_wait_nanos();
             observe_perf_context_type!($ctx, perf_context, $metric, write_wal_time);
+            observe_perf_context_type!($ctx, perf_context, $metric, write_wotr_time);        
             observe_perf_context_type!($ctx, perf_context, $metric, write_memtable_time);
             observe_perf_context_type!($ctx, perf_context, $metric, db_mutex_lock_nanos);
             observe_perf_context_type!($ctx, $metric, pre_and_post_process);
@@ -49,6 +50,7 @@ pub struct PerfContextStatistics {
     pub perf_level: PerfLevel,
     pub kind: PerfContextKind,
     pub write_wal_time: u64,
+    pub write_wotr_time: u64,
     pub pre_and_post_process: u64,
     pub write_memtable_time: u64,
     pub write_thread_wait: u64,
@@ -65,6 +67,7 @@ impl PerfContextStatistics {
             perf_level,
             kind,
             write_wal_time: 0,
+            write_wotr_time: 0,
             pre_and_post_process: 0,
             write_thread_wait: 0,
             write_memtable_time: 0,
@@ -83,6 +86,7 @@ impl PerfContextStatistics {
         ctx.reset();
         set_perf_level(raw_util::to_raw_perf_level(self.perf_level));
         self.write_wal_time = 0;
+        self.write_wotr_time = 0;
         self.pre_and_post_process = 0;
         self.db_mutex_lock_nanos = 0;
         self.write_thread_wait = 0;

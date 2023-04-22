@@ -93,6 +93,8 @@ make_auto_flush_static_metric! {
         failure,
         success,
         trigger_next,
+        wotr_file_bytes,
+        write_with_wotr,
     }
 
     pub struct EngineTickerMetrics : LocalIntCounter {
@@ -398,6 +400,15 @@ pub fn flush_engine_ticker_metrics(t: TickerType, value: u64, name: &str) {
                 .wal_file_bytes
                 .inc_by(value);
         }
+        TickerType::WotrFileSynced => {
+            STORE_ENGINE_WOTR_FILE_SYNCED.get(name_enum).inc_by(value);
+        }
+        TickerType::WotrFileBytes => {
+            STORE_ENGINE_FLOW
+                .get(name_enum)
+                .wotr_file_bytes
+                .inc_by(value);
+        }
         TickerType::WriteDoneBySelf => {
             STORE_ENGINE_WRITE_SERVED
                 .get(name_enum)
@@ -420,6 +431,12 @@ pub fn flush_engine_ticker_metrics(t: TickerType, value: u64, name: &str) {
             STORE_ENGINE_WRITE_SERVED
                 .get(name_enum)
                 .write_with_wal
+                .inc_by(value);
+        }
+        TickerType::WriteWithWotr => {
+            STORE_ENGINE_WRITE_SERVED
+                .get(name_enum)
+                .write_with_wotr
                 .inc_by(value);
         }
         TickerType::CompactReadBytes => {
@@ -673,6 +690,14 @@ pub fn flush_engine_histogram_metrics(t: HistType, value: HistogramData, name: &
                 value
             );
         }
+        HistType::WotrFileSyncMicros => {
+            engine_histogram_metrics!(
+                STORE_ENGINE_WOTR_FILE_SYNC_MICROS_VEC,
+                "wotr_file_sync",
+                name,
+                value
+            );
+        }
         HistType::ManifestFileSyncMicros => {
             engine_histogram_metrics!(
                 STORE_ENGINE_MANIFEST_FILE_SYNC_VEC,
@@ -803,6 +828,14 @@ pub fn flush_engine_histogram_metrics(t: HistType, value: HistogramData, name: &
             engine_histogram_metrics!(
                 STORE_ENGINE_WRITE_WAL_TIME_VEC,
                 "write_wal_micros",
+                name,
+                value
+            );
+        }
+        HistType::DbWriteWotrTime => {
+            engine_histogram_metrics!(
+                STORE_ENGINE_WRITE_WOTR_TIME_VEC,
+                "write_wotr_micros",
                 name,
                 value
             );
@@ -1349,7 +1382,13 @@ lazy_static! {
     ).unwrap();
     pub static ref STORE_ENGINE_WAL_FILE_SYNCED: SimpleEngineTickerMetrics =
         auto_flush_from!(STORE_ENGINE_WAL_FILE_SYNCED_VEC, SimpleEngineTickerMetrics);
-
+    pub static ref STORE_ENGINE_WOTR_FILE_SYNCED_VEC: IntCounterVec = register_int_counter_vec!(
+        "tikv_engine_wotr_file_synced",
+        "Number of times WOTR sync is done",
+        &["db"]
+    ).unwrap();
+    pub static ref STORE_ENGINE_WOTR_FILE_SYNCED: SimpleEngineTickerMetrics =
+        auto_flush_from!(STORE_ENGINE_WOTR_FILE_SYNCED_VEC, SimpleEngineTickerMetrics);
     pub static ref STORE_ENGINE_EVENT_COUNTER_VEC: IntCounterVec = register_int_counter_vec!(
         "tikv_engine_event_total",
         "Number of engine events",
@@ -1455,6 +1494,11 @@ lazy_static! {
         "Histogram of WAL file sync micros",
         &["db", "type"]
     ).unwrap();
+    pub static ref STORE_ENGINE_WOTR_FILE_SYNC_MICROS_VEC: GaugeVec = register_gauge_vec!(
+        "tikv_engine_wotr_file_sync_micro_seconds",
+        "Histogram of WOTR file sync micros",
+        &["db", "type"]
+    ).unwrap();
     pub static ref STORE_ENGINE_STALL_L0_SLOWDOWN_COUNT_VEC: GaugeVec = register_gauge_vec!(
         "tikv_engine_stall_l0_slowdown_count",
         "Histogram of stall l0 slowdown count",
@@ -1538,6 +1582,11 @@ lazy_static! {
     pub static ref STORE_ENGINE_WRITE_WAL_TIME_VEC: GaugeVec = register_gauge_vec!(
         "tikv_engine_write_wal_time_micro_seconds",
         "Histogram of write wal micros",
+        &["db", "type"]
+    ).unwrap();
+    pub static ref STORE_ENGINE_WRITE_WOTR_TIME_VEC: GaugeVec = register_gauge_vec!(
+        "tikv_engine_write_wotr_time_micro_seconds",
+        "Histogram of write wotr micros",
         &["db", "type"]
     ).unwrap();
     pub static ref STORE_ENGINE_BLOB_KEY_SIZE_VEC: GaugeVec = register_gauge_vec!(
