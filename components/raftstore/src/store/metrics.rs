@@ -7,6 +7,7 @@ use prometheus_static_metric::*;
 make_auto_flush_static_metric! {
     pub label_enum PerfContextType {
         write_wal_time,
+        write_wotr_time,
         write_delay_time,
         write_scheduling_flushes_compactions_time,
         db_condition_wait_nanos,
