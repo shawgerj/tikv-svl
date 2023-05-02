@@ -9,10 +9,11 @@ use engine_rocks::raw::{IngestExternalFileOptions, Writable};
 use engine_rocks::util::get_cf_handle;
 use engine_rocks::util::new_temp_engine;
 use engine_rocks::RocksEngine;
+use engine_rocks::RocksWOTR;
 use engine_rocks::{Compat, RocksSnapshot, RocksSstWriterBuilder};
 use engine_traits::{
     CompactExt, DeleteStrategy, Engines, KvEngine, MiscExt, Range, SstWriter, SstWriterBuilder,
-    ALL_CFS, CF_DEFAULT, CF_WRITE,
+    ALL_CFS, CF_DEFAULT, CF_WRITE, WOTR,
 };
 use keys::data_key;
 use kvproto::metapb::{Peer, Region};
@@ -389,7 +390,9 @@ fn test_delete_files_in_range_for_titan() {
         .prefix("test-snap-cf-db-apply")
         .tempdir()
         .unwrap();
-    let engines1 = new_temp_engine(&dir1);
+    let wotr = Arc::new(RocksWOTR::new(dir1.path().join("wotrlog.txt").to_str().unwrap()));
+
+    let engines1 = new_temp_engine(&dir1, wotr.clone());
     apply_sst_cf_file(
         &default_sst_file_path.to_str().unwrap(),
         &engines1.kv,
