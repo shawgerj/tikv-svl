@@ -185,7 +185,6 @@ where
 {
     pub kv_wb: EK::WriteBatch,
     pub raft_wb: ER::LogBatch,
-    pub raft_wb_lsm: ER::LogBatch, // raft states go in here
     // Write raft state once for a region everytime writing to disk
     pub raft_states: HashMap<u64, RaftLocalState>,
     pub state_size: usize,
@@ -201,12 +200,10 @@ where
 {
     fn new(kv_wb: EK::WriteBatch,
            raft_wb: ER::LogBatch,
-           raft_wb_lsm: ER::LogBatch
     ) -> Self {
         Self {
             kv_wb,
             raft_wb,
-            raft_wb_lsm,
             raft_states: HashMap::default(),
             state_size: 0,
             tasks: vec![],
@@ -288,7 +285,7 @@ where
     fn before_write_to_db(&mut self, metrics: &StoreWriteMetrics) {
         // Put raft state to raft writebatch
         for (region_id, state) in self.raft_states.drain() {
-            self.raft_wb_lsm.put_raft_state(region_id, &state).unwrap();
+            self.raft_wb.put_raft_state(region_id, &state).unwrap();
         }
         self.state_size = 0;
         if metrics.waterfall_metrics {
@@ -373,7 +370,6 @@ where
     ) -> Self {
         let batch = WriteTaskBatch::new(
             engines.kv.write_batch_with_cap(KV_WB_DEFAULT_SIZE),
-            engines.raft.log_batch(RAFT_WB_DEFAULT_SIZE),
             engines.raft.log_batch(RAFT_WB_DEFAULT_SIZE),
         );
         let perf_context = engines
@@ -567,30 +563,6 @@ where
             ).unwrap();
         }
 
-        if !self.batch.raft_wb_lsm.is_empty() {
-            let size = self.engines
-                .raft
-                .consume_to_lsm(
-                    &self.batch.raft_wb_lsm,
-                    true,
-                )
-                .unwrap_or_else(|e| {
-                    panic!(
-                        "store {}: {} failed to write to raft engine lsm: {:?}",
-                        self.store_id, self.tag, e
-                    );
-                });
-            
-            // shrink (split up operation from original)
-            self.engines.raft.shrink(
-                &mut self.batch.raft_wb_lsm,
-                size,
-                RAFT_WB_SHRINK_SIZE,
-                RAFT_WB_DEFAULT_SIZE,
-            ).unwrap();
-            
-        }
-        
         self.perf_context.report_metrics();
         let write_raft_time = duration_to_sec(now.saturating_elapsed());
         STORE_WRITE_RAFTDB_DURATION_HISTOGRAM.observe(write_raft_time);
@@ -782,7 +754,6 @@ where
     let mut batch = WriteTaskBatch::new(
         engines.kv.write_batch(),
         engines.raft.log_batch(RAFT_WB_DEFAULT_SIZE),
-        engines.raft.log_batch(RAFT_WB_DEFAULT_SIZE),
     );
     batch.add_write_task(task);
     batch.before_write_to_db(&StoreWriteMetrics::new(false));
@@ -802,16 +773,6 @@ where
                 panic!("test failed to write to raft engine valuelog: {:?}", e);
             });
     }
-
-    if !batch.raft_wb_lsm.is_empty() {
-        engines
-            .raft
-            .consume_to_lsm(&mut batch.raft_wb_lsm, true)
-            .unwrap_or_else(|e| {
-                panic!("test failed to write to raft engine lsm: {:?}", e);
-            });
-    }
-
 }
 
 #[cfg(test)]

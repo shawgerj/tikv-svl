@@ -8,15 +8,12 @@ use crate::{
     Snapshot as EngineSnapshot, SnapshotExt,
 };
 
-use kvproto::raft_cmdpb::{RaftCmdRequest, CmdType};
-use raft::eraftpb::Entry;
 use engine_traits::CfName;
 use engine_traits::{IterOptions, Peekable, ReadOptions, Snapshot};
 use kvproto::kvrpcpb::ExtraOp as TxnExtraOp;
 use raftstore::store::{RegionIterator, RegionSnapshot, TxnExt};
 use raftstore::Error as RaftServerError;
 use txn_types::{Key, Value};
-use raftstore::store::*;
 
 impl From<RaftServerError> for Error {
     fn from(e: RaftServerError) -> Error {

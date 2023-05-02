@@ -5,8 +5,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use kvproto::raft_cmdpb::{RaftCmdRequest, CmdType};
-use raft::eraftpb::Entry;
 use engine_rocks::get_env;
 use engine_rocks::raw::DBOptions;
 use engine_rocks::raw_util::CFOptions;
@@ -19,7 +17,6 @@ use file_system::IORateLimiter;
 use kvproto::kvrpcpb::Context;
 use tempfile::{Builder, TempDir};
 use txn_types::{Key, Value};
-use raftstore::store::*;
 
 use tikv_util::worker::{Runnable, Scheduler, Worker};
 

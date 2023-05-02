@@ -749,12 +749,12 @@ fn test_debug_region_info() {
     raft_state.set_last_index(42);
     raft_engine
         .c()
-        .put_msg(&raft_state_key, &raft_state)
+        .put_msg_valuelog(&raft_state_key, &raft_state)
         .unwrap();
     assert_eq!(
         raft_engine
             .c()
-            .get_msg::<raft_serverpb::RaftLocalState>(&raft_state_key)
+            .get_msg_valuelog::<raft_serverpb::RaftLocalState>(&raft_state_key)
             .unwrap()
             .unwrap(),
         raft_state

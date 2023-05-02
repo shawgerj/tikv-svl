@@ -146,7 +146,7 @@ pub fn must_region_cleared(engine: &Engines<RocksEngine, RocksEngine>, region: &
         })
         .unwrap();
     let state_key = keys::raft_state_key(id);
-    let state: Option<RaftLocalState> = engine.raft.get_msg(&state_key).unwrap();
+    let state: Option<RaftLocalState> = engine.raft.get_msg_valuelog(&state_key).unwrap();
     assert!(
         state.is_none(),
         "[region {}] raft state key should be removed: {:?}",

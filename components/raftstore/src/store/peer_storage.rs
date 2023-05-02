@@ -2736,7 +2736,7 @@ mod tests {
             .put_msg_valuelog(&log_key, &new_entry(11, RAFT_INIT_LOG_TERM))
             .unwrap();
         raft_state.mut_hard_state().set_commit(12);
-        engines.raft.put_msg(&raft_state_key, &raft_state).unwrap();
+        engines.raft.put_msg_valuelog(&raft_state_key, &raft_state).unwrap();
         assert!(build_storage().is_err());
 
         let log_key = keys::raft_log_key(1, 20);
@@ -2745,7 +2745,7 @@ mod tests {
             .put_msg_valuelog(&log_key, &new_entry(20, RAFT_INIT_LOG_TERM))
             .unwrap();
         raft_state.set_last_index(20);
-        engines.raft.put_msg(&raft_state_key, &raft_state).unwrap();
+        engines.raft.put_msg_valuelog(&raft_state_key, &raft_state).unwrap();
         s = build_storage().unwrap();
         let initial_state = s.initial_state().unwrap();
         assert_eq!(initial_state.hard_state, *raft_state.get_hard_state());
@@ -2804,7 +2804,7 @@ mod tests {
             .put_msg_valuelog(&log_key, &new_entry(14, RAFT_INIT_LOG_TERM))
             .unwrap();
         raft_state.mut_hard_state().set_term(RAFT_INIT_LOG_TERM - 1);
-        engines.raft.put_msg(&raft_state_key, &raft_state).unwrap();
+        engines.raft.put_msg_valuelog(&raft_state_key, &raft_state).unwrap();
         assert!(build_storage().is_err());
 
         // last index < recorded_commit_index is invalid.
@@ -2815,7 +2815,7 @@ mod tests {
             .raft
             .put_msg_valuelog(&log_key, &new_entry(13, RAFT_INIT_LOG_TERM))
             .unwrap();
-        engines.raft.put_msg(&raft_state_key, &raft_state).unwrap();
+        engines.raft.put_msg_valuelog(&raft_state_key, &raft_state).unwrap();
         assert!(build_storage().is_err());
     }
 

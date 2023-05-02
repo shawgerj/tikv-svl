@@ -84,7 +84,7 @@ pub fn prepare_bootstrap_cluster(
 
     let mut raft_wb = engines.raft.log_batch(1024);
     write_initial_raft_state(&mut raft_wb, region.get_id())?;
-    box_try!(engines.raft.consume_to_lsm(&mut raft_wb, true));
+    box_try!(engines.raft.consume(&mut raft_wb, true));
     Ok(())
 }
 
@@ -99,7 +99,7 @@ pub fn clear_prepare_bootstrap_cluster(
             .raft
             .clean(region_id, 0, &RaftLocalState::default(), &mut wb)
     );
-    box_try!(engines.raft.consume_to_lsm(&mut wb, true));
+    box_try!(engines.raft.consume(&mut wb, true));
 
     let mut wb = engines.kv.write_batch();
     box_try!(wb.delete(keys::PREPARE_BOOTSTRAP_KEY));

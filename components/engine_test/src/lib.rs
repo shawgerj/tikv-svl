@@ -488,27 +488,36 @@ pub mod ctor {
     }
 }
 
+use engine_traits::{Engines, ALL_CFS, CF_DEFAULT, WOTRExt};
+use engine_rocks::RocksWOTR;
+use std::sync::Arc;
+
+
 /// Create a new set of engines in a temporary directory
 ///
 /// This is little-used and probably shouldn't exist.
 /// (But it is used, especially write_tests.rs)
 pub fn new_temp_engine(
     path: &tempfile::TempDir,
+    wotr: Arc<RocksWOTR>,
 ) -> engine_traits::Engines<crate::kv::KvTestEngine, crate::raft::RaftTestEngine> {
-    engine_traits::Engines::new(
+    let mut engines = Engines::new(
         crate::kv::new_engine(
             path.path(),
             None,
-            engine_traits::ALL_CFS,
+            ALL_CFS,
             None,
         )
             .unwrap(),
         crate::raft::new_engine(
             path.path(),
             None,
-            engine_traits::CF_DEFAULT,
+            CF_DEFAULT,
             None,
         )
             .unwrap(),
-    )
+    );
+    assert!(engines.kv.register_valuelog(wotr.clone()).is_ok());
+    assert!(engines.raft.register_valuelog(wotr.clone()).is_ok());
+    engines
 }

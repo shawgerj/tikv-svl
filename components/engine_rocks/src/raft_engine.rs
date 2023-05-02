@@ -18,7 +18,7 @@ const RAFT_LOG_MULTI_GET_CNT: u64 = 8;
 impl RaftEngineReadOnly for RocksEngine {
     fn get_raft_state(&self, raft_group_id: u64) -> Result<Option<RaftLocalState>> {
         let key = keys::raft_state_key(raft_group_id);
-        self.get_msg_cf(CF_DEFAULT, &key)
+        self.get_msg_cf_valuelog(CF_DEFAULT, &key)
     }
 
     fn get_entry(&self, raft_group_id: u64, index: u64) -> Result<Option<Entry>> {
@@ -287,7 +287,8 @@ impl RaftEngine for RocksEngine {
     }
 
     fn put_raft_state(&self, raft_group_id: u64, state: &RaftLocalState) -> Result<()> {
-        self.put_msg(&keys::raft_state_key(raft_group_id), state)
+        self.put_msg_valuelog(&keys::raft_state_key(raft_group_id), state);
+        Ok(())
     }
 
     fn batch_gc(&self, groups: Vec<RaftLogGCTask>) -> Result<usize> {
@@ -364,7 +365,8 @@ impl RaftLogBatch for RocksWriteBatch {
     }
 
     fn put_raft_state(&mut self, raft_group_id: u64, state: &RaftLocalState) -> Result<()> {
-        self.put_msg(&keys::raft_state_key(raft_group_id), state)
+        self.put_msg(&keys::raft_state_key(raft_group_id), state);
+        Ok(())
     }
 
     fn persist_size(&self) -> usize {

@@ -467,7 +467,8 @@ mod tests {
 
     use engine_test::kv::KvTestSnapshot;
     use engine_test::new_temp_engine;
-    use engine_traits::{Engines, KvEngine, Peekable, RaftEngine, SyncMutable};
+    use engine_traits::{Engines, KvEngine, Peekable, RaftEngine, SyncMutable, WOTR};
+    use engine_rocks::RocksWOTR;
     use keys::data_key;
     use kvproto::metapb::{Peer, Region};
     use tempfile::Builder;
@@ -565,7 +566,9 @@ mod tests {
     #[test]
     fn test_peekable() {
         let path = Builder::new().prefix("test-raftstore").tempdir().unwrap();
-        let engines = new_temp_engine(&path);
+        let wotr = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+
+        let engines = new_temp_engine(&path, wotr.clone());
         let mut r = Region::default();
         r.set_id(10);
         r.set_start_key(b"key0".to_vec());
@@ -590,7 +593,9 @@ mod tests {
     #[test]
     fn test_seek_and_seek_prev() {
         let path = Builder::new().prefix("test-raftstore").tempdir().unwrap();
-        let engines = new_temp_engine(&path);
+        let wotr = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+
+        let engines = new_temp_engine(&path, wotr.clone());
         let (store, _) = load_default_dataset(engines);
         let snap = RegionSnapshot::<KvTestSnapshot>::new(&store);
 
@@ -678,7 +683,9 @@ mod tests {
         check_seek_result(&snap, Some(b"a7"), Some(b"a2"), &seek_table);
 
         let path = Builder::new().prefix("test-raftstore").tempdir().unwrap();
-        let engines = new_temp_engine(&path);
+        let wotr = Arc::new(RocksWOTR::new(path.path().join("wotrlog2.txt").to_str().unwrap()));
+
+        let engines = new_temp_engine(&path, wotr.clone());
         let (store, _) = load_multiple_levels_dataset(engines);
         let snap = RegionSnapshot::<KvTestSnapshot>::new(&store);
 
@@ -705,7 +712,9 @@ mod tests {
     #[test]
     fn test_iterate() {
         let path = Builder::new().prefix("test-raftstore").tempdir().unwrap();
-        let engines = new_temp_engine(&path);
+        let wotr = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+
+        let engines = new_temp_engine(&path, wotr.clone());
         let (store, base_data) = load_default_dataset(engines.clone());
 
         let snap = RegionSnapshot::<KvTestSnapshot>::new(&store);
@@ -789,7 +798,9 @@ mod tests {
     #[test]
     fn test_reverse_iterate_with_lower_bound() {
         let path = Builder::new().prefix("test-raftstore").tempdir().unwrap();
-        let engines = new_temp_engine(&path);
+        let wotr = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
+
+        let engines = new_temp_engine(&path, wotr.clone());
         let (store, test_data) = load_default_dataset(engines);
 
         let snap = RegionSnapshot::<KvTestSnapshot>::new(&store);

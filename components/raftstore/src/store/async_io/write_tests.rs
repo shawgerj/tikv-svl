@@ -28,7 +28,7 @@ fn must_have_entries_and_state(
             assert_eq!(val, e);
         }
         let val = snapshot
-            .get_msg::<RaftLocalState>(&keys::raft_state_key(region_id))
+            .get_msg_valuelog::<RaftLocalState>(&keys::raft_state_key(region_id))
             .unwrap()
             .unwrap();
         assert_eq!(val, state);
@@ -238,10 +238,10 @@ fn test_basic_two_engine() {
     let path = Builder::new().prefix("test-basic-two-engine").tempdir().unwrap();
     let w = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
     //    let engines = new_temp_engines_with_valuelog(&path, w.clone());
-    let mut engines = new_temp_engine(&path);
-    assert!(engines.kv.register_valuelog(w.clone()).is_ok());
-    assert!(engines.raft.register_valuelog(w.clone()).is_ok());
-
+    let mut engines = new_temp_engine(&path, w.clone());
+    // assert!(engines.kv.register_valuelog(w.clone()).is_ok());
+    // assert!(engines.raft.register_valuelog(w.clone()).is_ok());
+    
     let mut kv_wb = engines.kv.write_batch();
     let mut raft_wb = engines.raft.write_batch();
 
@@ -275,9 +275,9 @@ fn test_basic_two_engine() {
 fn test_worker() {
     let path = Builder::new().prefix("async-io-worker").tempdir().unwrap();
     let w = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
-    let mut engines = new_temp_engine(&path);
-    assert!(engines.kv.register_valuelog(w.clone()).is_ok());
-    assert!(engines.raft.register_valuelog(w.clone()).is_ok());
+    let mut engines = new_temp_engine(&path, w.clone());
+    // assert!(engines.kv.register_valuelog(w.clone()).is_ok());
+    // assert!(engines.raft.register_valuelog(w.clone()).is_ok());
     
     let mut t = TestWorker::new(&Config::default(), &engines);
 
@@ -365,9 +365,9 @@ fn test_basic_flow() {
     let path = Builder::new().prefix("async-io-basic").tempdir().unwrap();
 
     let w = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
-    let mut engines = new_temp_engine(&path);
-    assert!(engines.kv.register_valuelog(w.clone()).is_ok());
-    assert!(engines.raft.register_valuelog(w.clone()).is_ok());
+    let mut engines = new_temp_engine(&path, w.clone());
+    // assert!(engines.kv.register_valuelog(w.clone()).is_ok());
+    // assert!(engines.raft.register_valuelog(w.clone()).is_ok());
 
     let mut cfg = Config::default();
     cfg.store_io_pool_size = 2;

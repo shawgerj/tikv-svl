@@ -1432,7 +1432,7 @@ mod tests {
         let raft_state_key = keys::raft_state_key(region_id);
         let mut raft_state = RaftLocalState::default();
         raft_state.set_last_index(last_index);
-        raft_engine.put_msg(&raft_state_key, &raft_state).unwrap();
+        raft_engine.put_msg_valuelog(&raft_state_key, &raft_state).unwrap();
     }
 
     fn get_region_state(engine: &Arc<DB>, region_id: u64) -> RegionLocalState {
@@ -1606,10 +1606,10 @@ mod tests {
         let raft_state_key = keys::raft_state_key(region_id);
         let mut raft_state = RaftLocalState::default();
         raft_state.set_last_index(42);
-        raft_engine.put_msg(&raft_state_key, &raft_state).unwrap();
+        raft_engine.put_msg_valuelog(&raft_state_key, &raft_state).unwrap();
         assert_eq!(
             raft_engine
-                .get_msg::<RaftLocalState>(&raft_state_key)
+                .get_msg_valuelog::<RaftLocalState>(&raft_state_key)
                 .unwrap()
                 .unwrap(),
             raft_state
@@ -1956,8 +1956,8 @@ mod tests {
             mock_region_state(&mut wb2, 13, &[]);
         }
 
-        wb1.write_opt(&WriteOptions::new()).unwrap();
-        wb2.write_opt(&WriteOptions::new()).unwrap();
+        wb1.write_valuelog_opt(&WriteOptions::new()).unwrap();
+        wb2.write_valuelog_opt(&WriteOptions::new()).unwrap();
 
         let bad_regions = debugger.bad_regions().unwrap();
         assert_eq!(bad_regions.len(), 4);

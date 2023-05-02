@@ -1126,7 +1126,7 @@ impl<T: Simulator> Cluster<T> {
         let key = keys::raft_state_key(region_id);
         self.get_raft_engine(store_id)
             .c()
-            .get_msg::<raft_serverpb::RaftLocalState>(&key)
+            .get_msg_valuelog::<raft_serverpb::RaftLocalState>(&key)
             .unwrap()
             .unwrap()
     }

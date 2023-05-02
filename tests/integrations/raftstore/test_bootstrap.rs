@@ -9,8 +9,8 @@ use kvproto::metapb;
 use kvproto::raft_serverpb::RegionLocalState;
 
 use concurrency_manager::ConcurrencyManager;
-use engine_rocks::{Compat, RocksEngine};
-use engine_traits::{Engines, Peekable, ALL_CFS, CF_RAFT};
+use engine_rocks::{Compat, RocksEngine, RocksWOTR};
+use engine_traits::{Engines, Peekable, ALL_CFS, CF_RAFT, WOTR, WOTRExt};
 use raftstore::coprocessor::CoprocessorHost;
 use raftstore::store::fsm::store::StoreMeta;
 use raftstore::store::{bootstrap_store, fsm, AutoSplitController, SnapManager};
@@ -44,6 +44,8 @@ fn test_node_bootstrap_with_prepared_data() {
     let (_, system) = fsm::create_raft_batch_system(&cfg.raft_store);
     let simulate_trans = SimulateTransport::new(ChannelTransport::new());
     let tmp_path = Builder::new().prefix("test_cluster").tempdir().unwrap();
+    let wotr = Arc::new(RocksWOTR::new(tmp_path.path().join("wotrlog.txt").to_str().unwrap()));
+
     let engine = Arc::new(
         engine_rocks::raw_util::new_engine(tmp_path.path().to_str().unwrap(), None, ALL_CFS, None)
             .unwrap(),
@@ -53,10 +55,13 @@ fn test_node_bootstrap_with_prepared_data() {
         engine_rocks::raw_util::new_engine(tmp_path_raft.to_str().unwrap(), None, &[], None)
             .unwrap(),
     );
-    let engines = Engines::new(
+    let mut engines = Engines::new(
         RocksEngine::from_db(Arc::clone(&engine)),
         RocksEngine::from_db(Arc::clone(&raft_engine)),
     );
+    assert!(engines.kv.register_valuelog(wotr.clone()).is_ok());
+    assert!(engines.raft.register_valuelog(wotr.clone()).is_ok());
+
     let tmp_mgr = Builder::new().prefix("test_cluster").tempdir().unwrap();
     let bg_worker = WorkerBuilder::new("background").thread_count(2).create();
     let mut node = Node::new(
