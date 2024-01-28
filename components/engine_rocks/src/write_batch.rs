@@ -405,7 +405,7 @@ mod tests {
             vec![],
         ).unwrap();
 
-        assert!(engine.register_valuelog(w.clone()).is_ok());
+        assert!(engine.register_valuelog(w.clone(), false).is_ok());
 
         let mut wb = engine.write_batch();
         wb.put(b"k1", b"v1111");
@@ -436,7 +436,7 @@ mod tests {
             vec![],
         ).unwrap();
 
-        assert!(engine.register_valuelog(w.clone()).is_ok());
+        assert!(engine.register_valuelog(w.clone(), false).is_ok());
 
         let mut wb = engine.write_batch();
         wb.put(b"k1", b"v1111");
@@ -469,7 +469,7 @@ mod tests {
             vec![],
         ).unwrap();
 
-        assert!(engine.register_valuelog(w.clone()).is_ok());
+        assert!(engine.register_valuelog(w.clone(), false).is_ok());
 
         let mut wb = engine.write_batch();
         wb.put(b"k1", b"v1111");
@@ -511,7 +511,7 @@ mod tests {
             vec![],
         ).unwrap();
 
-        assert!(engine.register_valuelog(w.clone()).is_ok());
+        assert!(engine.register_valuelog(w.clone(), false).is_ok());
         assert!(engine.support_write_batch_vec());
         
         let mut wb = RocksWriteBatchVec::with_capacity(&engine, 1024);
@@ -546,8 +546,8 @@ mod tests {
             vec![],
         ).unwrap();
 
-        assert!(engine1.register_valuelog(w.clone()).is_ok());
-        assert!(engine2.register_valuelog(w.clone()).is_ok());
+        assert!(engine1.register_valuelog(w.clone(), false).is_ok());
+        assert!(engine2.register_valuelog(w.clone(), false).is_ok());
 
         (engine1, engine2)
     }

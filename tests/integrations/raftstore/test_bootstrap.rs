@@ -59,8 +59,8 @@ fn test_node_bootstrap_with_prepared_data() {
         RocksEngine::from_db(Arc::clone(&engine)),
         RocksEngine::from_db(Arc::clone(&raft_engine)),
     );
-    assert!(engines.kv.register_valuelog(wotr.clone()).is_ok());
-    assert!(engines.raft.register_valuelog(wotr.clone()).is_ok());
+    assert!(engines.kv.register_valuelog(wotr.clone(), false).is_ok());
+    assert!(engines.raft.register_valuelog(wotr.clone(), false).is_ok());
 
     let tmp_mgr = Builder::new().prefix("test_cluster").tempdir().unwrap();
     let bg_worker = WorkerBuilder::new("background").thread_count(2).create();

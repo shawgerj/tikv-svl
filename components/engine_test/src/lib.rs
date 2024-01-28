@@ -517,7 +517,7 @@ pub fn new_temp_engine(
         )
             .unwrap(),
     );
-    assert!(engines.kv.register_valuelog(wotr.clone()).is_ok());
-    assert!(engines.raft.register_valuelog(wotr.clone()).is_ok());
+    assert!(engines.kv.register_valuelog(wotr.clone(), false).is_ok());
+    assert!(engines.raft.register_valuelog(wotr.clone(), true).is_ok());
     engines
 }

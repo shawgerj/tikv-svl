@@ -7,7 +7,7 @@ use crate::raw_util::new_engine as new_engine_raw;
 use crate::raw_util::new_engine_opt as new_engine_opt_raw;
 use crate::raw_util::CFOptions;
 use crate::rocks_metrics_defs::*;
-use engine_traits::{Engines, Range, CF_DEFAULT, Error, Result, WOTR, WOTRExt};
+use engine_traits::{Engines, Range, CF_DEFAULT, Error, Result, WOTRExt};
 use crate::RocksWOTR;
 use rocksdb::Range as RocksRange;
 use rocksdb::{CFHandle, SliceTransform, DB};
@@ -34,8 +34,8 @@ pub fn new_temp_engine(path: &tempfile::TempDir, wotr: Arc<RocksWOTR>) -> Engine
         .unwrap(),
     );
 
-    assert!(engines.kv.register_valuelog(wotr.clone()).is_ok());
-    assert!(engines.raft.register_valuelog(wotr.clone()).is_ok());
+    assert!(engines.kv.register_valuelog(wotr.clone(), false).is_ok());
+    assert!(engines.raft.register_valuelog(wotr.clone(), true).is_ok());
     engines
 }
 

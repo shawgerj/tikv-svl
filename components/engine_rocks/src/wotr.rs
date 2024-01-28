@@ -11,10 +11,10 @@ impl WOTRExt for RocksEngine {
     type DBVector = RocksDBVector;
     type WOTR = RocksWOTR;
     
-    fn register_valuelog(&mut self, logobj: Arc<Self::WOTR>) -> Result<()> {
+    fn register_valuelog(&mut self, logobj: Arc<Self::WOTR>, recover: bool) -> Result<()> {
         self.set_wotr(logobj.clone());
         let w = logobj.as_inner();
-        self.as_inner().set_wotr(w).map_err(Error::Engine)
+        self.as_inner().set_wotr(w, recover).map_err(Error::Engine)
     }
 
     fn have_wotr(&self) {
@@ -65,7 +65,7 @@ mod test {
             vec![],
         ).unwrap();
 
-        assert!(engine.register_valuelog(w.clone()).is_ok());
+        assert!(engine.register_valuelog(w.clone(), false).is_ok());
     }
 }
 

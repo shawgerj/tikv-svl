@@ -1834,8 +1834,8 @@ mod tests {
             engine_test::raft::new_engine(path.path(), None, CF_DEFAULT, None)
                 .unwrap();
         let mut engines = Engines::new(kv_db, raft_db);
-        assert!(engines.kv.register_valuelog(wotr.clone()).is_ok());
-        assert!(engines.raft.register_valuelog(wotr.clone()).is_ok());
+        assert!(engines.kv.register_valuelog(wotr.clone(), false).is_ok());
+        assert!(engines.raft.register_valuelog(wotr.clone(), false).is_ok());
         bootstrap_store(&engines, 1, 1).unwrap();
 
         let region = initial_region(1, 1, 1);
@@ -2710,8 +2710,8 @@ mod tests {
             .unwrap();
         let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
         let mut engines = Engines::new(kv_db, raft_db);
-        assert!(engines.kv.register_valuelog(w.clone()).is_ok());
-        assert!(engines.raft.register_valuelog(w.clone()).is_ok());
+        assert!(engines.kv.register_valuelog(w.clone(), false).is_ok());
+        assert!(engines.raft.register_valuelog(w.clone(), false).is_ok());
         bootstrap_store(&engines, 1, 1).unwrap();
 
         let region = initial_region(1, 1, 1);

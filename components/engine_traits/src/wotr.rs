@@ -11,7 +11,7 @@ pub trait WOTRExt: Sized {
 //    type WriteBatch: WriteBatch<E>;
     type DBVector: DBVector;
     
-    fn register_valuelog(&mut self, logobj: Arc<Self::WOTR>) -> Result<()>;
+    fn register_valuelog(&mut self, logobj: Arc<Self::WOTR>, recover: bool) -> Result<()>;
     fn have_wotr(&self); 
 }
 

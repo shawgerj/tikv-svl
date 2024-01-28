@@ -9,7 +9,7 @@ impl WOTRExt for PanicEngine {
     type DBVector = PanicDBVector;
     type WOTR = PanicWOTR;
 
-    fn register_valuelog(&mut self, logobj: Arc<Self::WOTR>) -> Result<()> {
+    fn register_valuelog(&mut self, logobj: Arc<Self::WOTR>, recover: bool) -> Result<()> {
         panic!()
     }
 

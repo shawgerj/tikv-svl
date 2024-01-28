@@ -59,8 +59,8 @@ fn create_tmp_engine(dir: &TempDir) -> Engines<RocksEngine, RocksEngine> {
         .unwrap(),
     );
     let mut engines = Engines::new(RocksEngine::from_db(db), RocksEngine::from_db(raft_db));
-    assert!(engines.kv.register_valuelog(w.clone()).is_ok());
-    assert!(engines.raft.register_valuelog(w.clone()).is_ok());
+    assert!(engines.kv.register_valuelog(w.clone(), false).is_ok());
+    assert!(engines.raft.register_valuelog(w.clone(), false).is_ok());
     engines
 }
 

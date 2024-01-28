@@ -4644,7 +4644,7 @@ mod tests {
         let sender = Box::new(TestNotifier { tx });
         let (tmppath, mut engine) = create_tmp_engine("apply-basic");
         let w = Arc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
-        assert!(engine.register_valuelog(w.clone()).is_ok());
+        assert!(engine.register_valuelog(w.clone(), false).is_ok());
         let (_dir, importer) = create_tmp_importer("apply-basic");
         let (region_scheduler, mut snapshot_rx) = dummy_scheduler();
         let cfg = Arc::new(VersionTrack::new(Config::default()));
@@ -4977,7 +4977,7 @@ mod tests {
     fn test_handle_raft_committed_entries() {
         let (tmppath, mut engine) = create_tmp_engine("test-delegate");
         let w = Arc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
-        assert!(engine.register_valuelog(w.clone()).is_ok());
+        assert!(engine.register_valuelog(w.clone(), false).is_ok());
 
         let (import_dir, importer) = create_tmp_importer("test-delegate");
         let obs = ApplyObserver::default();
@@ -5506,7 +5506,7 @@ mod tests {
     fn test_cmd_observer() {
         let (tmppath, mut engine) = create_tmp_engine("test-delegate");
         let w = Arc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
-        assert!(engine.register_valuelog(w.clone()).is_ok());
+        assert!(engine.register_valuelog(w.clone(), false).is_ok());
 
         let (_import_dir, importer) = create_tmp_importer("test-delegate");
         let mut host = CoprocessorHost::<KvTestEngine>::default();
@@ -5789,7 +5789,7 @@ mod tests {
     fn test_split() {
         let (tmppath, mut engine) = create_tmp_engine("test-delegate");
         let w = Arc::new(RocksWOTR::new(tmppath.path().join("wotrlog.txt").to_str().unwrap()));
-        assert!(engine.register_valuelog(w.clone()).is_ok());
+        assert!(engine.register_valuelog(w.clone(), false).is_ok());
 
         let (_import_dir, importer) = create_tmp_importer("test-delegate");
         let peer_id = 3;

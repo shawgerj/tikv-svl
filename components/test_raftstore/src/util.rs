@@ -708,8 +708,8 @@ pub fn create_test_engine(
     raft_engine.set_shared_block_cache(shared_block_cache);
 
     let wotr = Arc::new(RocksWOTR::new(dir.path().join("wotrlog.txt").to_str().unwrap()));
-    assert!(engine.register_valuelog(wotr.clone()).is_ok());
-    assert!(raft_engine.register_valuelog(wotr.clone()).is_ok());
+    assert!(engine.register_valuelog(wotr.clone(), false).is_ok());
+    assert!(raft_engine.register_valuelog(wotr.clone(), true).is_ok());
 
     let engines = Engines::new(engine, raft_engine);
     

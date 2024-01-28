@@ -146,8 +146,8 @@ mod tests {
                 .unwrap();
         let mut engines = Engines::new(kv_engine.clone(), raft_engine.clone());
         let w = Arc::new(RocksWOTR::new(path.path().join("wotrlog.txt").to_str().unwrap()));
-        assert!(engines.kv.register_valuelog(w.clone()).is_ok());
-        assert!(engines.raft.register_valuelog(w.clone()).is_ok());
+        assert!(engines.kv.register_valuelog(w.clone(), false).is_ok());
+        assert!(engines.raft.register_valuelog(w.clone(), false).is_ok());
 
         let region = initial_region(1, 1, 1);
 
