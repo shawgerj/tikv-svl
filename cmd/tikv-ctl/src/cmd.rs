@@ -3,13 +3,13 @@
 use clap::{crate_authors, AppSettings};
 use engine_traits::CF_DEFAULT;
 use std::borrow::ToOwned;
-use std::lazy::SyncLazy;
+use std::sync::LazyLock;
 use std::string::ToString;
 use std::{str, u64};
 use structopt::StructOpt;
 
 const RAW_KEY_HINT: &str = "Raw key (generally starts with \"z\") in escaped form";
-static VERSION_INFO: SyncLazy<String> = SyncLazy::new(|| {
+static VERSION_INFO: LazyLock<String> = LazyLock::new(|| {
     let build_timestamp = option_env!("TIKV_BUILD_TIME");
     tikv::tikv_version_info(build_timestamp)
 });

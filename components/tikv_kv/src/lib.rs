@@ -6,7 +6,6 @@
 
 #![feature(min_specialization)]
 #![feature(negative_impls)]
-#![feature(generic_associated_types)]
 
 #[macro_use]
 extern crate derive_more;
