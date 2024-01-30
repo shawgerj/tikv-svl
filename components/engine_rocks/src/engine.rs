@@ -10,7 +10,6 @@ use engine_traits::{
 };
 use rocksdb::{DBIterator, Writable, DB};
 
-use crate::RocksWOTR;
 use crate::db_vector::RocksDBVector;
 use crate::options::RocksReadOptions;
 use crate::rocks_metrics::{
@@ -18,9 +17,11 @@ use crate::rocks_metrics::{
     flush_engine_ticker_metrics,
 };
 use crate::rocks_metrics_defs::{
-    ENGINE_HIST_TYPES, ENGINE_TICKER_TYPES, TITAN_ENGINE_HIST_TYPES, TITAN_ENGINE_TICKER_TYPES,
+    ENGINE_HIST_TYPES,
+    ENGINE_TICKER_TYPES, //TITAN_ENGINE_HIST_TYPES, TITAN_ENGINE_TICKER_TYPES,
 };
 use crate::util::get_cf_handle;
+use crate::RocksWOTR;
 use crate::{RocksEngineIterator, RocksSnapshot};
 
 #[derive(Clone, Debug)]
@@ -97,17 +98,17 @@ impl KvEngine for RocksEngine {
                 flush_engine_histogram_metrics(*t, v, instance);
             }
         }
-        if self.db.is_titan() {
-            for t in TITAN_ENGINE_TICKER_TYPES {
-                let v = self.db.get_and_reset_statistics_ticker_count(*t);
-                flush_engine_ticker_metrics(*t, v, instance);
-            }
-            for t in TITAN_ENGINE_HIST_TYPES {
-                if let Some(v) = self.db.get_statistics_histogram(*t) {
-                    flush_engine_histogram_metrics(*t, v, instance);
-                }
-            }
-        }
+        // if self.db.is_titan() {
+        //     for t in TITAN_ENGINE_TICKER_TYPES {
+        //         let v = self.db.get_and_reset_statistics_ticker_count(*t);
+        //         flush_engine_ticker_metrics(*t, v, instance);
+        //     }
+        //     for t in TITAN_ENGINE_HIST_TYPES {
+        //         if let Some(v) = self.db.get_statistics_histogram(*t) {
+        //             flush_engine_histogram_metrics(*t, v, instance);
+        //         }
+        //     }
+        // }
         flush_engine_properties(&self.db, instance, self.shared_block_cache);
         flush_engine_iostall_properties(&self.db, instance);
     }
@@ -165,9 +166,10 @@ impl Peekable for RocksEngine {
         Ok(v.map(RocksDBVector::from_raw))
     }
 
-    fn get_valuelog_opt(&self,
-                readopts: &ReadOptions,
-                key: &[u8],
+    fn get_valuelog_opt(
+        &self,
+        readopts: &ReadOptions,
+        key: &[u8],
     ) -> Result<Option<RocksDBVector>> {
         let opt: RocksReadOptions = readopts.into();
         let v = self.db.get_external(key, &opt.into_raw())?;
@@ -186,10 +188,7 @@ impl Peekable for RocksEngine {
         Ok(v.map(RocksDBVector::from_raw))
     }
 
-    fn get_value_p_opt(&self,
-                readopts: &ReadOptions,
-                key: &[u8],
-    ) -> Result<Option<RocksDBVector>> {
+    fn get_value_p_opt(&self, readopts: &ReadOptions, key: &[u8]) -> Result<Option<RocksDBVector>> {
         let opt: RocksReadOptions = readopts.into();
         let v = self.db.get_p_external(key, &opt.into_raw())?;
         Ok(v.map(RocksDBVector::from_raw))
@@ -206,7 +205,6 @@ impl Peekable for RocksEngine {
         let v = self.db.get_p_external_cf(handle, key, &opt.into_raw())?;
         Ok(v.map(RocksDBVector::from_raw))
     }
-
 }
 
 impl SyncMutable for RocksEngine {
@@ -223,10 +221,11 @@ impl SyncMutable for RocksEngine {
         self.db.put_external(key, value).map_err(Error::Engine)
     }
 
-    fn put_cf_valuelog(&self, cf: &str, key: &[u8], value: &[u8])
-                       -> Result<usize> {
+    fn put_cf_valuelog(&self, cf: &str, key: &[u8], value: &[u8]) -> Result<usize> {
         let handle = get_cf_handle(&self.db, cf)?;
-        self.db.put_cf_external(handle, key, value).map_err(Error::Engine)
+        self.db
+            .put_cf_external(handle, key, value)
+            .map_err(Error::Engine)
     }
 
     fn delete(&self, key: &[u8]) -> Result<()> {

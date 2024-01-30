@@ -2546,7 +2546,9 @@ mod tests {
     //     let mgr = SnapManager::new(snap_dir.path().to_str().unwrap());
     //     let mut worker = LazyWorker::new("snap-manager");
     //     let sched = worker.scheduler();
-    //     let w = Rc::new(RocksWOTR::new(td1.path().join("wotrlog.txt").to_str().unwrap()));
+    //     let w = Rc::new(RocksWOTR::new(
+    //         td1.path().join("wotrlog.txt").to_str().unwrap(),
+    //     ));
 
     //     let s1 = new_storage_from_ents(sched.clone(), &td1, &ents, w.clone());
     //     let (router, _) = mpsc::sync_channel(100);
@@ -2575,7 +2577,9 @@ mod tests {
     //     worker.stop();
 
     //     let td2 = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
-    //     let w0 = Rc::new(RocksWOTR::new(td2.path().join("wotrlog.txt").to_str().unwrap()));
+    //     let w0 = Rc::new(RocksWOTR::new(
+    //         td2.path().join("wotrlog.txt").to_str().unwrap(),
+    //     ));
 
     //     let mut s2 = new_storage(sched.clone(), &td2, w0.clone());
     //     assert_eq!(s2.first_index(), s2.applied_index() + 1);
@@ -2594,7 +2598,9 @@ mod tests {
 
     //     let td3 = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
     //     let ents = &[new_entry(3, 3), new_entry(4, 3)];
-    //     let w = Rc::new(RocksWOTR::new(td3.path().join("wotrlog.txt").to_str().unwrap()));
+    //     let w = Rc::new(RocksWOTR::new(
+    //         td3.path().join("wotrlog.txt").to_str().unwrap(),
+    //     ));
 
     //     let mut s3 = new_storage_from_ents(sched, &td3, ents, w.clone());
     //     validate_cache(&s3, &ents[1..]);

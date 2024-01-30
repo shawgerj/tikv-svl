@@ -469,165 +469,165 @@ pub fn flush_engine_ticker_metrics(t: TickerType, value: u64, name: &str) {
                 .read_amp_total_read_bytes
                 .inc_by(value);
         }
-        TickerType::TitanNumGet => {
-            STORE_ENGINE_BLOB_LOCATE
-                .get(name_enum)
-                .number_blob_get
-                .inc_by(value);
-        }
-        TickerType::TitanNumSeek => {
-            STORE_ENGINE_BLOB_LOCATE
-                .get(name_enum)
-                .number_blob_seek
-                .inc_by(value);
-        }
-        TickerType::TitanNumNext => {
-            STORE_ENGINE_BLOB_LOCATE
-                .get(name_enum)
-                .number_blob_next
-                .inc_by(value);
-        }
-        TickerType::TitanNumPrev => {
-            STORE_ENGINE_BLOB_LOCATE
-                .get(name_enum)
-                .number_blob_prev
-                .inc_by(value);
-        }
-        TickerType::TitanBlobFileNumKeysWritten => {
-            STORE_ENGINE_BLOB_FLOW
-                .get(name_enum)
-                .keys_written
-                .inc_by(value);
-        }
-        TickerType::TitanBlobFileNumKeysRead => {
-            STORE_ENGINE_BLOB_FLOW
-                .get(name_enum)
-                .keys_read
-                .inc_by(value);
-        }
-        TickerType::TitanBlobFileBytesWritten => {
-            STORE_ENGINE_BLOB_FLOW
-                .get(name_enum)
-                .bytes_written
-                .inc_by(value);
-        }
-        TickerType::TitanBlobFileBytesRead => {
-            STORE_ENGINE_BLOB_FLOW
-                .get(name_enum)
-                .bytes_read
-                .inc_by(value);
-        }
-        TickerType::TitanBlobFileSynced => {
-            STORE_ENGINE_BLOB_FILE_SYNCED.get(name_enum).inc_by(value)
-        }
-        TickerType::TitanGcNumFiles => {
-            STORE_ENGINE_BLOB_GC_FILE
-                .get(name_enum)
-                .gc_input_files_count
-                .inc_by(value);
-        }
-        TickerType::TitanGcNumNewFiles => {
-            STORE_ENGINE_BLOB_GC_FILE
-                .get(name_enum)
-                .gc_output_files_count
-                .inc_by(value);
-        }
-        TickerType::TitanGcNumKeysOverwritten => {
-            STORE_ENGINE_BLOB_GC_FLOW
-                .get(name_enum)
-                .keys_overwritten
-                .inc_by(value);
-        }
-        TickerType::TitanGcNumKeysRelocated => {
-            STORE_ENGINE_BLOB_GC_FLOW
-                .get(name_enum)
-                .keys_relocated
-                .inc_by(value);
-        }
-        TickerType::TitanGcBytesOverwritten => {
-            STORE_ENGINE_BLOB_GC_FLOW
-                .get(name_enum)
-                .bytes_overwritten
-                .inc_by(value);
-        }
-        TickerType::TitanGcBytesRelocated => {
-            STORE_ENGINE_BLOB_GC_FLOW
-                .get(name_enum)
-                .bytes_relocated
-                .inc_by(value);
-        }
-        TickerType::TitanGcBytesWritten => {
-            STORE_ENGINE_BLOB_GC_FLOW
-                .get(name_enum)
-                .bytes_written
-                .inc_by(value);
-        }
-        TickerType::TitanGcBytesRead => {
-            STORE_ENGINE_BLOB_GC_FLOW
-                .get(name_enum)
-                .bytes_read
-                .inc_by(value);
-        }
-        TickerType::TitanBlobCacheHit => {
-            STORE_ENGINE_BLOB_CACHE_EFFICIENCY
-                .get(name_enum)
-                .blob_cache_hit
-                .inc_by(value);
-        }
-        TickerType::TitanBlobCacheMiss => {
-            STORE_ENGINE_BLOB_CACHE_EFFICIENCY
-                .get(name_enum)
-                .blob_cache_miss
-                .inc_by(value);
-        }
-        TickerType::TitanGcNoNeed => {
-            STORE_ENGINE_BLOB_GC_ACTION
-                .get(name_enum)
-                .no_need
-                .inc_by(value);
-        }
-        TickerType::TitanGcRemain => {
-            STORE_ENGINE_BLOB_GC_ACTION
-                .get(name_enum)
-                .remain
-                .inc_by(value);
-        }
-        TickerType::TitanGcDiscardable => {
-            STORE_ENGINE_BLOB_GC_ACTION
-                .get(name_enum)
-                .discardable
-                .inc_by(value);
-        }
-        TickerType::TitanGcSample => {
-            STORE_ENGINE_BLOB_GC_ACTION
-                .get(name_enum)
-                .sample
-                .inc_by(value);
-        }
-        TickerType::TitanGcSmallFile => {
-            STORE_ENGINE_BLOB_GC_ACTION
-                .get(name_enum)
-                .small_file
-                .inc_by(value);
-        }
-        TickerType::TitanGcFailure => {
-            STORE_ENGINE_BLOB_GC_ACTION
-                .get(name_enum)
-                .failure
-                .inc_by(value);
-        }
-        TickerType::TitanGcSuccess => {
-            STORE_ENGINE_BLOB_GC_ACTION
-                .get(name_enum)
-                .success
-                .inc_by(value);
-        }
-        TickerType::TitanGcTriggerNext => {
-            STORE_ENGINE_BLOB_GC_ACTION
-                .get(name_enum)
-                .trigger_next
-                .inc_by(value);
-        }
+        // TickerType::TitanNumGet => {
+        //     STORE_ENGINE_BLOB_LOCATE
+        //         .get(name_enum)
+        //         .number_blob_get
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanNumSeek => {
+        //     STORE_ENGINE_BLOB_LOCATE
+        //         .get(name_enum)
+        //         .number_blob_seek
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanNumNext => {
+        //     STORE_ENGINE_BLOB_LOCATE
+        //         .get(name_enum)
+        //         .number_blob_next
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanNumPrev => {
+        //     STORE_ENGINE_BLOB_LOCATE
+        //         .get(name_enum)
+        //         .number_blob_prev
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanBlobFileNumKeysWritten => {
+        //     STORE_ENGINE_BLOB_FLOW
+        //         .get(name_enum)
+        //         .keys_written
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanBlobFileNumKeysRead => {
+        //     STORE_ENGINE_BLOB_FLOW
+        //         .get(name_enum)
+        //         .keys_read
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanBlobFileBytesWritten => {
+        //     STORE_ENGINE_BLOB_FLOW
+        //         .get(name_enum)
+        //         .bytes_written
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanBlobFileBytesRead => {
+        //     STORE_ENGINE_BLOB_FLOW
+        //         .get(name_enum)
+        //         .bytes_read
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanBlobFileSynced => {
+        //     STORE_ENGINE_BLOB_FILE_SYNCED.get(name_enum).inc_by(value)
+        // }
+        // TickerType::TitanGcNumFiles => {
+        //     STORE_ENGINE_BLOB_GC_FILE
+        //         .get(name_enum)
+        //         .gc_input_files_count
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcNumNewFiles => {
+        //     STORE_ENGINE_BLOB_GC_FILE
+        //         .get(name_enum)
+        //         .gc_output_files_count
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcNumKeysOverwritten => {
+        //     STORE_ENGINE_BLOB_GC_FLOW
+        //         .get(name_enum)
+        //         .keys_overwritten
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcNumKeysRelocated => {
+        //     STORE_ENGINE_BLOB_GC_FLOW
+        //         .get(name_enum)
+        //         .keys_relocated
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcBytesOverwritten => {
+        //     STORE_ENGINE_BLOB_GC_FLOW
+        //         .get(name_enum)
+        //         .bytes_overwritten
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcBytesRelocated => {
+        //     STORE_ENGINE_BLOB_GC_FLOW
+        //         .get(name_enum)
+        //         .bytes_relocated
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcBytesWritten => {
+        //     STORE_ENGINE_BLOB_GC_FLOW
+        //         .get(name_enum)
+        //         .bytes_written
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcBytesRead => {
+        //     STORE_ENGINE_BLOB_GC_FLOW
+        //         .get(name_enum)
+        //         .bytes_read
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanBlobCacheHit => {
+        //     STORE_ENGINE_BLOB_CACHE_EFFICIENCY
+        //         .get(name_enum)
+        //         .blob_cache_hit
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanBlobCacheMiss => {
+        //     STORE_ENGINE_BLOB_CACHE_EFFICIENCY
+        //         .get(name_enum)
+        //         .blob_cache_miss
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcNoNeed => {
+        //     STORE_ENGINE_BLOB_GC_ACTION
+        //         .get(name_enum)
+        //         .no_need
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcRemain => {
+        //     STORE_ENGINE_BLOB_GC_ACTION
+        //         .get(name_enum)
+        //         .remain
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcDiscardable => {
+        //     STORE_ENGINE_BLOB_GC_ACTION
+        //         .get(name_enum)
+        //         .discardable
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcSample => {
+        //     STORE_ENGINE_BLOB_GC_ACTION
+        //         .get(name_enum)
+        //         .sample
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcSmallFile => {
+        //     STORE_ENGINE_BLOB_GC_ACTION
+        //         .get(name_enum)
+        //         .small_file
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcFailure => {
+        //     STORE_ENGINE_BLOB_GC_ACTION
+        //         .get(name_enum)
+        //         .failure
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcSuccess => {
+        //     STORE_ENGINE_BLOB_GC_ACTION
+        //         .get(name_enum)
+        //         .success
+        //         .inc_by(value);
+        // }
+        // TickerType::TitanGcTriggerNext => {
+        //     STORE_ENGINE_BLOB_GC_ACTION
+        //         .get(name_enum)
+        //         .trigger_next
+        //         .inc_by(value);
+        // }
         _ => {}
     }
 }
@@ -840,105 +840,105 @@ pub fn flush_engine_histogram_metrics(t: HistType, value: HistogramData, name: &
                 value
             );
         }
-        HistType::TitanKeySize => {
-            engine_histogram_metrics!(STORE_ENGINE_BLOB_KEY_SIZE_VEC, "blob_key_size", name, value);
-        }
-        HistType::TitanValueSize => {
-            engine_histogram_metrics!(
-                STORE_ENGINE_BLOB_VALUE_SIZE_VEC,
-                "blob_value_size",
-                name,
-                value
-            );
-        }
-        HistType::TitanGetMicros => {
-            engine_histogram_metrics!(
-                STORE_ENGINE_BLOB_GET_MICROS_VEC,
-                "blob_get_micros",
-                name,
-                value
-            );
-        }
-        HistType::TitanSeekMicros => {
-            engine_histogram_metrics!(
-                STORE_ENGINE_BLOB_SEEK_MICROS_VEC,
-                "blob_seek_micros",
-                name,
-                value
-            );
-        }
-        HistType::TitanNextMicros => {
-            engine_histogram_metrics!(
-                STORE_ENGINE_BLOB_NEXT_MICROS_VEC,
-                "blob_next_micros",
-                name,
-                value
-            );
-        }
-        HistType::TitanPrevMicros => {
-            engine_histogram_metrics!(
-                STORE_ENGINE_BLOB_PREV_MICROS_VEC,
-                "blob_prev_micros",
-                name,
-                value
-            );
-        }
-        HistType::TitanBlobFileWriteMicros => {
-            engine_histogram_metrics!(
-                STORE_ENGINE_BLOB_FILE_WRITE_MICROS_VEC,
-                "blob_file_write_micros",
-                name,
-                value
-            );
-        }
-        HistType::TitanBlobFileReadMicros => {
-            engine_histogram_metrics!(
-                STORE_ENGINE_BLOB_FILE_READ_MICROS_VEC,
-                "blob_file_read_micros",
-                name,
-                value
-            );
-        }
-        HistType::TitanBlobFileSyncMicros => {
-            engine_histogram_metrics!(
-                STORE_ENGINE_BLOB_FILE_SYNC_MICROS_VEC,
-                "blob_file_sync_micros",
-                name,
-                value
-            );
-        }
-        HistType::TitanGcMicros => {
-            engine_histogram_metrics!(
-                STORE_ENGINE_BLOB_GC_MICROS_VEC,
-                "blob_gc_micros",
-                name,
-                value
-            );
-        }
-        HistType::TitanGcInputFileSize => {
-            engine_histogram_metrics!(
-                STORE_ENGINE_GC_INPUT_BLOB_FILE_SIZE_VEC,
-                "blob_gc_input_file",
-                name,
-                value
-            );
-        }
-        HistType::TitanGcOutputFileSize => {
-            engine_histogram_metrics!(
-                STORE_ENGINE_GC_OUTPUT_BLOB_FILE_SIZE_VEC,
-                "blob_gc_output_file",
-                name,
-                value
-            );
-        }
-        HistType::TitanIterTouchBlobFileCount => {
-            engine_histogram_metrics!(
-                STORE_ENGINE_ITER_TOUCH_BLOB_FILE_COUNT_VEC,
-                "blob_iter_touch_blob_file_count",
-                name,
-                value
-            );
-        }
+        // HistType::TitanKeySize => {
+        //     engine_histogram_metrics!(STORE_ENGINE_BLOB_KEY_SIZE_VEC, "blob_key_size", name, value);
+        // }
+        // HistType::TitanValueSize => {
+        //     engine_histogram_metrics!(
+        //         STORE_ENGINE_BLOB_VALUE_SIZE_VEC,
+        //         "blob_value_size",
+        //         name,
+        //         value
+        //     );
+        // }
+        // HistType::TitanGetMicros => {
+        //     engine_histogram_metrics!(
+        //         STORE_ENGINE_BLOB_GET_MICROS_VEC,
+        //         "blob_get_micros",
+        //         name,
+        //         value
+        //     );
+        // }
+        // HistType::TitanSeekMicros => {
+        //     engine_histogram_metrics!(
+        //         STORE_ENGINE_BLOB_SEEK_MICROS_VEC,
+        //         "blob_seek_micros",
+        //         name,
+        //         value
+        //     );
+        // }
+        // HistType::TitanNextMicros => {
+        //     engine_histogram_metrics!(
+        //         STORE_ENGINE_BLOB_NEXT_MICROS_VEC,
+        //         "blob_next_micros",
+        //         name,
+        //         value
+        //     );
+        // }
+        // HistType::TitanPrevMicros => {
+        //     engine_histogram_metrics!(
+        //         STORE_ENGINE_BLOB_PREV_MICROS_VEC,
+        //         "blob_prev_micros",
+        //         name,
+        //         value
+        //     );
+        // }
+        // HistType::TitanBlobFileWriteMicros => {
+        //     engine_histogram_metrics!(
+        //         STORE_ENGINE_BLOB_FILE_WRITE_MICROS_VEC,
+        //         "blob_file_write_micros",
+        //         name,
+        //         value
+        //     );
+        // }
+        // HistType::TitanBlobFileReadMicros => {
+        //     engine_histogram_metrics!(
+        //         STORE_ENGINE_BLOB_FILE_READ_MICROS_VEC,
+        //         "blob_file_read_micros",
+        //         name,
+        //         value
+        //     );
+        // }
+        // HistType::TitanBlobFileSyncMicros => {
+        //     engine_histogram_metrics!(
+        //         STORE_ENGINE_BLOB_FILE_SYNC_MICROS_VEC,
+        //         "blob_file_sync_micros",
+        //         name,
+        //         value
+        //     );
+        // }
+        // HistType::TitanGcMicros => {
+        //     engine_histogram_metrics!(
+        //         STORE_ENGINE_BLOB_GC_MICROS_VEC,
+        //         "blob_gc_micros",
+        //         name,
+        //         value
+        //     );
+        // }
+        // HistType::TitanGcInputFileSize => {
+        //     engine_histogram_metrics!(
+        //         STORE_ENGINE_GC_INPUT_BLOB_FILE_SIZE_VEC,
+        //         "blob_gc_input_file",
+        //         name,
+        //         value
+        //     );
+        // }
+        // HistType::TitanGcOutputFileSize => {
+        //     engine_histogram_metrics!(
+        //         STORE_ENGINE_GC_OUTPUT_BLOB_FILE_SIZE_VEC,
+        //         "blob_gc_output_file",
+        //         name,
+        //         value
+        //     );
+        // }
+        // HistType::TitanIterTouchBlobFileCount => {
+        //     engine_histogram_metrics!(
+        //         STORE_ENGINE_ITER_TOUCH_BLOB_FILE_COUNT_VEC,
+        //         "blob_iter_touch_blob_file_count",
+        //         name,
+        //         value
+        //     );
+        // }
         _ => {}
     }
 }

@@ -3,8 +3,8 @@
 // #[PerformanceCriticalPath]
 use std::cell::Cell;
 use std::cmp::{Ord, Ordering as CmpOrdering};
-use std::collections::{BTreeMap, VecDeque};
 use std::collections::Bound::{Excluded, Included, Unbounded};
+use std::collections::{BTreeMap, VecDeque};
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -893,6 +893,18 @@ impl<EK: KvEngine, ER: RaftEngine, T: Transport> PollHandler<PeerFsm<EK, ER>, St
                 }
             }
 
+            // println!(
+            //     "append: curr {} prev {}",
+            //     self.poll_ctx.raft_metrics.ready.append, self.previous_metrics.append
+            // );
+            // println!(
+            //     "message: curr {} prev {}",
+            //     self.poll_ctx.raft_metrics.ready.message, self.previous_metrics.message
+            // );
+            // println!(
+            //     "snapshot: curr {} prev {}",
+            //     self.poll_ctx.raft_metrics.ready.snapshot, self.previous_metrics.snapshot
+            // );
             slow_log!(
                 dur,
                 "{} handle {} pending peers include {} ready, {} entries, {} messages and {} \
@@ -900,9 +912,11 @@ impl<EK: KvEngine, ER: RaftEngine, T: Transport> PollHandler<PeerFsm<EK, ER>, St
                 self.tag,
                 self.poll_ctx.pending_count,
                 self.poll_ctx.ready_count,
-                self.poll_ctx.raft_metrics.ready.append - self.previous_metrics.append,
-                self.poll_ctx.raft_metrics.ready.message - self.previous_metrics.message,
-                self.poll_ctx.raft_metrics.ready.snapshot - self.previous_metrics.snapshot
+                0,
+                0,
+                0 // self.poll_ctx.raft_metrics.ready.append - self.previous_metrics.append,
+                  // self.poll_ctx.raft_metrics.ready.message - self.previous_metrics.message,
+                  // self.poll_ctx.raft_metrics.ready.snapshot - self.previous_metrics.snapshot
             );
         }
 
@@ -1390,15 +1404,15 @@ impl<EK: KvEngine, ER: RaftEngine> RaftBatchSystem<EK, ER> {
             .background_worker
             .start("consistency-check", consistency_check_runner);
 
-        self.store_writers
-            .spawn(meta.get_id(),
-                   &engines,
-                   &self.router,
-                   &trans,
-                   &cfg,
-                   data_locations.clone(),
-                   key_queue.clone()
-            )?;
+        self.store_writers.spawn(
+            meta.get_id(),
+            &engines,
+            &self.router,
+            &trans,
+            &cfg,
+            data_locations.clone(),
+            key_queue.clone(),
+        )?;
 
         let mut builder = RaftPollerBuilder {
             cfg,
