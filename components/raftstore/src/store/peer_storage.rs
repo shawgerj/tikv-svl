@@ -1785,17 +1785,17 @@ impl CachedEntries {
 mod tests {
     use crate::store::async_io::write::write_to_db_for_test;
     use crate::store::fsm::apply::compact_raft_log;
-//    use crate::store::worker::RegionRunner;
+    //    use crate::store::worker::RegionRunner;
     use crate::store::worker::RegionTask;
     use crate::store::{bootstrap_store, initial_region, prepare_bootstrap_cluster};
+    use engine_rocks::RocksWOTR;
     use engine_test::kv::{KvTestEngine, KvTestSnapshot};
     use engine_test::raft::RaftTestEngine;
     use engine_traits::Engines;
-    use engine_traits::{Iterable, SyncMutable, WriteBatch, WriteBatchExt, WOTR, WOTRExt};
+    use engine_traits::{Iterable, SyncMutable, WOTRExt, WriteBatch, WriteBatchExt, WOTR};
     use engine_traits::{ALL_CFS, CF_DEFAULT};
-    use engine_rocks::RocksWOTR;
-//    use kvproto::raft_serverpb::RaftSnapshotData;
-//    use raft::eraftpb::HardState;
+    //    use kvproto::raft_serverpb::RaftSnapshotData;
+    //    use raft::eraftpb::HardState;
     use raft::eraftpb::Entry;
     use raft::{Error as RaftError, StorageError};
     use std::cell::RefCell;
@@ -1827,12 +1827,9 @@ mod tests {
         path: &TempDir,
         wotr: Arc<RocksWOTR>,
     ) -> PeerStorage<KvTestEngine, RaftTestEngine> {
-        let kv_db = engine_test::kv::new_engine(path.path(), None, ALL_CFS, None)
-            .unwrap();
-//        let raft_path = path.path().join(Path::new("raft"));
-        let raft_db =
-            engine_test::raft::new_engine(path.path(), None, CF_DEFAULT, None)
-                .unwrap();
+        let kv_db = engine_test::kv::new_engine(path.path(), None, ALL_CFS, None).unwrap();
+        //        let raft_path = path.path().join(Path::new("raft"));
+        let raft_db = engine_test::raft::new_engine(path.path(), None, CF_DEFAULT, None).unwrap();
         let mut engines = Engines::new(kv_db, raft_db);
         assert!(engines.kv.register_valuelog(wotr.clone(), false).is_ok());
         assert!(engines.raft.register_valuelog(wotr.clone(), false).is_ok());
@@ -1852,7 +1849,7 @@ mod tests {
         let mut store = new_storage(sched, path, wotr);
         let mut write_task = WriteTask::new(store.get_region_id(), store.peer_id, 1);
         store.append(ents[1..].to_vec(), &mut write_task);
-        
+
         store
             .apply_state
             .mut_truncated_state()
@@ -1921,7 +1918,9 @@ mod tests {
             let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
             let worker = Worker::new("snap-manager").lazy_build("snap-manager");
             let sched = worker.scheduler();
-            let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+            let w = Arc::new(RocksWOTR::new(
+                td.path().join("wotrlog.txt").to_str().unwrap(),
+            ));
 
             let store = new_storage_from_ents(sched, &td, &ents, w.clone());
             let t = store.term(idx);
@@ -1979,9 +1978,12 @@ mod tests {
         for (first_index, left) in cases {
             let td = Builder::new().prefix("tikv-store").tempdir().unwrap();
             let sched = worker.scheduler();
-            let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
-            
-            let mut store = new_storage_from_ents(sched, &td, &[new_entry(3, 3), new_entry(4, 4)], w.clone());
+            let w = Arc::new(RocksWOTR::new(
+                td.path().join("wotrlog.txt").to_str().unwrap(),
+            ));
+
+            let mut store =
+                new_storage_from_ents(sched, &td, &[new_entry(3, 3), new_entry(4, 4)], w.clone());
             append_ents(&mut store, &[new_entry(5, 5), new_entry(6, 6)]);
 
             assert_eq!(6, get_meta_key_count(&store));
@@ -2062,7 +2064,9 @@ mod tests {
             let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
             let worker = Worker::new("snap-manager").lazy_build("snap-manager");
             let sched = worker.scheduler();
-            let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+            let w = Arc::new(RocksWOTR::new(
+                td.path().join("wotrlog.txt").to_str().unwrap(),
+            ));
 
             let store = new_storage_from_ents(sched, &td, &ents, w.clone());
             let e = store.entries(lo, hi, maxsize);
@@ -2088,8 +2092,10 @@ mod tests {
             let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
             let worker = Worker::new("snap-manager").lazy_build("snap-manager");
             let sched = worker.scheduler();
-            let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
-            
+            let w = Arc::new(RocksWOTR::new(
+                td.path().join("wotrlog.txt").to_str().unwrap(),
+            ));
+
             let mut store = new_storage_from_ents(sched, &td, &ents, w.clone());
             let res = store
                 .term(idx)
@@ -2307,8 +2313,10 @@ mod tests {
             let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
             let worker = LazyWorker::new("snap-manager");
             let sched = worker.scheduler();
-            let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
-            
+            let w = Arc::new(RocksWOTR::new(
+                td.path().join("wotrlog.txt").to_str().unwrap(),
+            ));
+
             let mut store = new_storage_from_ents(sched, &td, &ents, w.clone());
             append_ents(&mut store, &entries);
             let li = store.last_index();
@@ -2325,7 +2333,9 @@ mod tests {
         let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
         let worker = LazyWorker::new("snap-manager");
         let sched = worker.scheduler();
-        let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+        let w = Arc::new(RocksWOTR::new(
+            td.path().join("wotrlog.txt").to_str().unwrap(),
+        ));
         let mut store = new_storage_from_ents(sched, &td, &ents, w.clone());
         store.cache.cache.clear();
         // empty cache should fetch data from rocksdb directly.
@@ -2369,7 +2379,9 @@ mod tests {
         let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
         let worker = LazyWorker::new("snap-manager");
         let sched = worker.scheduler();
-        let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+        let w = Arc::new(RocksWOTR::new(
+            td.path().join("wotrlog.txt").to_str().unwrap(),
+        ));
 
         let mut store = new_storage_from_ents(sched, &td, &ents, w.clone());
         store.cache.cache.clear();
@@ -2378,7 +2390,6 @@ mod tests {
         let mut entries = vec![new_entry(6, 5), new_entry(7, 5)];
         append_ents(&mut store, &entries);
         validate_cache(&store, &entries);
-        
 
         println!("got past initial cache");
         // rewrite
@@ -2439,16 +2450,18 @@ mod tests {
         // Test the initial data structure size.
         let (tx, rx) = mpsc::sync_channel(8);
         let mut cache = EntryCache::new_with_cb(move |c: i64| tx.send(c).unwrap());
-        //        assert_eq!(rx.try_recv().unwrap(), 896);
-        // shawgerj changed I think Entry is a different size now
-        // all this really does is measure the default siez of VecDeque<Entry>
-        assert_eq!(rx.try_recv().unwrap(), 1008);
+        // shawgerj needed to change some "magic numbers" in this test
+        // VecDeque<Entry> is initialized with capacity 0 with new version of rust
+        // adding entries later on increases the cache size
+        // the important part is that all memory is freed at drop
+        assert_eq!(rx.try_recv().unwrap(), 0);
 
         cache.append(
             "",
             &[new_padded_entry(101, 1, 1), new_padded_entry(102, 1, 2)],
         );
-        assert_eq!(rx.try_recv().unwrap(), 3);
+        assert_eq!(rx.try_recv().unwrap(), 483);
+        //        assert_eq!(rx.try_recv().unwrap(), 3);
 
         // Test size change for one overlapped entry.
         cache.append("", &[new_padded_entry(102, 2, 3)]);
@@ -2467,7 +2480,7 @@ mod tests {
         // Test trace a dangle entry.
         let cached_entries = CachedEntries::new(vec![new_padded_entry(100, 1, 1)]);
         cache.trace_cached_entries(cached_entries);
-        assert_eq!(rx.try_recv().unwrap(), 1);
+        assert_eq!(rx.try_recv().unwrap(), 97);
 
         // Test trace an entry which is still in cache.
         let cached_entries = CachedEntries::new(vec![new_padded_entry(102, 3, 5)]);
@@ -2494,8 +2507,8 @@ mod tests {
         assert_eq!(rx.try_recv().unwrap(), -7);
 
         drop(cache);
-        // shawgerj same as the above change
-        assert_eq!(rx.try_recv().unwrap(), -1008);
+        assert_eq!(rx.try_recv().unwrap(), -576);
+        // sum all the assertions (right side) and you get 0 bytes
     }
 
     #[test]
@@ -2603,7 +2616,9 @@ mod tests {
         let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
         let worker = LazyWorker::new("snap-manager");
         let sched = worker.scheduler();
-        let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+        let w = Arc::new(RocksWOTR::new(
+            td.path().join("wotrlog.txt").to_str().unwrap(),
+        ));
 
         let mut s = new_storage(sched, &td, w.clone());
 
@@ -2651,7 +2666,9 @@ mod tests {
         let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
         let worker = LazyWorker::new("snap-manager");
         let sched = worker.scheduler();
-        let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+        let w = Arc::new(RocksWOTR::new(
+            td.path().join("wotrlog.txt").to_str().unwrap(),
+        ));
 
         let mut s = new_storage(sched, &td, w.clone());
 
@@ -2702,13 +2719,12 @@ mod tests {
         let td = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
         let worker = LazyWorker::new("snap-manager");
         let sched = worker.scheduler();
-        let kv_db =
-            engine_test::kv::new_engine(td.path(), None, ALL_CFS, None).unwrap();
-//        let raft_path = td.path().join(Path::new("raft"));
-        let raft_db =
-            engine_test::raft::new_engine(td.path(), None, CF_DEFAULT, None)
-            .unwrap();
-        let w = Arc::new(RocksWOTR::new(td.path().join("wotrlog.txt").to_str().unwrap()));
+        let kv_db = engine_test::kv::new_engine(td.path(), None, ALL_CFS, None).unwrap();
+        //        let raft_path = td.path().join(Path::new("raft"));
+        let raft_db = engine_test::raft::new_engine(td.path(), None, CF_DEFAULT, None).unwrap();
+        let w = Arc::new(RocksWOTR::new(
+            td.path().join("wotrlog.txt").to_str().unwrap(),
+        ));
         let mut engines = Engines::new(kv_db, raft_db);
         assert!(engines.kv.register_valuelog(w.clone(), false).is_ok());
         assert!(engines.raft.register_valuelog(w.clone(), false).is_ok());
@@ -2736,7 +2752,10 @@ mod tests {
             .put_msg_valuelog(&log_key, &new_entry(11, RAFT_INIT_LOG_TERM))
             .unwrap();
         raft_state.mut_hard_state().set_commit(12);
-        engines.raft.put_msg_valuelog(&raft_state_key, &raft_state).unwrap();
+        engines
+            .raft
+            .put_msg_valuelog(&raft_state_key, &raft_state)
+            .unwrap();
         assert!(build_storage().is_err());
 
         let log_key = keys::raft_log_key(1, 20);
@@ -2745,7 +2764,10 @@ mod tests {
             .put_msg_valuelog(&log_key, &new_entry(20, RAFT_INIT_LOG_TERM))
             .unwrap();
         raft_state.set_last_index(20);
-        engines.raft.put_msg_valuelog(&raft_state_key, &raft_state).unwrap();
+        engines
+            .raft
+            .put_msg_valuelog(&raft_state_key, &raft_state)
+            .unwrap();
         s = build_storage().unwrap();
         let initial_state = s.initial_state().unwrap();
         assert_eq!(initial_state.hard_state, *raft_state.get_hard_state());
@@ -2804,7 +2826,10 @@ mod tests {
             .put_msg_valuelog(&log_key, &new_entry(14, RAFT_INIT_LOG_TERM))
             .unwrap();
         raft_state.mut_hard_state().set_term(RAFT_INIT_LOG_TERM - 1);
-        engines.raft.put_msg_valuelog(&raft_state_key, &raft_state).unwrap();
+        engines
+            .raft
+            .put_msg_valuelog(&raft_state_key, &raft_state)
+            .unwrap();
         assert!(build_storage().is_err());
 
         // last index < recorded_commit_index is invalid.
@@ -2815,7 +2840,10 @@ mod tests {
             .raft
             .put_msg_valuelog(&log_key, &new_entry(13, RAFT_INIT_LOG_TERM))
             .unwrap();
-        engines.raft.put_msg_valuelog(&raft_state_key, &raft_state).unwrap();
+        engines
+            .raft
+            .put_msg_valuelog(&raft_state_key, &raft_state)
+            .unwrap();
         assert!(build_storage().is_err());
     }
 
