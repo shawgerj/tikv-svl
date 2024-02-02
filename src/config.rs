@@ -943,7 +943,6 @@ impl Default for ValueLogConfig {
     }
 }
 
-
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug, OnlineConfig)]
 #[serde(default)]
 #[serde(rename_all = "kebab-case")]
@@ -2624,14 +2623,14 @@ impl Default for TiKvConfig {
 
 impl TiKvConfig {
     pub fn infer_valuelog_path(&self, data_dir: Option<&str>) -> Result<String, Box<dyn Error>> {
-        if self.valuelog.path.is_empty() {
-            let data_dir = data_dir.unwrap_or(&self.storage.data_dir);
-            let p = config::canonicalize_path(data_dir).unwrap();
-            Ok(format!("{}/{}", p, "valuelog.txt"))
-        } else {
-            let p = config::canonicalize_path(&self.valuelog.path).unwrap();
-            Ok(format!("{}/{}", p, "valuelog.txt"))
-        }
+        //        if self.valuelog.path.is_empty() {
+        let data_dir = data_dir.unwrap_or(&self.storage.data_dir);
+        let p = config::canonicalize_path(data_dir).unwrap();
+        Ok(format!("{}/{}", p, "valuelog.txt"))
+        // } else {
+        //     let p = config::canonicalize_path(&self.valuelog.path).unwrap();
+        //     Ok(format!("{}/{}", p, "valuelog.txt"))
+        // }
     }
 
     pub fn infer_raft_db_path(&self, data_dir: Option<&str>) -> Result<String, Box<dyn Error>> {
