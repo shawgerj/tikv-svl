@@ -250,9 +250,14 @@ fn cgroup_mountinfos_v2() -> HashMap<String, (String, PathBuf)> {
 fn parse_mountinfos_v2(infos: Vec<MountInfo>) -> HashMap<String, (String, PathBuf)> {
     let mut ret = HashMap::new();
     let mut cg_infos = infos.into_iter().filter(|x| x.fs_type == "cgroup2");
-    if let Some(cg_info) = cg_infos.next() {
-        assert!(cg_infos.next().is_none()); // Only one item for cgroup-2.
-        ret.insert("".to_string(), (cg_info.root, cg_info.mount_point));
+    for info in cg_infos {
+        if let Some((root, mount_point)) = ret.insert("".to_string(), (info.root, info.mount_point)) {
+            warn!(
+                "Found multiple cgroup2 mountinfos, dropping {} {}",
+                root,
+                mount_point.display()
+            );
+        }
     }
     ret
 }
