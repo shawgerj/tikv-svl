@@ -6,7 +6,6 @@
 
 #![feature(min_specialization)]
 #![feature(negative_impls)]
-#![feature(generic_associated_types)]
 
 #[macro_use]
 extern crate derive_more;
@@ -234,7 +233,9 @@ pub trait Engine: Send + Clone + 'static {
 /// at a specific timestamp. This snapshot is lower-level, a view of the underlying storage.
 pub trait Snapshot: Sync + Send + Clone {
     type Iter: Iterator;
-    type Ext<'a>: SnapshotExt;
+    type Ext<'a>: SnapshotExt
+    where
+        Self: 'a;
 
     /// Get the value associated with `key` in default column family
     fn get(&self, key: &Key) -> Result<Option<Value>>;

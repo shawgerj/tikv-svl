@@ -2,7 +2,6 @@
 
 #![feature(box_patterns)]
 #![feature(assert_matches)]
-#![feature(shrink_to)]
 
 mod channel;
 mod config;

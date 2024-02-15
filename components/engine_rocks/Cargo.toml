@@ -51,9 +51,9 @@ fail = "0.5"
 case_macros = { path = "../case_macros" }
 
 [dependencies.rocksdb]
-git = "https://github.com/tikv/rust-rocksdb.git"
+git = "https://github.com/shawgerj/rust-rocksdb-1.git"
 package = "rocksdb"
-branch = "tikv-5.4"
+branch = "wotr"
 features = ["encryption", "static_libcpp"]
 
 [dev-dependencies]
