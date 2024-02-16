@@ -345,6 +345,7 @@ mod tests {
     use crate::raw::{ColumnFamilyOptions, DBOptions};
     use crate::raw_util::{new_engine_opt, CFOptions};
     use std::sync::Arc;
+    use rocksdb::WOTR;
 
     use super::*;
     use engine_traits::{DeleteStrategy, ALL_CFS};
@@ -374,13 +375,15 @@ mod tests {
             .unwrap();
         let path_str = path.path().to_str().unwrap();
 
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
         let cfs_opts = ALL_CFS
             .iter()
             .map(|cf| CFOptions::new(cf, ColumnFamilyOptions::new()))
             .collect();
-        let db = new_engine_opt(path_str, DBOptions::new(), cfs_opts).unwrap();
+        let db = new_engine_opt(path_str, DBOptions::new(), cfs_opts, w.clone()).unwrap();
         let db = Arc::new(db);
-        let db = RocksEngine::from_db(db);
+        let mut db = RocksEngine::from_db(db);
 
         let mut wb = db.write_batch();
         let ts: u8 = 12;
@@ -521,6 +524,7 @@ mod tests {
             .tempdir()
             .unwrap();
         let path_str = path.path().to_str().unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
 
         let cfs_opts = ALL_CFS
             .iter()
@@ -530,9 +534,10 @@ mod tests {
                 CFOptions::new(cf, cf_opts)
             })
             .collect();
-        let db = new_engine_opt(path_str, DBOptions::new(), cfs_opts).unwrap();
+        let db = new_engine_opt(path_str, DBOptions::new(), cfs_opts, w.clone()).unwrap();
         let db = Arc::new(db);
-        let db = RocksEngine::from_db(db);
+        let mut db = RocksEngine::from_db(db);
+        db.set_wotr(w.clone());
 
         let keys = vec![b"k1", b"k2", b"k3", b"k4"];
 
@@ -563,6 +568,7 @@ mod tests {
             .tempdir()
             .unwrap();
         let path_str = path.path().to_str().unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
 
         let mut opts = DBOptions::new();
         opts.create_if_missing(true);
@@ -580,7 +586,8 @@ mod tests {
         let cf = "default";
         let db = DB::open_cf(opts, path_str, vec![(cf, cf_opts)]).unwrap();
         let db = Arc::new(db);
-        let db = RocksEngine::from_db(db);
+        let mut db = RocksEngine::from_db(db);
+        db.register_valuelog(w.clone(), false);
         let mut wb = db.write_batch();
         let kvs: Vec<(&[u8], &[u8])> = vec![
             (b"kabcdefg1", b"v1"),

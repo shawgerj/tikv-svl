@@ -8,7 +8,7 @@ use std::sync::Arc;
 use engine_traits::{
     Error, IterOptions, Iterable, KvEngine, Peekable, ReadOptions, Result, SyncMutable,
 };
-use rocksdb::{DBIterator, Writable, DB};
+use rocksdb::{DBIterator, Writable, DB, WOTR};
 
 use crate::db_vector::RocksDBVector;
 use crate::options::RocksReadOptions;
@@ -25,13 +25,25 @@ use crate::{RocksEngineIterator, RocksSnapshot};
 #[derive(Clone, Debug)]
 pub struct RocksEngine {
     db: Arc<DB>,
+    wotr: Option<Arc<WOTR>>,
     shared_block_cache: bool,
 }
 
 impl RocksEngine {
+    pub fn register_valuelog(&mut self, obj: Arc<WOTR>, recover: bool) -> Result<()> {
+        self.wotr = Some(obj.clone());
+//        let w = obj.as_inner();
+        self.as_inner().set_wotr(&obj, recover).map_err(Error::Engine)
+    }
+
+    pub fn set_wotr(&mut self, obj: Arc<WOTR>) {
+        self.wotr = Some(obj);
+    }
+    
     pub fn from_db(db: Arc<DB>) -> Self {
         RocksEngine {
             db,
+            wotr: None,
             shared_block_cache: false,
         }
     }
@@ -138,7 +150,7 @@ impl Peekable for RocksEngine {
 
     fn get_value_opt(&self, opts: &ReadOptions, key: &[u8]) -> Result<Option<RocksDBVector>> {
         let opt: RocksReadOptions = opts.into();
-        let v = self.db.get_opt(key, &opt.into_raw())?;
+        let v = self.db.get_external(key, &opt.into_raw())?;
         Ok(v.map(RocksDBVector::from_raw))
     }
 
@@ -150,19 +162,36 @@ impl Peekable for RocksEngine {
     ) -> Result<Option<RocksDBVector>> {
         let opt: RocksReadOptions = opts.into();
         let handle = get_cf_handle(&self.db, cf)?;
-        let v = self.db.get_cf_opt(handle, key, &opt.into_raw())?;
+        let v = self.db.get_external_cf(handle, key, &opt.into_raw())?;
         Ok(v.map(RocksDBVector::from_raw))
     }
 }
 
 impl SyncMutable for RocksEngine {
     fn put(&self, key: &[u8], value: &[u8]) -> Result<()> {
-        self.db.put(key, value).map_err(Error::Engine)
+        if self.wotr.is_none() {
+            return Err(Error::Engine(format!("wotr not found")))
+        }
+        
+        let res = self.db.put_external(key, value);
+        match res {
+            Err(e) => { Err(Error::Engine(e)) }
+            Ok(_offset) => { Ok(()) }
+        }
     }
 
     fn put_cf(&self, cf: &str, key: &[u8], value: &[u8]) -> Result<()> {
+        if self.wotr.is_none() {
+            return Err(Error::Engine(format!("wotr not found")))
+        }
+        
         let handle = get_cf_handle(&self.db, cf)?;
-        self.db.put_cf(handle, key, value).map_err(Error::Engine)
+        let res = self.db.put_cf_external(handle, key, value);
+
+        match res {
+            Err(e) => { Err(Error::Engine(e)) }
+            Ok(_offset) => { Ok(()) }
+        }
     }
 
     fn delete(&self, key: &[u8]) -> Result<()> {
@@ -191,6 +220,7 @@ impl SyncMutable for RocksEngine {
 #[cfg(test)]
 mod tests {
     use crate::raw_util;
+    use rocksdb::WOTR;
     use engine_traits::{Iterable, KvEngine, Peekable, SyncMutable};
     use kvproto::metapb::Region;
     use std::sync::Arc;
@@ -202,9 +232,14 @@ mod tests {
     fn test_base() {
         let path = Builder::new().prefix("var").tempdir().unwrap();
         let cf = "cf";
-        let engine = RocksEngine::from_db(Arc::new(
-            raw_util::new_engine(path.path().to_str().unwrap(), None, &[cf], None).unwrap(),
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let mut engine = RocksEngine::from_db(Arc::new(
+            raw_util::new_engine(path.path().to_str().unwrap(), None, &[cf], None, w.clone()).unwrap(),
         ));
+        
+        // shawgerj ideally from_db() would do this, but wotr needs to be part of
+        // struct DB in rust-rocksdb
+        engine.wotr = Some(w.clone());
 
         let mut r = Region::default();
         r.set_id(10);
@@ -239,10 +274,13 @@ mod tests {
     fn test_peekable() {
         let path = Builder::new().prefix("var").tempdir().unwrap();
         let cf = "cf";
-        let engine = RocksEngine::from_db(Arc::new(
-            raw_util::new_engine(path.path().to_str().unwrap(), None, &[cf], None).unwrap(),
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        
+        let mut engine = RocksEngine::from_db(Arc::new(
+            raw_util::new_engine(path.path().to_str().unwrap(), None, &[cf], None, w.clone()).unwrap(),
         ));
-
+        engine.wotr = Some(w.clone());
+        
         engine.put(b"k1", b"v1").unwrap();
         engine.put_cf(cf, b"k1", b"v2").unwrap();
 
@@ -255,9 +293,13 @@ mod tests {
     fn test_scan() {
         let path = Builder::new().prefix("var").tempdir().unwrap();
         let cf = "cf";
-        let engine = RocksEngine::from_db(Arc::new(
-            raw_util::new_engine(path.path().to_str().unwrap(), None, &[cf], None).unwrap(),
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let mut engine = RocksEngine::from_db(Arc::new(
+            raw_util::new_engine(path.path().to_str().unwrap(), None, &[cf], None, w.clone()).unwrap(),
         ));
+
+        engine.wotr = Some(w.clone());
 
         engine.put(b"a1", b"v1").unwrap();
         engine.put(b"a2", b"v2").unwrap();

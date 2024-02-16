@@ -12,7 +12,7 @@ use std::sync::Arc;
 use engine_traits::Result;
 use engine_traits::CF_DEFAULT;
 use rocksdb::load_latest_options;
-use rocksdb::{CColumnFamilyDescriptor, ColumnFamilyOptions, DBOptions, Env, DB};
+use rocksdb::{CColumnFamilyDescriptor, ColumnFamilyOptions, DBOptions, Env, DB, WOTR};
 use tikv_util::warn;
 
 pub struct CFOptions<'a> {
@@ -31,6 +31,7 @@ pub fn new_engine(
     db_opts: Option<DBOptions>,
     cfs: &[&str],
     opts: Option<Vec<CFOptions<'_>>>,
+    log: Arc<WOTR>,
 ) -> Result<DB> {
     let mut db_opts = match db_opts {
         Some(opt) => opt,
@@ -47,7 +48,7 @@ pub fn new_engine(
             default_cfs_opts
         }
     };
-    new_engine_opt(path, db_opts, cf_opts)
+    new_engine_opt(path, db_opts, cf_opts, log)
 }
 
 /// Turns "dynamic level size" off for the existing column family which was off before.
@@ -83,6 +84,7 @@ pub fn new_engine_opt(
     path: &str,
     mut db_opt: DBOptions,
     cfs_opts: Vec<CFOptions<'_>>,
+    log: Arc<WOTR>,
 ) -> Result<DB> {
     // Creates a new db if it doesn't exist.
     if !db_exist(path) {
@@ -102,6 +104,8 @@ pub fn new_engine_opt(
             db.create_cf((x.cf, x.options))?;
         }
 
+        
+        assert!(db.set_wotr(&log, false).is_ok());
         return Ok(db);
     }
 
@@ -137,6 +141,7 @@ pub fn new_engine_opt(
         }
 
         let db = DB::open_cf(db_opt, path, cfs_v.into_iter().zip(cfs_opts_v).collect())?;
+        assert!(db.set_wotr(&log, true).is_ok());
         return Ok(db);
     }
 
@@ -180,6 +185,8 @@ pub fn new_engine_opt(
                 .clone(),
         ))?;
     }
+
+    assert!(db.set_wotr(&log, true).is_ok());
     Ok(db)
 }
 
@@ -243,7 +250,7 @@ pub fn from_raw_perf_level(level: rocksdb::PerfLevel) -> engine_traits::PerfLeve
 mod tests {
     use super::*;
     use engine_traits::CF_DEFAULT;
-    use rocksdb::{ColumnFamilyOptions, DBOptions, DB};
+    use rocksdb::{ColumnFamilyOptions, DBOptions, DB, WOTR};
     use tempfile::Builder;
 
     #[test]
@@ -276,7 +283,9 @@ mod tests {
         opts.set_level_compaction_dynamic_level_bytes(true);
         cfs_opts.push(CFOptions::new("cf_dynamic_level_bytes", opts.clone()));
         {
-            let mut db = new_engine_opt(path_str, DBOptions::new(), cfs_opts).unwrap();
+            let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+            let mut db = new_engine_opt(path_str, DBOptions::new(), cfs_opts, w.clone()).unwrap();
             column_families_must_eq(path_str, vec![CF_DEFAULT, "cf_dynamic_level_bytes"]);
             check_dynamic_level_bytes(&mut db);
         }
@@ -288,7 +297,9 @@ mod tests {
             CFOptions::new("cf1", opts),
         ];
         {
-            let mut db = new_engine_opt(path_str, DBOptions::new(), cfs_opts).unwrap();
+            let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+            let mut db = new_engine_opt(path_str, DBOptions::new(), cfs_opts, w.clone()).unwrap();
             column_families_must_eq(path_str, vec![CF_DEFAULT, "cf_dynamic_level_bytes", "cf1"]);
             check_dynamic_level_bytes(&mut db);
         }
@@ -299,14 +310,18 @@ mod tests {
             CFOptions::new("cf_dynamic_level_bytes", ColumnFamilyOptions::new()),
         ];
         {
-            let mut db = new_engine_opt(path_str, DBOptions::new(), cfs_opts).unwrap();
+            let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+            
+            let mut db = new_engine_opt(path_str, DBOptions::new(), cfs_opts, w.clone()).unwrap();
             column_families_must_eq(path_str, vec![CF_DEFAULT, "cf_dynamic_level_bytes"]);
             check_dynamic_level_bytes(&mut db);
         }
 
         // never drop default cf
         let cfs_opts = vec![];
-        new_engine_opt(path_str, DBOptions::new(), cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        new_engine_opt(path_str, DBOptions::new(), cfs_opts, w.clone()).unwrap();
         column_families_must_eq(path_str, vec![CF_DEFAULT]);
     }
 

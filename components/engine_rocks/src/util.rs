@@ -12,19 +12,24 @@ use engine_traits::Range;
 use engine_traits::CF_DEFAULT;
 use engine_traits::{Error, Result};
 use rocksdb::Range as RocksRange;
-use rocksdb::{CFHandle, SliceTransform, DB};
+use rocksdb::{CFHandle, SliceTransform, DB, WOTR};
 use std::str::FromStr;
 use std::sync::Arc;
 use tikv_util::box_err;
 
-pub fn new_temp_engine(path: &tempfile::TempDir) -> Engines<RocksEngine, RocksEngine> {
+pub fn new_temp_engine(path: &tempfile::TempDir,
+                       w1: Arc<WOTR>,
+                       w2: Arc<WOTR>,
+) -> Engines<RocksEngine, RocksEngine> {
     let raft_path = path.path().join(std::path::Path::new("raft"));
+    
     Engines::new(
         new_engine(
             path.path().to_str().unwrap(),
             None,
             engine_traits::ALL_CFS,
             None,
+            w1,
         )
         .unwrap(),
         new_engine(
@@ -32,14 +37,15 @@ pub fn new_temp_engine(path: &tempfile::TempDir) -> Engines<RocksEngine, RocksEn
             None,
             &[engine_traits::CF_DEFAULT],
             None,
+            w2,
         )
         .unwrap(),
     )
 }
 
-pub fn new_default_engine(path: &str) -> Result<RocksEngine> {
+pub fn new_default_engine(path: &str, log: Arc<WOTR>) -> Result<RocksEngine> {
     let engine =
-        new_engine_raw(path, None, &[CF_DEFAULT], None).map_err(|e| Error::Other(box_err!(e)))?;
+        new_engine_raw(path, None, &[CF_DEFAULT], None, log).map_err(|e| Error::Other(box_err!(e)))?;
     let engine = Arc::new(engine);
     let engine = RocksEngine::from_db(engine);
     Ok(engine)
@@ -65,12 +71,14 @@ pub fn new_engine(
     db_opts: Option<RocksDBOptions>,
     cfs: &[&str],
     opts: Option<Vec<RocksCFOptions<'_>>>,
+    log: Arc<WOTR>,
 ) -> Result<RocksEngine> {
     let db_opts = db_opts.map(RocksDBOptions::into_raw);
     let opts = opts.map(|o| o.into_iter().map(RocksCFOptions::into_raw).collect());
-    let engine = new_engine_raw(path, db_opts, cfs, opts).map_err(|e| Error::Other(box_err!(e)))?;
+
+    let engine = new_engine_raw(path, db_opts, cfs, opts, log).map_err(|e| Error::Other(box_err!(e)))?;
     let engine = Arc::new(engine);
-    let engine = RocksEngine::from_db(engine);
+    let mut engine = RocksEngine::from_db(engine);
     Ok(engine)
 }
 
@@ -78,13 +86,15 @@ pub fn new_engine_opt(
     path: &str,
     db_opt: RocksDBOptions,
     cfs_opts: Vec<RocksCFOptions<'_>>,
+    log: Arc<WOTR>,
 ) -> Result<RocksEngine> {
     let db_opt = db_opt.into_raw();
     let cfs_opts = cfs_opts.into_iter().map(RocksCFOptions::into_raw).collect();
+
     let engine =
-        new_engine_opt_raw(path, db_opt, cfs_opts).map_err(|e| Error::Other(box_err!(e)))?;
+        new_engine_opt_raw(path, db_opt, cfs_opts, log).map_err(|e| Error::Other(box_err!(e)))?;
     let engine = Arc::new(engine);
-    let engine = RocksEngine::from_db(engine);
+    let mut engine = RocksEngine::from_db(engine);
     Ok(engine)
 }
 

@@ -139,7 +139,7 @@ mod tests {
     use crate::raw_util::{new_engine, CFOptions};
     use crate::Compat;
     use engine_traits::CompactExt;
-    use rocksdb::{ColumnFamilyOptions, Writable};
+    use rocksdb::{ColumnFamilyOptions, Writable, WOTR};
     use std::sync::Arc;
     use tempfile::Builder;
 
@@ -156,11 +156,14 @@ mod tests {
             CFOptions::new("default", cf_opts.clone()),
             CFOptions::new("test", cf_opts),
         ];
+        let w = Arc::new(WOTR::wotr_init(temp_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
         let db = new_engine(
             temp_dir.path().to_str().unwrap(),
             None,
             &["default", "test"],
             Some(cfs_opts),
+            w.clone(),
         )
         .unwrap();
         let db = Arc::new(db);

@@ -541,6 +541,7 @@ mod tests {
     use crate::raw_util::CFOptions;
     use engine_traits::{CF_WRITE, LARGE_CFS};
     use txn_types::{Key, Write, WriteType};
+    use rocksdb::WOTR;
 
     use super::*;
 
@@ -718,7 +719,9 @@ mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let db = Arc::new(crate::raw_util::new_engine_opt(path_str, db_opts, cfs_opts).unwrap());
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let db = Arc::new(crate::raw_util::new_engine_opt(path_str, db_opts, cfs_opts, w.clone()).unwrap());
 
         let cases = ["a", "b", "c"];
         for &key in &cases {

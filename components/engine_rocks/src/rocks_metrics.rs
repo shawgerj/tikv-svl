@@ -1666,13 +1666,16 @@ mod tests {
     use tempfile::Builder;
 
     use engine_traits::ALL_CFS;
-    use rocksdb::HistogramData;
+    use std::sync::Arc;
+    use rocksdb::{HistogramData, WOTR};
 
     #[test]
     fn test_flush() {
         let dir = Builder::new().prefix("test-flush").tempdir().unwrap();
+        let w = Arc::new(WOTR::wotr_init(dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
         let engine =
-            crate::util::new_engine(dir.path().to_str().unwrap(), None, ALL_CFS, None).unwrap();
+            crate::util::new_engine(dir.path().to_str().unwrap(), None, ALL_CFS, None, w.clone()).unwrap();
         for tp in ENGINE_TICKER_TYPES {
             flush_engine_ticker_metrics(*tp, 2, "kv");
         }

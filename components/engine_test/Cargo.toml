@@ -31,3 +31,9 @@ tempfile = "3.0"
 tikv_alloc = { path = "../tikv_alloc" }
 # FIXME: Remove this dep from the engine_traits interface
 tikv_util = { path = "../tikv_util", default-features = false }
+
+[dependencies.rocksdb]
+git = "https://github.com/shawgerj/rust-rocksdb-1.git"
+package = "rocksdb"
+branch = "wotr"
+features = ["encryption", "static_libcpp"]

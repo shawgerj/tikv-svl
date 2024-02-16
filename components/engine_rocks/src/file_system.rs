@@ -44,11 +44,11 @@ mod tests {
     use file_system::{IOOp, IORateLimiter, IORateLimiterStatistics, IOType};
     use keys::data_key;
     use rocksdb::Writable;
-    use rocksdb::{DBOptions, DB};
+    use rocksdb::{DBOptions, DB, WOTR};
     use std::sync::Arc;
-    use tempfile::Builder;
+    use tempfile::{Builder};
 
-    fn new_test_db(dir: &str) -> (Arc<DB>, Arc<IORateLimiterStatistics>) {
+    fn new_test_db(dir: &str, log: Arc<WOTR>) -> (Arc<DB>, Arc<IORateLimiterStatistics>) {
         let limiter = Arc::new(IORateLimiter::new_for_test());
         let mut db_opts = DBOptions::new();
         db_opts.add_event_listener(RocksEventListener::new("test_db"));
@@ -57,8 +57,9 @@ mod tests {
         let mut cf_opts = ColumnFamilyOptions::new();
         cf_opts.set_disable_auto_compactions(true);
         cf_opts.compression_per_level(&[DBCompressionType::No; 7]);
+
         let db = Arc::new(
-            new_engine_opt(dir, db_opts, vec![CFOptions::new(CF_DEFAULT, cf_opts)]).unwrap(),
+            new_engine_opt(dir, db_opts, vec![CFOptions::new(CF_DEFAULT, cf_opts)], log).unwrap(),
         );
         (db, limiter.statistics().unwrap())
     }
@@ -71,7 +72,9 @@ mod tests {
             .tempdir()
             .unwrap();
 
-        let (db, stats) = new_test_db(temp_dir.path().to_str().unwrap());
+        let w = Arc::new(WOTR::wotr_init(temp_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let (db, stats) = new_test_db(temp_dir.path().to_str().unwrap(), w.clone());
         let value = vec![b'v'; value_size];
 
         db.put(&data_key(b"a1"), &value).unwrap();

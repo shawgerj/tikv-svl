@@ -368,11 +368,14 @@ mod tests {
     use crate::util::new_default_engine;
     use std::io::Read;
     use tempfile::Builder;
-
+    use rocksdb::WOTR;
+    
     #[test]
     fn test_smoke() {
         let path = Builder::new().tempdir().unwrap();
-        let engine = new_default_engine(path.path().to_str().unwrap()).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let engine = new_default_engine(path.path().to_str().unwrap(), w.clone()).unwrap();
         let (k, v) = (b"foo", b"bar");
 
         let p = path.path().join("sst");

@@ -67,6 +67,7 @@ mod tests {
     use crate::raw::{ColumnFamilyOptions, DBOptions};
     use crate::raw_util::{new_engine_opt, CFOptions};
     use std::sync::Arc;
+    use rocksdb::WOTR;
 
     use super::*;
     use crate::RocksSstWriterBuilder;
@@ -93,7 +94,9 @@ mod tests {
                 CFOptions::new(cf, opt)
             })
             .collect();
-        let db = new_engine_opt(path_str, DBOptions::new(), cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let db = new_engine_opt(path_str, DBOptions::new(), cfs_opts, w.clone()).unwrap();
         let db = Arc::new(db);
         let db = RocksEngine::from_db(db);
         let mut wb = db.write_batch();

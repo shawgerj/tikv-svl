@@ -75,10 +75,10 @@ impl engine_traits::WriteBatch<RocksEngine> for RocksWriteBatch {
         e.write_batch_with_cap(cap)
     }
 
-    fn write_opt(&self, opts: &WriteOptions) -> Result<()> {
+    fn write_opt(&self, opts: &WriteOptions) -> Result<Vec<usize>> {
         let opt: RocksWriteOptions = opts.into();
         self.get_db()
-            .write_opt(self.as_inner(), &opt.into_raw())
+            .write_wotr(self.as_inner(), &opt.into_raw())
             .map_err(Error::Engine)
     }
 
@@ -211,15 +211,15 @@ impl engine_traits::WriteBatch<RocksEngine> for RocksWriteBatchVec {
         RocksWriteBatchVec::new(e.as_inner().clone(), WRITE_BATCH_LIMIT, cap)
     }
 
-    fn write_opt(&self, opts: &WriteOptions) -> Result<()> {
+    fn write_opt(&self, opts: &WriteOptions) -> Result<Vec<usize>> {
         let opt: RocksWriteOptions = opts.into();
         if self.index > 0 {
             self.get_db()
-                .multi_batch_write(self.as_inner(), &opt.into_raw())
+                .multib_write_wotr(self.as_inner(), &opt.into_raw())
                 .map_err(Error::Engine)
         } else {
             self.get_db()
-                .write_opt(&self.wbs[0], &opt.into_raw())
+                .write_wotr(&self.wbs[0], &opt.into_raw())
                 .map_err(Error::Engine)
         }
     }
@@ -325,9 +325,12 @@ mod tests {
     use super::super::util::new_engine_opt;
     use super::super::RocksDBOptions;
     use super::*;
-    use engine_traits::WriteBatch;
+    use engine_traits::{WriteBatch, Peekable};
     use rocksdb::DBOptions as RawDBOptions;
+    use rocksdb::WOTR;
     use tempfile::Builder;
+
+    
 
     #[test]
     fn test_should_write_to_engine() {
@@ -335,6 +338,8 @@ mod tests {
             .prefix("test-should-write-to-engine")
             .tempdir()
             .unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        
         let opt = RawDBOptions::default();
         opt.enable_multi_batch_write(true);
         opt.enable_unordered_write(false);
@@ -343,6 +348,7 @@ mod tests {
             path.path().join("db").to_str().unwrap(),
             RocksDBOptions::from_raw(opt),
             vec![],
+            w.clone(),
         )
         .unwrap();
         assert!(engine.support_write_batch_vec());
@@ -363,4 +369,35 @@ mod tests {
         wb.clear();
         assert!(!wb.should_write_to_engine());
     }
+
+    #[test]
+    fn test_wotr_write() {
+        let path = Builder::new()
+            .prefix("test-wotr-write")
+            .tempdir().
+            unwrap();
+                    
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let opt = RawDBOptions::default();
+        let engine = new_engine_opt(
+            path.path().join("db").to_str().unwrap(),
+            RocksDBOptions::from_raw(opt),
+            vec![],
+            w.clone(),
+        ).unwrap();
+
+        let mut wb = engine.write_batch();
+        wb.put(b"k1", b"v1111");
+        wb.put(b"k2", b"v2222");
+        // assert wb length is 2?
+        let offsets = wb.write_opt(&WriteOptions::new()).unwrap();
+        assert!(offsets.len() == 2);
+        assert!(offsets[1] != 0);
+
+        let r = engine.get_value(b"k1");
+        assert!(r.unwrap().unwrap() == b"v1111");
+        let r2 = engine.get_value(b"k2");
+        assert!(r2.unwrap().unwrap() == b"v2222");
+    }
+
 }

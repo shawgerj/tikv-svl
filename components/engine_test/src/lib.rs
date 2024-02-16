@@ -57,6 +57,8 @@
 pub mod raft {
     use crate::ctor::{CFOptions, DBOptions, EngineConstructorExt};
     use engine_traits::Result;
+    use std::sync::Arc;
+    use rocksdb::WOTR;
 
     #[cfg(feature = "test-engine-raft-panic")]
     pub use engine_panic::{
@@ -75,19 +77,21 @@ pub mod raft {
         db_opt: Option<DBOptions>,
         cf: &str,
         opt: Option<CFOptions<'_>>,
+        log: Arc<WOTR>,
     ) -> Result<RaftTestEngine> {
         let cfs = &[cf];
         let opts = opt.map(|o| vec![o]);
-        RaftTestEngine::new_engine(path, db_opt, cfs, opts)
+        RaftTestEngine::new_engine(path, db_opt, cfs, opts, log)
     }
 
     pub fn new_engine_opt(
         path: &str,
         db_opt: DBOptions,
         cf_opt: CFOptions<'_>,
+        log: Arc<WOTR>,
     ) -> Result<RaftTestEngine> {
         let cfs_opts = vec![cf_opt];
-        RaftTestEngine::new_engine_opt(path, db_opt, cfs_opts)
+        RaftTestEngine::new_engine_opt(path, db_opt, cfs_opts, log)
     }
 }
 
@@ -95,6 +99,8 @@ pub mod raft {
 pub mod kv {
     use crate::ctor::{CFOptions, DBOptions, EngineConstructorExt};
     use engine_traits::Result;
+    use std::sync::Arc;
+    use rocksdb::WOTR;
 
     #[cfg(feature = "test-engine-kv-panic")]
     pub use engine_panic::{
@@ -113,16 +119,18 @@ pub mod kv {
         db_opt: Option<DBOptions>,
         cfs: &[&str],
         opts: Option<Vec<CFOptions<'_>>>,
+        log: Arc<WOTR>,
     ) -> Result<KvTestEngine> {
-        KvTestEngine::new_engine(path, db_opt, cfs, opts)
+        KvTestEngine::new_engine(path, db_opt, cfs, opts, log)
     }
 
     pub fn new_engine_opt(
         path: &str,
         db_opt: DBOptions,
         cfs_opts: Vec<CFOptions<'_>>,
+        log: Arc<WOTR>,
     ) -> Result<KvTestEngine> {
-        KvTestEngine::new_engine_opt(path, db_opt, cfs_opts)
+        KvTestEngine::new_engine_opt(path, db_opt, cfs_opts, log)
     }
 }
 
@@ -137,6 +145,8 @@ pub mod kv {
 /// This module itself is intended to be extracted from this crate into its own
 /// crate, once the requirements for engine construction are better understood.
 pub mod ctor {
+    use std::sync::Arc;
+    use rocksdb::WOTR;
     use engine_traits::Result;
 
     /// Engine construction
@@ -162,6 +172,7 @@ pub mod ctor {
             db_opt: Option<DBOptions>,
             cfs: &[&str],
             opts: Option<Vec<CFOptions<'_>>>,
+            log: Arc<WOTR>,
         ) -> Result<Self>;
 
         /// Create a new engine with specified column families and options
@@ -172,6 +183,7 @@ pub mod ctor {
             path: &str,
             db_opt: DBOptions,
             cfs_opts: Vec<CFOptions<'_>>,
+            log: Arc<WOTR>,
         ) -> Result<Self>;
     }
 
@@ -311,6 +323,8 @@ pub mod ctor {
         use super::{CFOptions, DBOptions, EngineConstructorExt};
         use engine_panic::PanicEngine;
         use engine_traits::Result;
+        use std::sync::Arc;
+        use rocksdb::WOTR;
 
         impl EngineConstructorExt for engine_panic::PanicEngine {
             fn new_engine(
@@ -318,6 +332,7 @@ pub mod ctor {
                 _db_opt: Option<DBOptions>,
                 _cfs: &[&str],
                 _opts: Option<Vec<CFOptions<'_>>>,
+                _log: Arc<WOTR>,
             ) -> Result<Self> {
                 Ok(PanicEngine)
             }
@@ -326,6 +341,7 @@ pub mod ctor {
                 _path: &str,
                 _db_opt: DBOptions,
                 _cfs_opts: Vec<CFOptions<'_>>,
+                _log: Arc<WOTR>,
             ) -> Result<Self> {
                 Ok(PanicEngine)
             }
@@ -348,6 +364,7 @@ pub mod ctor {
             new_engine as rocks_new_engine, new_engine_opt as rocks_new_engine_opt, RocksCFOptions,
         };
         use engine_rocks::{RocksColumnFamilyOptions, RocksDBOptions};
+        use rocksdb::WOTR;
         use std::sync::Arc;
 
         impl EngineConstructorExt for engine_rocks::RocksEngine {
@@ -358,6 +375,7 @@ pub mod ctor {
                 db_opt: Option<DBOptions>,
                 cfs: &[&str],
                 opts: Option<Vec<CFOptions<'_>>>,
+                log: Arc<WOTR>,
             ) -> Result<Self> {
                 let rocks_db_opts = match db_opt {
                     Some(db_opt) => Some(get_rocks_db_opts(db_opt)?),
@@ -382,13 +400,14 @@ pub mod ctor {
                         RocksCFOptions::new(cf_opts.cf, rocks_cf_opts)
                     })
                     .collect();
-                rocks_new_engine(path, rocks_db_opts, &[], Some(rocks_cfs_opts))
+                rocks_new_engine(path, rocks_db_opts, &[], Some(rocks_cfs_opts), log)
             }
 
             fn new_engine_opt(
                 path: &str,
                 db_opt: DBOptions,
                 cfs_opts: Vec<CFOptions<'_>>,
+                log: Arc<WOTR>,
             ) -> Result<Self> {
                 let rocks_db_opts = get_rocks_db_opts(db_opt)?;
                 let rocks_cfs_opts = cfs_opts
@@ -400,7 +419,7 @@ pub mod ctor {
                         RocksCFOptions::new(cf_opts.cf, rocks_cf_opts)
                     })
                     .collect();
-                rocks_new_engine_opt(path, rocks_db_opts, rocks_cfs_opts)
+                rocks_new_engine_opt(path, rocks_db_opts, rocks_cfs_opts, log)
             }
         }
 
@@ -457,8 +476,12 @@ pub mod ctor {
 /// Create a new set of engines in a temporary directory
 ///
 /// This is little-used and probably shouldn't exist.
+use std::sync::Arc;
+use rocksdb::WOTR;
+
 pub fn new_temp_engine(
     path: &tempfile::TempDir,
+    log: Arc<WOTR>,
 ) -> engine_traits::Engines<crate::kv::KvTestEngine, crate::raft::RaftTestEngine> {
     let raft_path = path.path().join(std::path::Path::new("raft"));
     engine_traits::Engines::new(
@@ -467,6 +490,7 @@ pub fn new_temp_engine(
             None,
             engine_traits::ALL_CFS,
             None,
+            log.clone(),
         )
         .unwrap(),
         crate::raft::new_engine(
@@ -474,6 +498,7 @@ pub fn new_temp_engine(
             None,
             engine_traits::CF_DEFAULT,
             None,
+            log.clone(),
         )
         .unwrap(),
     )
