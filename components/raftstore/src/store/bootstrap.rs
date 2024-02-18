@@ -122,25 +122,34 @@ pub fn clear_prepare_bootstrap_key(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use tempfile::Builder;
 
     use super::*;
     use engine_traits::Engines;
     use engine_traits::{Peekable, CF_DEFAULT};
+    use rocksdb::WOTR;
 
     #[test]
     fn test_bootstrap() {
         let path = Builder::new().prefix("var").tempdir().unwrap();
+        let w1 = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
         let raft_path = path.path().join("raft");
         let kv_engine = engine_test::kv::new_engine(
             path.path().to_str().unwrap(),
             None,
             &[CF_DEFAULT, CF_RAFT],
             None,
+            w1.clone(),
         )
-        .unwrap();
+            .unwrap();
+
+        // shawgerj this should eventually be two separate WOTR instances
+//        let w2 = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
         let raft_engine =
-            engine_test::raft::new_engine(raft_path.to_str().unwrap(), None, CF_DEFAULT, None)
+            engine_test::raft::new_engine(raft_path.to_str().unwrap(), None, CF_DEFAULT, None, w1.clone())
                 .unwrap();
         let engines = Engines::new(kv_engine.clone(), raft_engine.clone());
         let region = initial_region(1, 1, 1);

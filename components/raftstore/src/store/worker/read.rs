@@ -831,6 +831,7 @@ impl ReadMetrics {
 mod tests {
     use std::sync::mpsc::*;
     use std::thread;
+    use std::sync::Arc;
 
     use kvproto::raft_cmdpb::*;
     use tempfile::{Builder, TempDir};
@@ -840,6 +841,7 @@ mod tests {
     use crate::store::Callback;
     use engine_test::kv::{KvTestEngine, KvTestSnapshot};
     use engine_traits::ALL_CFS;
+    use rocksdb::WOTR;
     use tikv_util::codec::number::NumberEncoder;
     use tikv_util::time::monotonic_raw_now;
     use txn_types::WriteBatchFlags;
@@ -857,7 +859,9 @@ mod tests {
         Receiver<RaftCommand<KvTestSnapshot>>,
     ) {
         let path = Builder::new().prefix(path).tempdir().unwrap();
-        let db = engine_test::kv::new_engine(path.path().to_str().unwrap(), None, ALL_CFS, None)
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let db = engine_test::kv::new_engine(path.path().to_str().unwrap(), None, ALL_CFS, None, w.clone())
             .unwrap();
         let (ch, rx) = sync_channel(1);
         let mut reader = LocalReader::new(db, store_meta, ch);

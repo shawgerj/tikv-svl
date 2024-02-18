@@ -4219,6 +4219,7 @@ mod tests {
     use engine_panic::PanicEngine;
     use engine_test::kv::{new_engine, KvTestEngine, KvTestSnapshot, KvTestWriteBatch};
     use engine_traits::{Peekable as PeekableTrait, WriteBatchExt};
+    use rocksdb::WOTR;
     use kvproto::kvrpcpb::ApiVersion;
     use kvproto::metapb::{self, RegionEpoch};
     use kvproto::raft_cmdpb::*;
@@ -4242,16 +4243,14 @@ mod tests {
         }
     }
 
-    pub fn create_tmp_engine(path: &str) -> (TempDir, KvTestEngine) {
-        let path = Builder::new().prefix(path).tempdir().unwrap();
-        let engine = new_engine(
+    pub fn create_tmp_engine(path: &TempDir, log: Arc<WOTR>) -> KvTestEngine {
+        new_engine(
             path.path().join("db").to_str().unwrap(),
             None,
             ALL_CFS,
             None,
-        )
-        .unwrap();
-        (path, engine)
+            log.clone(),
+        ).unwrap()
     }
 
     pub fn create_tmp_importer(path: &str) -> (TempDir, Arc<SSTImporter>) {
@@ -4497,7 +4496,9 @@ mod tests {
     fn test_basic_flow() {
         let (tx, rx) = mpsc::channel();
         let sender = Box::new(TestNotifier { tx });
-        let (_tmp, engine) = create_tmp_engine("apply-basic");
+        let path = Builder::new().prefix("apply-basic").tempdir().unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let engine = create_tmp_engine(&path, w.clone());
         let (_dir, importer) = create_tmp_importer("apply-basic");
         let (region_scheduler, mut snapshot_rx) = dummy_scheduler();
         let cfg = Arc::new(VersionTrack::new(Config::default()));
@@ -4826,7 +4827,9 @@ mod tests {
 
     #[test]
     fn test_handle_raft_committed_entries() {
-        let (_path, engine) = create_tmp_engine("test-delegate");
+        let path = Builder::new().prefix("test-delegate").tempdir().unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let engine = create_tmp_engine(&path, w.clone());
         let (import_dir, importer) = create_tmp_importer("test-delegate");
         let obs = ApplyObserver::default();
         let mut host = CoprocessorHost::<KvTestEngine>::default();
@@ -5165,7 +5168,9 @@ mod tests {
 
     #[test]
     fn test_handle_ingest_sst() {
-        let (_path, engine) = create_tmp_engine("test-ingest");
+        let path = Builder::new().prefix("test-ingest").tempdir().unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let engine = create_tmp_engine(&path, w.clone());
         let (import_dir, importer) = create_tmp_importer("test-ingest");
         let obs = ApplyObserver::default();
         let mut host = CoprocessorHost::<KvTestEngine>::default();
@@ -5345,7 +5350,9 @@ mod tests {
 
     #[test]
     fn test_cmd_observer() {
-        let (_path, engine) = create_tmp_engine("test-delegate");
+        let path = Builder::new().prefix("test-delegate").tempdir().unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let engine = create_tmp_engine(&path, w.clone());
         let (_import_dir, importer) = create_tmp_importer("test-delegate");
         let mut host = CoprocessorHost::<KvTestEngine>::default();
         let mut obs = ApplyObserver::default();
@@ -5623,7 +5630,9 @@ mod tests {
 
     #[test]
     fn test_split() {
-        let (_path, engine) = create_tmp_engine("test-delegate");
+        let path = Builder::new().prefix("test-delegate").tempdir().unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let engine = create_tmp_engine(&path, w.clone());
         let (_import_dir, importer) = create_tmp_importer("test-delegate");
         let peer_id = 3;
         let mut reg = Registration {

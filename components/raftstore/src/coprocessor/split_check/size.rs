@@ -234,6 +234,7 @@ pub mod tests {
     use engine_traits::CF_LOCK;
     use engine_traits::{CfName, ALL_CFS, CF_DEFAULT, CF_WRITE, LARGE_CFS};
     use engine_traits::{MiscExt, SyncMutable};
+    use rocksdb::WOTR;
     use kvproto::metapb::Peer;
     use kvproto::metapb::Region;
     use kvproto::pdpb::CheckPolicy;
@@ -304,7 +305,9 @@ pub mod tests {
                 }
             })
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let engine = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts, w.clone()).unwrap();
 
         let mut region = Region::default();
         region.set_id(1);
@@ -429,8 +432,9 @@ pub mod tests {
                 }
             })
             .collect();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
 
-        let engine = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let engine = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts, w.clone()).unwrap();
 
         let mut region = Region::default();
         region.set_id(1);
@@ -480,7 +484,9 @@ pub mod tests {
                 CFOptions::new(cf, cf_opts)
             })
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path_str, DBOptions::new(), cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let engine = engine_test::kv::new_engine_opt(path_str, DBOptions::new(), cfs_opts, w.clone()).unwrap();
 
         let mut runnable =
             SplitCheckRunner::new(engine.clone(), tx.clone(), CoprocessorHost::new(tx, cfg));
@@ -557,7 +563,9 @@ pub mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path, db_opts, cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(tmp.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let engine = engine_test::kv::new_engine_opt(path, db_opts, cfs_opts, w.clone()).unwrap();
 
         let region = make_region(1, vec![], vec![]);
         assert_eq!(
@@ -593,7 +601,9 @@ pub mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path, db_opts, cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(tmp.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let engine = engine_test::kv::new_engine_opt(path, db_opts, cfs_opts, w.clone()).unwrap();
 
         let mut big_value = Vec::with_capacity(256);
         big_value.extend(iter::repeat(b'v').take(256));
@@ -708,7 +718,9 @@ pub mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts, w.clone()).unwrap();
 
         let cases = [("a", 1024), ("b", 2048), ("c", 4096)];
         let cf_size = 2 + 1024 + 2 + 2048 + 2 + 4096;
@@ -741,7 +753,9 @@ pub mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts, w.clone()).unwrap();
 
         let mut cf_size = 0;
         for i in 0..100 {
@@ -779,7 +793,9 @@ pub mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts, w.clone()).unwrap();
 
         let mut cf_size = 0;
         for i in 0..10 {

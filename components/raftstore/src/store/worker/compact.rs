@@ -248,12 +248,14 @@ fn collect_ranges_need_compact(
 mod tests {
     use std::thread::sleep;
     use std::time::Duration;
+    use std::sync::Arc;
 
     use engine_test::ctor::{CFOptions, ColumnFamilyOptions, DBOptions};
     use engine_test::kv::KvTestEngine;
     use engine_test::kv::{new_engine, new_engine_opt};
     use engine_traits::{MiscExt, Mutable, SyncMutable, WriteBatch, WriteBatchExt};
     use engine_traits::{CF_DEFAULT, CF_LOCK, CF_RAFT, CF_WRITE};
+    use rocksdb::WOTR;
     use tempfile::Builder;
 
     use keys::data_key;
@@ -267,7 +269,9 @@ mod tests {
             .prefix("compact-range-test")
             .tempdir()
             .unwrap();
-        let db = new_engine(path.path().to_str().unwrap(), None, &[CF_DEFAULT], None).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let db = new_engine(path.path().to_str().unwrap(), None, &[CF_DEFAULT], None, w.clone()).unwrap();
 
         let mut runner = Runner::new(db.clone());
 
@@ -319,7 +323,7 @@ mod tests {
         db.delete_cf(CF_WRITE, k.as_encoded()).unwrap();
     }
 
-    fn open_db(path: &str) -> KvTestEngine {
+    fn open_db(path: &str, log: Arc<WOTR>) -> KvTestEngine {
         let db_opts = DBOptions::new();
         let mut cf_opts = ColumnFamilyOptions::new();
         cf_opts.set_level_zero_file_num_compaction_trigger(8);
@@ -329,13 +333,15 @@ mod tests {
             CFOptions::new(CF_LOCK, ColumnFamilyOptions::new()),
             CFOptions::new(CF_WRITE, cf_opts),
         ];
-        new_engine_opt(path, db_opts, cfs_opts).unwrap()
+        new_engine_opt(path, db_opts, cfs_opts, log).unwrap()
     }
 
     #[test]
     fn test_check_space_redundancy() {
         let tmp_dir = Builder::new().prefix("test").tempdir().unwrap();
-        let engine = open_db(tmp_dir.path().to_str().unwrap());
+        let w = Arc::new(WOTR::wotr_init(tmp_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let engine = open_db(tmp_dir.path().to_str().unwrap(), w.clone());
 
         // mvcc_put 0..5
         for i in 0..5 {

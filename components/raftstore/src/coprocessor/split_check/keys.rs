@@ -198,6 +198,7 @@ mod tests {
     use engine_test::ctor::{CFOptions, ColumnFamilyOptions, DBOptions};
     use engine_traits::{KvEngine, MiscExt, SyncMutable};
     use engine_traits::{ALL_CFS, CF_DEFAULT, CF_WRITE, LARGE_CFS};
+    use rocksdb::WOTR;
     use kvproto::metapb::{Peer, Region};
     use kvproto::pdpb::CheckPolicy;
     use std::cmp;
@@ -250,7 +251,9 @@ mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let engine = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts, w.clone()).unwrap();
 
         let mut region = Region::default();
         region.set_id(1);
@@ -352,7 +355,9 @@ mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts, w.clone()).unwrap();
 
         let cases = [("a", 1024), ("b", 2048), ("c", 4096)];
         for &(key, vlen) in &cases {
@@ -392,7 +397,9 @@ mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let db = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts, w.clone()).unwrap();
 
         // size >= 4194304 will insert a new point in range properties
         // 3 points will be inserted into range properties

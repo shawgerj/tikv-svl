@@ -132,8 +132,10 @@ mod tests {
     use byteorder::{BigEndian, WriteBytesExt};
     use engine_test::kv::{new_engine, KvTestEngine};
     use engine_traits::{KvEngine, SyncMutable, CF_DEFAULT, CF_RAFT};
+    use rocksdb::WOTR;
     use kvproto::metapb::*;
     use std::sync::mpsc;
+    use std::sync::Arc;
     use std::time::Duration;
     use tempfile::Builder;
     use tikv_util::worker::Runnable;
@@ -141,11 +143,14 @@ mod tests {
     #[test]
     fn test_consistency_check() {
         let path = Builder::new().prefix("tikv-store-test").tempdir().unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
         let db = new_engine(
             path.path().to_str().unwrap(),
             None,
             &[CF_DEFAULT, CF_RAFT],
             None,
+            w.clone(),
         )
         .unwrap();
 

@@ -1,6 +1,7 @@
 // Copyright 2021 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::time::Duration;
+use std::sync::Arc;
 
 use crate::store::{Config, Transport};
 use crate::Result;
@@ -11,6 +12,7 @@ use engine_rocks::RocksWriteBatch;
 use engine_test::kv::KvTestEngine;
 use engine_test::new_temp_engine;
 use engine_traits::{Mutable, Peekable, WriteBatchExt};
+use rocksdb::WOTR;
 use kvproto::raft_serverpb::RaftMessage;
 use tempfile::Builder;
 
@@ -228,7 +230,9 @@ impl TestWriters {
 #[test]
 fn test_worker() {
     let path = Builder::new().prefix("async-io-worker").tempdir().unwrap();
-    let engines = new_temp_engine(&path);
+    let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+    let engines = new_temp_engine(&path, w.clone());
     let mut t = TestWorker::new(&Config::default(), &engines);
 
     let mut task_1 = WriteTask::<KvTestEngine, KvTestEngine>::new(1, 1, 10);
@@ -312,7 +316,9 @@ fn test_worker() {
 #[test]
 fn test_basic_flow() {
     let path = Builder::new().prefix("async-io-basic").tempdir().unwrap();
-    let engines = new_temp_engine(&path);
+    let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+    let engines = new_temp_engine(&path, w.clone());
     let mut cfg = Config::default();
     cfg.store_io_pool_size = 2;
     let mut t = TestWriters::new(&cfg, &engines);

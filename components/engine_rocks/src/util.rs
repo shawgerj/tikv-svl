@@ -76,9 +76,10 @@ pub fn new_engine(
     let db_opts = db_opts.map(RocksDBOptions::into_raw);
     let opts = opts.map(|o| o.into_iter().map(RocksCFOptions::into_raw).collect());
 
-    let engine = new_engine_raw(path, db_opts, cfs, opts, log).map_err(|e| Error::Other(box_err!(e)))?;
+    let engine = new_engine_raw(path, db_opts, cfs, opts, log.clone()).map_err(|e| Error::Other(box_err!(e)))?;
     let engine = Arc::new(engine);
     let mut engine = RocksEngine::from_db(engine);
+    engine.set_wotr(log.clone());
     Ok(engine)
 }
 
@@ -92,9 +93,10 @@ pub fn new_engine_opt(
     let cfs_opts = cfs_opts.into_iter().map(RocksCFOptions::into_raw).collect();
 
     let engine =
-        new_engine_opt_raw(path, db_opt, cfs_opts, log).map_err(|e| Error::Other(box_err!(e)))?;
+        new_engine_opt_raw(path, db_opt, cfs_opts, log.clone()).map_err(|e| Error::Other(box_err!(e)))?;
     let engine = Arc::new(engine);
     let mut engine = RocksEngine::from_db(engine);
+    engine.set_wotr(log.clone());
     Ok(engine)
 }
 

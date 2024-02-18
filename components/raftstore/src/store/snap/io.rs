@@ -248,6 +248,8 @@ mod tests {
     use crate::store::snap::SNAPSHOT_CFS;
     use engine_test::kv::KvTestEngine;
     use engine_traits::CF_DEFAULT;
+    use rocksdb::WOTR;
+    use std::sync::Arc;
     use tempfile::Builder;
     use tikv_util::time::Limiter;
 
@@ -264,14 +266,17 @@ mod tests {
         for db_creater in db_creaters {
             for db_opt in vec![None, Some(gen_db_options_with_encryption())] {
                 let dir = Builder::new().prefix("test-snap-cf-db").tempdir().unwrap();
-                let db: KvTestEngine = db_creater(dir.path(), db_opt.clone(), None).unwrap();
+                let w = Arc::new(WOTR::wotr_init(dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+                let db: KvTestEngine = db_creater(dir.path(), db_opt.clone(), None, w.clone()).unwrap();
                 // Collect keys via the key_callback into a collection.
                 let mut applied_keys: HashMap<_, Vec<_>> = HashMap::new();
                 let dir1 = Builder::new()
                     .prefix("test-snap-cf-db-apply")
                     .tempdir()
                     .unwrap();
-                let db1: KvTestEngine = open_test_empty_db(dir1.path(), db_opt, None).unwrap();
+                let w1 = Arc::new(WOTR::wotr_init(dir1.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+                let db1: KvTestEngine = open_test_empty_db(dir1.path(), db_opt, None, w1.clone()).unwrap();
 
                 let snap = db.snapshot();
                 for cf in SNAPSHOT_CFS {
@@ -343,7 +348,8 @@ mod tests {
         for db_creater in db_creaters {
             for db_opt in vec![None, Some(gen_db_options_with_encryption())] {
                 let dir = Builder::new().prefix("test-snap-cf-db").tempdir().unwrap();
-                let db = db_creater(dir.path(), db_opt.clone(), None).unwrap();
+                let w = Arc::new(WOTR::wotr_init(dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+                let db = db_creater(dir.path(), db_opt.clone(), None, w.clone()).unwrap();
 
                 let snap_cf_dir = Builder::new().prefix("test-snap-cf").tempdir().unwrap();
                 let sst_file_path = snap_cf_dir.path().join("sst");
@@ -369,7 +375,8 @@ mod tests {
                     .prefix("test-snap-cf-db-apply")
                     .tempdir()
                     .unwrap();
-                let db1: KvTestEngine = open_test_empty_db(dir1.path(), db_opt, None).unwrap();
+                let w1 = Arc::new(WOTR::wotr_init(dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+                let db1: KvTestEngine = open_test_empty_db(dir1.path(), db_opt, None, w1.clone()).unwrap();
                 apply_sst_cf_file(sst_file_path.to_str().unwrap(), &db1, CF_DEFAULT).unwrap();
                 assert_eq_db(&db, &db1);
             }

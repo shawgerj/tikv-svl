@@ -205,6 +205,7 @@ mod tests {
     use engine_traits::{
         CompactExt, Iterator, MiscExt, SeekKey, SstReader, SyncMutable, CF_DEFAULT,
     };
+    use rocksdb::WOTR;
     use keys::DATA_PREFIX_KEY;
     use kvproto::metapb::Region;
     use std::{str, sync::Arc};
@@ -364,8 +365,8 @@ mod tests {
     const MIN_OUTPUT_FILE_SIZE: u64 = 1024;
     const MAX_OUTPUT_FILE_SIZE: u64 = 4096;
 
-    fn new_test_db(provider: MockRegionInfoProvider) -> (RocksEngine, TempDir) {
-        let temp_dir = TempDir::new().unwrap();
+    fn new_test_db(provider: MockRegionInfoProvider, temp_dir: &TempDir, log: Arc<WOTR>) -> RocksEngine {
+
 
         let mut cf_opts = ColumnFamilyOptions::new();
         cf_opts.set_target_file_size_base(MAX_OUTPUT_FILE_SIZE);
@@ -389,15 +390,17 @@ mod tests {
         block_based_opts.set_block_size(100);
         cf_opts.set_block_based_table_factory(&block_based_opts);
 
-        let db = RocksEngine::from_db(Arc::new(
+
+        let mut db = RocksEngine::from_db(Arc::new(
             new_engine_opt(
                 temp_dir.path().to_str().unwrap(),
                 DBOptions::new(),
                 vec![CFOptions::new(CF_DEFAULT, cf_opts)],
-            )
+                log.clone())
             .unwrap(),
         ));
-        (db, temp_dir)
+        db.set_wotr(log.clone());
+        db
     }
 
     fn collect_keys(path: &str) -> Vec<Vec<u8>> {
@@ -433,7 +436,11 @@ mod tests {
                 ..Default::default()
             },
         ]);
-        let (db, dir) = new_test_db(provider);
+
+        let dir = TempDir::new().unwrap();
+        let w = Arc::new(WOTR::wotr_init(dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let db = new_test_db(provider, &dir, w.clone());
 
         // The following test assume data key starts with "z".
         assert_eq!(b"z", DATA_PREFIX_KEY);

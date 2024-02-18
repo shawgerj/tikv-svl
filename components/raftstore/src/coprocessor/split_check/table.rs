@@ -228,7 +228,7 @@ fn is_same_table(left_key: &[u8], right_key: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use std::io::Write;
-    use std::sync::mpsc;
+    use std::sync::{Arc, mpsc};
 
     use kvproto::metapb::Peer;
     use kvproto::pdpb::CheckPolicy;
@@ -237,6 +237,7 @@ mod tests {
     use crate::store::{CasualMessage, SplitCheckRunner, SplitCheckTask};
     use engine_test::kv::new_engine;
     use engine_traits::{SyncMutable, ALL_CFS};
+    use rocksdb::WOTR;
     use tidb_query_datatype::codec::table::{TABLE_PREFIX, TABLE_PREFIX_KEY_LEN};
     use tikv_util::codec::number::NumberEncoder;
     use tikv_util::config::ReadableSize;
@@ -261,7 +262,9 @@ mod tests {
             .prefix("test_last_key_of_region")
             .tempdir()
             .unwrap();
-        let engine = new_engine(path.path().to_str().unwrap(), None, ALL_CFS, None).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let engine = new_engine(path.path().to_str().unwrap(), None, ALL_CFS, None, w.clone()).unwrap();
 
         let mut region = Region::default();
         region.set_id(1);
@@ -314,7 +317,9 @@ mod tests {
             .prefix("test_table_check_observer")
             .tempdir()
             .unwrap();
-        let engine = new_engine(path.path().to_str().unwrap(), None, ALL_CFS, None).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let engine = new_engine(path.path().to_str().unwrap(), None, ALL_CFS, None, w.clone()).unwrap();
 
         let mut region = Region::default();
         region.set_id(1);

@@ -82,6 +82,12 @@ yatp = { git = "https://github.com/tikv/yatp.git", branch = "master" }
 # https://github.com/rust-lang/cargo/issues/6915
 engine_test = { path = "../engine_test", default-features = false }
 
+[dependencies.rocksdb]
+git = "https://github.com/shawgerj/rust-rocksdb-1.git"
+package = "rocksdb"
+branch = "wotr"
+features = ["encryption", "static_libcpp"]
+
 [dev-dependencies]
 encryption_export = { path = "../encryption/export", default-features = false }
 engine_rocks = { path = "../engine_rocks", default-features = false }

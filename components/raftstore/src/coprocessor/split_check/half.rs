@@ -125,9 +125,11 @@ pub fn get_region_approximate_middle(
 mod tests {
     use std::iter;
     use std::sync::mpsc;
+    use std::sync::Arc;
 
     use engine_test::ctor::{CFOptions, ColumnFamilyOptions, DBOptions};
     use engine_traits::{ALL_CFS, CF_DEFAULT, LARGE_CFS};
+    use rocksdb::WOTR;
     use kvproto::metapb::Peer;
     use kvproto::metapb::Region;
     use kvproto::pdpb::CheckPolicy;
@@ -156,7 +158,9 @@ mod tests {
                 CFOptions::new(cf, cf_opts)
             })
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let engine = engine_test::kv::new_engine_opt(path_str, db_opts, cfs_opts, w.clone()).unwrap();
 
         let mut region = Region::default();
         region.set_id(1);
@@ -210,7 +214,9 @@ mod tests {
             .iter()
             .map(|cf| CFOptions::new(cf, cf_opts.clone()))
             .collect();
-        let engine = engine_test::kv::new_engine_opt(path, db_opts, cfs_opts).unwrap();
+        let w = Arc::new(WOTR::wotr_init(tmp.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        
+        let engine = engine_test::kv::new_engine_opt(path, db_opts, cfs_opts, w.clone()).unwrap();
 
         let mut big_value = Vec::with_capacity(256);
         big_value.extend(iter::repeat(b'v').take(256));

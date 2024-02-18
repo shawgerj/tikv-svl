@@ -768,6 +768,7 @@ mod tests {
         WriteBatch, WriteBatchExt,
     };
     use engine_traits::{CF_DEFAULT, CF_RAFT};
+    use rocksdb::WOTR;
     use kvproto::raft_serverpb::{PeerState, RaftApplyState, RegionLocalState};
     use raft::eraftpb::Entry;
     use tempfile::Builder;
@@ -859,7 +860,9 @@ mod tests {
     #[test]
     fn test_stale_peer() {
         let temp_dir = Builder::new().prefix("test_stale_peer").tempdir().unwrap();
-        let engine = get_test_db_for_regions(&temp_dir, None, None, None, None, &[1]).unwrap();
+        let w = Arc::new(WOTR::wotr_init(temp_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let engine = get_test_db_for_regions(&temp_dir, None, None, None, None, &[1], w.clone()).unwrap();
 
         let snap_dir = Builder::new().prefix("snap_dir").tempdir().unwrap();
         let mgr = SnapManager::new(snap_dir.path().to_str().unwrap());
@@ -933,6 +936,7 @@ mod tests {
             CFOptions::new("raft", cf_opts.clone()),
         ];
         let raft_cfs_opt = CFOptions::new(CF_DEFAULT, cf_opts);
+        let w = Arc::new(WOTR::wotr_init(temp_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
         let engine = get_test_db_for_regions(
             &temp_dir,
             None,
@@ -940,6 +944,7 @@ mod tests {
             None,
             Some(kv_cfs_opts),
             &[1, 2, 3, 4, 5, 6, 7],
+            w.clone(),
         )
         .unwrap();
 

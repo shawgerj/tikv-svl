@@ -20,17 +20,23 @@ use engine_rocks::raw::{
 };
 use engine_rocks::raw_util::{new_engine, CFOptions};
 use std::sync::Arc;
+use rocksdb::WOTR;
 
 pub use engine_rocks::RocksEngine as TestEngine;
 
 pub const PROP_TEST_MARKER_CF_NAME: &[u8] = b"tikv.test_marker_cf_name";
 
-pub fn new_test_engine(path: &str, cfs: &[&str]) -> RocksEngine {
-    new_test_engine_with_options(path, cfs, |_, _| {})
+pub fn new_test_engine(path: &str, cfs: &[&str], log: Arc<WOTR>) -> RocksEngine {
+    new_test_engine_with_options(path, cfs, |_, _| {}, log)
 }
 
-pub fn new_test_engine_with_env(path: &str, cfs: &[&str], env: Arc<Env>) -> RocksEngine {
-    new_test_engine_with_options_and_env(path, cfs, |_, _| {}, Some(env))
+pub fn new_test_engine_with_env(
+    path: &str,
+    cfs: &[&str],
+    env: Arc<Env>,
+    log: Arc<WOTR>,
+) -> RocksEngine {
+    new_test_engine_with_options_and_env(path, cfs, |_, _| {}, Some(env), log)
 }
 
 pub fn new_test_engine_with_options_and_env<F>(
@@ -38,6 +44,7 @@ pub fn new_test_engine_with_options_and_env<F>(
     cfs: &[&str],
     mut apply: F,
     env: Option<Arc<Env>>,
+    log: Arc<WOTR>,
 ) -> RocksEngine
 where
     F: FnMut(&str, &mut ColumnFamilyOptions),
@@ -63,15 +70,24 @@ where
         opts.set_env(e);
         opts
     });
-    let db = new_engine(path, db_opts, cfs, Some(cf_opts)).expect("rocks test engine");
-    RocksEngine::from_db(Arc::new(db))
+    let db = new_engine(path, db_opts, cfs, Some(cf_opts), log.clone()).expect("rocks test engine");
+    let mut engine = RocksEngine::from_db(Arc::new(db));
+    engine.set_wotr(log.clone());
+
+    engine
+    
 }
 
-pub fn new_test_engine_with_options<F>(path: &str, cfs: &[&str], apply: F) -> RocksEngine
+pub fn new_test_engine_with_options<F>(
+    path: &str,
+    cfs: &[&str],
+    apply: F,
+    log: Arc<WOTR>,
+) -> RocksEngine
 where
     F: FnMut(&str, &mut ColumnFamilyOptions),
 {
-    new_test_engine_with_options_and_env(path, cfs, apply, None)
+    new_test_engine_with_options_and_env(path, cfs, apply, None, log)
 }
 
 pub fn new_sst_reader(path: &str, e: Option<Arc<Env>>) -> RocksSstReader {

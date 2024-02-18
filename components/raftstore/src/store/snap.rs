@@ -1545,6 +1545,7 @@ pub mod tests {
     use engine_traits::{ExternalSstFileInfo, SstExt, SstWriter, SstWriterBuilder};
     use engine_traits::{KvEngine, Snapshot as EngineSnapshot};
     use engine_traits::{ALL_CFS, CF_DEFAULT, CF_LOCK, CF_RAFT, CF_WRITE};
+    use rocksdb::WOTR;
     use kvproto::encryptionpb::EncryptionMethod;
     use kvproto::metapb::{Peer, Region};
     use kvproto::raft_serverpb::{
@@ -1573,18 +1574,19 @@ pub mod tests {
     const BYTE_SIZE: usize = 1;
 
     type DBBuilder<E> =
-        fn(p: &Path, db_opt: Option<DBOptions>, cf_opts: Option<Vec<CFOptions<'_>>>) -> Result<E>;
+        fn(p: &Path, db_opt: Option<DBOptions>, cf_opts: Option<Vec<CFOptions<'_>>>, log: Arc<WOTR>) -> Result<E>;
 
     pub fn open_test_empty_db<E>(
         path: &Path,
         db_opt: Option<DBOptions>,
         cf_opts: Option<Vec<CFOptions<'_>>>,
+        log: Arc<WOTR>,
     ) -> Result<E>
     where
         E: KvEngine + EngineConstructorExt,
     {
         let p = path.to_str().unwrap();
-        let db = E::new_engine(p, db_opt, ALL_CFS, cf_opts).unwrap();
+        let db = E::new_engine(p, db_opt, ALL_CFS, cf_opts, log).unwrap();
         Ok(db)
     }
 
@@ -1592,12 +1594,14 @@ pub mod tests {
         path: &Path,
         db_opt: Option<DBOptions>,
         cf_opts: Option<Vec<CFOptions<'_>>>,
+        log: Arc<WOTR>,
     ) -> Result<E>
     where
         E: KvEngine + EngineConstructorExt,
     {
         let p = path.to_str().unwrap();
-        let db = E::new_engine(p, db_opt, ALL_CFS, cf_opts).unwrap();
+        let db = E::new_engine(p, db_opt, ALL_CFS, cf_opts, log).unwrap();
+        
         let key = keys::data_key(TEST_KEY);
         // write some data into each cf
         for (i, cf) in db.cf_names().into_iter().enumerate() {
@@ -1616,14 +1620,15 @@ pub mod tests {
         kv_db_opt: Option<DBOptions>,
         kv_cf_opts: Option<Vec<CFOptions<'_>>>,
         regions: &[u64],
+        log: Arc<WOTR>,
     ) -> Result<Engines<KvTestEngine, RaftTestEngine>> {
         let p = path.path();
-        let kv: KvTestEngine = open_test_db(p.join("kv").as_path(), kv_db_opt, kv_cf_opts)?;
+        let kv: KvTestEngine = open_test_db(p.join("kv").as_path(), kv_db_opt, kv_cf_opts, log.clone())?;
         let raft: RaftTestEngine = open_test_db(
             p.join("raft").as_path(),
             raft_db_opt,
             raft_cf_opt.map(|opt| vec![opt]),
-        )?;
+            log.clone())?;
         for &region_id in regions {
             // Put apply state into kv engine.
             let mut apply_state = RaftApplyState::default();
@@ -1805,7 +1810,9 @@ pub mod tests {
             .prefix("test-snap-file-db-src")
             .tempdir()
             .unwrap();
-        let db = get_db(src_db_dir.path(), db_opt.clone(), None).unwrap();
+        let w1 = Arc::new(WOTR::wotr_init(src_db_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let db = get_db(src_db_dir.path(), db_opt.clone(), None, w1.clone()).unwrap();
         let snapshot = db.snapshot();
 
         let src_dir = Builder::new()
@@ -1884,7 +1891,9 @@ pub mod tests {
         let dst_db_path = dst_db_dir.path().to_str().unwrap();
         // Change arbitrarily the cf order of ALL_CFS at destination db.
         let dst_cfs = [CF_WRITE, CF_DEFAULT, CF_LOCK, CF_RAFT];
-        let dst_db = engine_test::kv::new_engine(dst_db_path, db_opt, &dst_cfs, None).unwrap();
+        let w = Arc::new(WOTR::wotr_init(dst_db_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+
+        let dst_db = engine_test::kv::new_engine(dst_db_path, db_opt, &dst_cfs, None, w.clone()).unwrap();
         let options = ApplyOptions {
             db: dst_db.clone(),
             region,
@@ -1922,7 +1931,8 @@ pub mod tests {
             .prefix("test-snap-validation-db")
             .tempdir()
             .unwrap();
-        let db = get_db(db_dir.path(), None, None).unwrap();
+        let w = Arc::new(WOTR::wotr_init(db_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let db = get_db(db_dir.path(), None, None, w.clone()).unwrap();
         let snapshot = db.snapshot();
 
         let dir = Builder::new()
@@ -2089,7 +2099,8 @@ pub mod tests {
             .prefix("test-snap-corruption-db")
             .tempdir()
             .unwrap();
-        let db: KvTestEngine = open_test_db(db_dir.path(), None, None).unwrap();
+        let w = Arc::new(WOTR::wotr_init(db_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let db: KvTestEngine = open_test_db(db_dir.path(), None, None, w.clone()).unwrap();
         let snapshot = db.snapshot();
 
         let dir = Builder::new()
@@ -2155,7 +2166,8 @@ pub mod tests {
             .prefix("test-snap-corruption-dst-db")
             .tempdir()
             .unwrap();
-        let dst_db: KvTestEngine = open_test_empty_db(dst_db_dir.path(), None, None).unwrap();
+        let w = Arc::new(WOTR::wotr_init(dst_db_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let dst_db: KvTestEngine = open_test_empty_db(dst_db_dir.path(), None, None, w.clone()).unwrap();
         let options = ApplyOptions {
             db: dst_db,
             region,
@@ -2178,7 +2190,8 @@ pub mod tests {
             .prefix("test-snapshot-corruption-meta-db")
             .tempdir()
             .unwrap();
-        let db: KvTestEngine = open_test_db(db_dir.path(), None, None).unwrap();
+        let w = Arc::new(WOTR::wotr_init(db_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let db: KvTestEngine = open_test_db(db_dir.path(), None, None, w.clone()).unwrap();
         let snapshot = db.snapshot();
 
         let dir = Builder::new()
@@ -2276,7 +2289,8 @@ pub mod tests {
             .prefix("test-snap-mgr-delete-temp-files-v2-db")
             .tempdir()
             .unwrap();
-        let db: KvTestEngine = open_test_db(db_dir.path(), None, None).unwrap();
+        let w = Arc::new(WOTR::wotr_init(db_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let db: KvTestEngine = open_test_db(db_dir.path(), None, None, w.clone()).unwrap();
         let snapshot = db.snapshot();
         let key1 = SnapKey::new(1, 1, 1);
         let mgr_core = create_manager_core(&path);
@@ -2356,7 +2370,8 @@ pub mod tests {
             .prefix("test-snap-deletion-on-registry-src-db")
             .tempdir()
             .unwrap();
-        let db: KvTestEngine = open_test_db(src_db_dir.path(), None, None).unwrap();
+        let w = Arc::new(WOTR::wotr_init(src_db_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let db: KvTestEngine = open_test_db(src_db_dir.path(), None, None, w.clone()).unwrap();
         let snapshot = db.snapshot();
 
         let key = SnapKey::new(1, 1, 1);
@@ -2428,8 +2443,9 @@ pub mod tests {
                 CFOptions::new(cf, cf_opts)
             })
             .collect();
+        let w = Arc::new(WOTR::wotr_init(kv_path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
         let engine =
-            get_test_db_for_regions(&kv_path, None, None, None, Some(kv_cf_opts), &regions)
+            get_test_db_for_regions(&kv_path, None, None, None, Some(kv_cf_opts), &regions, w.clone())
                 .unwrap();
 
         let snapfiles_path = Builder::new()
@@ -2505,7 +2521,8 @@ pub mod tests {
             .prefix("test_snap_temp_file_delete_kv")
             .tempdir()
             .unwrap();
-        let engine = open_test_db(kv_temp_dir.path(), None, None).unwrap();
+        let w = Arc::new(WOTR::wotr_init(kv_temp_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let engine = open_test_db(kv_temp_dir.path(), None, None, w.clone()).unwrap();
         let sst_path = src_mgr.get_temp_path_for_ingest();
         let mut writer = <KvTestEngine as SstExt>::SstWriterBuilder::new()
             .set_db(&engine)
@@ -2551,7 +2568,8 @@ pub mod tests {
             .prefix("test_build_with_encryption_kv")
             .tempdir()
             .unwrap();
-        let db: KvTestEngine = open_test_db(kv_dir.path(), None, None).unwrap();
+        let w = Arc::new(WOTR::wotr_init(kv_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let db: KvTestEngine = open_test_db(kv_dir.path(), None, None, w.clone()).unwrap();
         let snapshot = db.snapshot();
         let key = SnapKey::new(1, 1, 1);
         let region = gen_test_region(1, 1, 1);
