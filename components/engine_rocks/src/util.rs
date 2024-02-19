@@ -45,9 +45,9 @@ pub fn new_temp_engine(path: &tempfile::TempDir,
 
 pub fn new_default_engine(path: &str, log: Arc<WOTR>) -> Result<RocksEngine> {
     let engine =
-        new_engine_raw(path, None, &[CF_DEFAULT], None, log).map_err(|e| Error::Other(box_err!(e)))?;
+        new_engine_raw(path, None, &[CF_DEFAULT], None, log.clone()).map_err(|e| Error::Other(box_err!(e)))?;
     let engine = Arc::new(engine);
-    let engine = RocksEngine::from_db(engine);
+    let engine = RocksEngine::from_db(engine, log.clone());
     Ok(engine)
 }
 
@@ -78,8 +78,7 @@ pub fn new_engine(
 
     let engine = new_engine_raw(path, db_opts, cfs, opts, log.clone()).map_err(|e| Error::Other(box_err!(e)))?;
     let engine = Arc::new(engine);
-    let mut engine = RocksEngine::from_db(engine);
-    engine.set_wotr(log.clone());
+    let mut engine = RocksEngine::from_db(engine, log.clone());
     Ok(engine)
 }
 
@@ -95,8 +94,7 @@ pub fn new_engine_opt(
     let engine =
         new_engine_opt_raw(path, db_opt, cfs_opts, log.clone()).map_err(|e| Error::Other(box_err!(e)))?;
     let engine = Arc::new(engine);
-    let mut engine = RocksEngine::from_db(engine);
-    engine.set_wotr(log.clone());
+    let mut engine = RocksEngine::from_db(engine, log.clone());
     Ok(engine)
 }
 

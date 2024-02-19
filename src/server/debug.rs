@@ -23,6 +23,7 @@ use engine_traits::{
     Engines, IterOptions, Iterable, Iterator as EngineIterator, Mutable, Peekable, RaftEngine,
     RangePropertiesExt, SeekKey, SyncMutable, WriteBatch, WriteOptions,
 };
+use rocksdb::WOTR;
 use engine_traits::{MvccProperties, Range, WriteBatchExt, CF_DEFAULT, CF_LOCK, CF_RAFT, CF_WRITE};
 use raftstore::coprocessor::get_region_approximate_middle;
 use raftstore::store::util as raftstore_util;
@@ -117,16 +118,19 @@ impl From<BottommostLevelCompaction> for debugpb::BottommostLevelCompaction {
 #[derive(Clone)]
 pub struct Debugger<ER: RaftEngine> {
     engines: Engines<RocksEngine, ER>,
+    log: Arc<WOTR>,
     cfg_controller: ConfigController,
 }
 
 impl<ER: RaftEngine> Debugger<ER> {
     pub fn new(
         engines: Engines<RocksEngine, ER>,
+        log: Arc<WOTR>,
         cfg_controller: ConfigController,
     ) -> Debugger<ER> {
         Debugger {
             engines,
+            log,
             cfg_controller,
         }
     }
@@ -407,7 +411,7 @@ impl<ER: RaftEngine> Debugger<ER> {
         let db = self.engines.kv.clone();
 
         info!("Calculating split keys...");
-        let split_keys = divide_db(db.as_inner(), threads)
+        let split_keys = divide_db(db.as_inner(), self.log.clone(), threads)
             .unwrap()
             .into_iter()
             .map(|k| {
@@ -1360,13 +1364,13 @@ fn set_region_tombstone(
     Ok(())
 }
 
-fn divide_db(db: &Arc<DB>, parts: usize) -> raftstore::Result<Vec<Vec<u8>>> {
+fn divide_db(db: &Arc<DB>, log: Arc<WOTR>, parts: usize) -> raftstore::Result<Vec<Vec<u8>>> {
     // Empty start and end key cover all range.
     let start = keys::data_key(b"");
     let end = keys::data_end_key(b"");
     let range = Range::new(&start, &end);
     Ok(box_try!(
-        RocksEngine::from_db(db.clone()).get_range_approximate_split_keys(range, parts - 1)
+        RocksEngine::from_db(db.clone(), log).get_range_approximate_split_keys(range, parts - 1)
     ))
 }
 

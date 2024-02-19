@@ -83,8 +83,7 @@ pub fn new_debug_executor(
         Ok(db) => db,
         Err(e) => handle_engine_error(e),
     };
-    let mut kv_db = RocksEngine::from_db(Arc::new(kv_db));
-    kv_db.set_wotr(valuelog_kv.clone());
+    let mut kv_db = RocksEngine::from_db(Arc::new(kv_db), valuelog_kv.clone());
     kv_db.set_shared_block_cache(shared_block_cache);
 
     let cfg_controller = ConfigController::default();
@@ -105,20 +104,23 @@ pub fn new_debug_executor(
             Ok(db) => db,
             Err(e) => handle_engine_error(e),
         };
-        let mut raft_db = RocksEngine::from_db(Arc::new(raft_db));
-        raft_db.set_wotr(valuelog_raft.clone());
+        let mut raft_db = RocksEngine::from_db(Arc::new(raft_db), valuelog_raft.clone());
         raft_db.set_shared_block_cache(shared_block_cache);
-        let debugger = Debugger::new(Engines::new(kv_db, raft_db), cfg_controller);
+        let debugger = Debugger::new(Engines::new(kv_db, raft_db), valuelog_raft.clone(), cfg_controller);
         Box::new(debugger) as Box<dyn DebugExecutor>
     } else {
         let mut config = cfg.raft_engine.config();
         config.dir = cfg.infer_raft_engine_path(Some(data_dir)).unwrap();
+        let raft_vlog_path = cfg.infer_vlog_raft_path(Some(data_dir)).unwrap();
+
         if !RaftLogEngine::exists(&config.dir) {
             error!("raft engine not exists: {}", config.dir);
             process::exit(-1);
         }
+        let valuelog_raft = Arc::new(WOTR::wotr_init(raft_vlog_path.as_str()).unwrap());
+        
         let raft_db = RaftLogEngine::new(config, key_manager, None /*io_rate_limiter*/).unwrap();
-        let debugger = Debugger::new(Engines::new(kv_db, raft_db), cfg_controller);
+        let debugger = Debugger::new(Engines::new(kv_db, raft_db), valuelog_raft.clone(), cfg_controller);
         Box::new(debugger) as Box<dyn DebugExecutor>
     }
 }

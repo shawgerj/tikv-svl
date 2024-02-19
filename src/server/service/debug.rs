@@ -1,7 +1,9 @@
 // Copyright 2017 TiKV Project Authors. Licensed under Apache-2.0.
 
+use std::sync::Arc;
 use engine_rocks::RocksEngine;
 use engine_traits::{Engines, MiscExt, RaftEngine};
+use rocksdb::WOTR;
 use futures::channel::oneshot;
 use futures::future::Future;
 use futures::future::{FutureExt, TryFutureExt};
@@ -54,11 +56,12 @@ impl<ER: RaftEngine, T: RaftStoreRouter<RocksEngine>> Service<ER, T> {
     /// Constructs a new `Service` with `Engines`, a `RaftStoreRouter` and a `GcWorker`.
     pub fn new(
         engines: Engines<RocksEngine, ER>,
+        log: Arc<WOTR>,
         pool: Handle,
         raft_router: T,
         cfg_controller: ConfigController,
     ) -> Service<ER, T> {
-        let debugger = Debugger::new(engines, cfg_controller);
+        let debugger = Debugger::new(engines, log, cfg_controller);
         Service {
             pool,
             debugger,

@@ -103,8 +103,7 @@ pub fn check_and_dump_raft_db(
     let valuelog_raft = Arc::new(WOTR::wotr_init(&config.valuelog_raft.path).unwrap());
     let db = engine_rocks::raw_util::new_engine_opt(raftdb_path, raft_db_opts, raft_db_cf_opts, valuelog_raft.clone())
         .unwrap_or_else(|s| fatal!("failed to create origin raft db: {}", s));
-    let mut src_engine = RocksEngine::from_db(Arc::new(db));
-    src_engine.set_wotr(valuelog_raft.clone());
+    let mut src_engine = RocksEngine::from_db(Arc::new(db), valuelog_raft.clone());
 
     let count_size = Arc::new(AtomicUsize::new(0));
     let mut count_region = 0;

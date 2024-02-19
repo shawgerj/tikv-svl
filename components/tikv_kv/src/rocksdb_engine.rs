@@ -117,8 +117,8 @@ impl RocksEngine {
         )?);
         // It does not use the raft_engine, so it is ok to fill with the same
         // rocksdb.
-        let mut kv_engine = BaseRocksEngine::from_db(db.clone());
-        let mut raft_engine = BaseRocksEngine::from_db(db);
+        let mut kv_engine = BaseRocksEngine::from_db(db.clone(), w.clone());
+        let mut raft_engine = BaseRocksEngine::from_db(db, w.clone());
         kv_engine.set_shared_block_cache(shared_block_cache);
         raft_engine.set_shared_block_cache(shared_block_cache);
         let engines = Engines::new(kv_engine, raft_engine);

@@ -5569,6 +5569,7 @@ dependencies = [
  "reqwest",
  "resource_metering",
  "rev_lines",
+ "rocksdb",
  "seahash",
  "security",
  "semver 0.11.0",
