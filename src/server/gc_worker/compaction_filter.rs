@@ -437,13 +437,14 @@ impl WriteCompactionFilter {
         fn do_flush(
             wb: &RocksWriteBatch,
             wopts: &WriteOptions,
-        ) -> Result<(), engine_traits::Error> {
+        ) -> Result<Vec<usize>, engine_traits::Error> {
             let _io_type_guard = WithIOType::new(IOType::Gc);
             fail_point!("write_compaction_filter_flush_write_batch", true, |_| {
                 Err(engine_traits::Error::Engine(
                     "Ingested fail point".to_string(),
                 ))
             });
+            // shawgerj do I need the offsets returned by flushing this wb?
             wb.write_opt(wopts)
         }
 

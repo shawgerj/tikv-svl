@@ -928,6 +928,22 @@ impl TitanDBConfig {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
+#[serde(default)]
+#[serde(rename_all = "kebab-case")]
+pub struct ValueLogConfig {
+    pub path: String,
+}
+
+impl Default for ValueLogConfig {
+    fn default() -> Self {
+        Self {
+            path: String::new(),
+        }
+    }
+}
+
+
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug, OnlineConfig)]
 #[serde(default)]
 #[serde(rename_all = "kebab-case")]
@@ -2534,6 +2550,12 @@ pub struct TiKvConfig {
     pub raft_engine: RaftEngineConfig,
 
     #[online_config(skip)]
+    pub valuelog_raft: ValueLogConfig,
+
+    #[online_config(skip)]
+    pub valuelog_kv: ValueLogConfig,
+
+    #[online_config(skip)]
     pub security: SecurityConfig,
 
     #[online_config(skip)]
@@ -2588,6 +2610,8 @@ impl Default for TiKvConfig {
             rocksdb: DbConfig::default(),
             raftdb: RaftDbConfig::default(),
             raft_engine: RaftEngineConfig::default(),
+            valuelog_raft: ValueLogConfig::default(),
+            valuelog_kv: ValueLogConfig::default(),
             storage: StorageConfig::default(),
             security: SecurityConfig::default(),
             import: ImportConfig::default(),
@@ -2603,6 +2627,18 @@ impl Default for TiKvConfig {
 }
 
 impl TiKvConfig {
+    pub fn infer_vlog_raft_path(&self, data_dir: Option<&str>) -> Result<String, Box<dyn Error>> {
+        let data_dir = data_dir.unwrap_or(&self.storage.data_dir);
+        let p = config::canonicalize_path(data_dir).unwrap();
+        Ok(format!("{}/{}", p, "vlog_raft.dat"))
+    }
+
+    pub fn infer_vlog_kv_path(&self, data_dir: Option<&str>) -> Result<String, Box<dyn Error>> {
+        let data_dir = data_dir.unwrap_or(&self.storage.data_dir);
+        let p = config::canonicalize_path(data_dir).unwrap();
+        Ok(format!("{}/{}", p, "vlog_kv.dat"))
+    }
+
     pub fn infer_raft_db_path(&self, data_dir: Option<&str>) -> Result<String, Box<dyn Error>> {
         if self.raft_store.raftdb_path.is_empty() {
             let data_dir = data_dir.unwrap_or(&self.storage.data_dir);
@@ -2640,6 +2676,8 @@ impl TiKvConfig {
                 .to_owned();
         }
 
+        self.valuelog_raft.path = self.infer_vlog_raft_path(None)?;
+        self.valuelog_kv.path = self.infer_vlog_kv_path(None)?;
         self.raft_store.raftdb_path = self.infer_raft_db_path(None)?;
         self.raft_engine.config.dir = self.infer_raft_engine_path(None)?;
 

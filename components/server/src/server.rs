@@ -33,6 +33,7 @@ use engine_traits::{
     compaction_job::CompactionJobInfo, CFOptionsExt, ColumnFamilyOptions, Engines,
     FlowControlFactorsExt, KvEngine, MiscExt, RaftEngine, CF_DEFAULT, CF_LOCK, CF_WRITE,
 };
+use rocksdb::WOTR;
 use error_code::ErrorCodeExt;
 use file_system::{
     get_io_rate_limiter, set_io_rate_limiter, BytesFetcher, File, IOBudgetAdjustor,
@@ -190,6 +191,10 @@ struct TiKVServer<ER: RaftEngine> {
     concurrency_manager: ConcurrencyManager,
     env: Arc<Environment>,
     background_worker: Worker,
+    // shawgerj: use two separate logs to test key-value separation and
+    // _duplicated_ data
+    valuelog_raft: Arc<WOTR>,
+    valuelog_kv: Arc<WOTR>,    
 }
 
 struct TiKVEngines<EK: KvEngine, ER: RaftEngine> {
@@ -256,6 +261,8 @@ impl<ER: RaftEngine> TiKVServer<ER> {
         // Initialize concurrency manager
         let latest_ts = block_on(pd_client.get_tso()).expect("failed to get timestamp from PD");
         let concurrency_manager = ConcurrencyManager::new(latest_ts);
+        let valuelog_raft = Arc::new(WOTR::wotr_init(&config.valuelog_raft.path).unwrap());
+        let valuelog_kv = Arc::new(WOTR::wotr_init(&config.valuelog_kv.path).unwrap());     
 
         TiKVServer {
             config,
@@ -280,6 +287,8 @@ impl<ER: RaftEngine> TiKVServer<ER> {
             background_worker,
             flow_info_sender: None,
             flow_info_receiver: None,
+            valuelog_raft,
+            valuelog_kv,
         }
     }
 
@@ -1275,6 +1284,7 @@ impl TiKVServer<RocksEngine> {
             raft_db_path.to_str().unwrap(),
             raft_db_opts,
             raft_db_cf_opts,
+            self.valuelog_raft.clone(),
         )
         .unwrap_or_else(|s| fatal!("failed to create raft engine: {}", s));
 
@@ -1293,6 +1303,7 @@ impl TiKVServer<RocksEngine> {
             db_path.to_str().unwrap(),
             kv_db_opts,
             kv_cfs_opts,
+            self.valuelog_kv.clone(),
         )
         .unwrap_or_else(|s| fatal!("failed to create kv engine: {}", s));
 
@@ -1301,6 +1312,10 @@ impl TiKVServer<RocksEngine> {
         let shared_block_cache = block_cache.is_some();
         kv_engine.set_shared_block_cache(shared_block_cache);
         raft_engine.set_shared_block_cache(shared_block_cache);
+
+        raft_engine.set_wotr(self.valuelog_raft.clone());
+        kv_engine.set_wotr(self.valuelog_kv.clone());
+        
         let engines = Engines::new(kv_engine, raft_engine);
 
         check_and_dump_raft_engine(
@@ -1377,10 +1392,12 @@ impl TiKVServer<RaftLogEngine> {
             db_path.to_str().unwrap(),
             kv_db_opts,
             kv_cfs_opts,
+            self.valuelog_kv.clone(),
         )
         .unwrap_or_else(|s| fatal!("failed to create kv engine: {}", s));
 
         let mut kv_engine = RocksEngine::from_db(Arc::new(kv_engine));
+        kv_engine.set_wotr(self.valuelog_kv.clone());
         let shared_block_cache = block_cache.is_some();
         kv_engine.set_shared_block_cache(shared_block_cache);
         let engines = Engines::new(kv_engine, raft_engine);

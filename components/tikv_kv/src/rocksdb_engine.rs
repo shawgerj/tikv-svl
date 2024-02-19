@@ -13,6 +13,7 @@ use engine_traits::CfName;
 use engine_traits::{
     Engines, IterOptions, Iterable, Iterator, KvEngine, Peekable, ReadOptions, SeekKey,
 };
+use rocksdb::WOTR;
 use file_system::IORateLimiter;
 use kvproto::kvrpcpb::Context;
 use tempfile::{Builder, TempDir};
@@ -83,6 +84,9 @@ pub struct RocksEngine {
     not_leader: Arc<AtomicBool>,
 }
 
+// shawgerj why does this exist and where is it used?
+// almost certainly a problem creating WOTR here, but I don't know where this type of
+// RocksEngine is used
 impl RocksEngine {
     pub fn new(
         path: &str,
@@ -102,11 +106,14 @@ impl RocksEngine {
         let worker = Worker::new("engine-rocksdb");
         let mut db_opts = DBOptions::new();
         db_opts.set_env(get_env(None /*key_manager*/, io_rate_limiter).unwrap());
+        let w = Arc::new(WOTR::wotr_init(format!("{}/{}", path, "wotrlog.txt").as_str()).unwrap());
+
         let db = Arc::new(engine_rocks::raw_util::new_engine(
             &path,
             Some(db_opts),
             cfs,
             cfs_opts,
+            w.clone(),
         )?);
         // It does not use the raft_engine, so it is ok to fill with the same
         // rocksdb.

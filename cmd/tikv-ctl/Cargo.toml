@@ -85,6 +85,13 @@ collections = { path = "../../components/collections" }
 toml = "0.5"
 txn_types = { path = "../../components/txn_types", default-features = false }
 
+[dependencies.rocksdb]
+git = "https://github.com/shawgerj/rust-rocksdb-1.git"
+package = "rocksdb"
+branch = "wotr"
+features = ["encryption", "static_libcpp"]
+
+
 [build-dependencies]
 time = "0.1"
 

@@ -7,6 +7,7 @@ use engine_traits::{
     CompactExt, DeleteStrategy, Error as EngineError, Iterable, Iterator, MiscExt, RaftEngine,
     RaftEngineReadOnly, RaftLogBatch, Range, SeekKey,
 };
+use rocksdb::WOTR;
 use file_system::{delete_dir_if_exist, IORateLimiter};
 use kvproto::raft_serverpb::RaftLocalState;
 use protobuf::Message;
@@ -98,9 +99,12 @@ pub fn check_and_dump_raft_db(
     let mut raft_db_opts = config_raftdb.build_opt();
     raft_db_opts.set_env(env.clone());
     let raft_db_cf_opts = config_raftdb.build_cf_opts(&None);
-    let db = engine_rocks::raw_util::new_engine_opt(raftdb_path, raft_db_opts, raft_db_cf_opts)
+
+    let valuelog_raft = Arc::new(WOTR::wotr_init(&config.valuelog_raft.path).unwrap());
+    let db = engine_rocks::raw_util::new_engine_opt(raftdb_path, raft_db_opts, raft_db_cf_opts, valuelog_raft.clone())
         .unwrap_or_else(|s| fatal!("failed to create origin raft db: {}", s));
-    let src_engine = RocksEngine::from_db(Arc::new(db));
+    let mut src_engine = RocksEngine::from_db(Arc::new(db));
+    src_engine.set_wotr(valuelog_raft.clone());
 
     let count_size = Arc::new(AtomicUsize::new(0));
     let mut count_region = 0;
@@ -117,6 +121,7 @@ pub fn check_and_dump_raft_db(
         threads.push(t);
     }
 
+    // shawgerj broken as scan won't work... I don't think we use this
     info!("Start to scan raft log from RocksEngine and dump into RaftLogEngine");
     let consumed_time = tikv_util::time::Instant::now();
     // Seek all region id from raftdb and send them to workers.

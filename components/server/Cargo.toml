@@ -73,5 +73,11 @@ txn_types = { path = "../txn_types", default-features = false }
 yatp = { git = "https://github.com/tikv/yatp.git", branch = "master" }
 resource_metering = { path = "../resource_metering" }
 
+[dependencies.rocksdb]
+git = "https://github.com/shawgerj/rust-rocksdb-1.git"
+package = "rocksdb"
+branch = "wotr"
+features = ["encryption", "static_libcpp"]
+
 [target.'cfg(unix)'.dependencies]
 signal = "0.6"

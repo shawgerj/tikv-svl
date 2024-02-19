@@ -7,6 +7,7 @@ use engine_rocks::RocksEngine;
 use engine_traits::{
     Engines, Error as EngineError, RaftEngine, ALL_CFS, CF_DEFAULT, CF_LOCK, CF_WRITE, DATA_CFS,
 };
+use rocksdb::WOTR;
 use futures::{executor::block_on, future, stream, Stream, StreamExt, TryStreamExt};
 use grpcio::{ChannelBuilder, Environment};
 use kvproto::debugpb::{Db as DBType, *};
@@ -57,6 +58,7 @@ pub fn new_debug_executor(
     // TODO: perhaps we should allow user skip specifying data path.
     let data_dir = data_dir.unwrap();
     let kv_path = cfg.infer_kv_engine_path(Some(data_dir)).unwrap();
+    let kv_vlog_path = cfg.infer_vlog_kv_path(Some(data_dir)).unwrap();
 
     let key_manager = data_key_manager_from_config(&cfg.security.encryption, &cfg.storage.data_dir)
         .unwrap()
@@ -74,11 +76,15 @@ pub fn new_debug_executor(
         .build_cf_opts(&cache, None, cfg.storage.api_version());
     let kv_path = PathBuf::from(kv_path).canonicalize().unwrap();
     let kv_path = kv_path.to_str().unwrap();
-    let kv_db = match new_engine_opt(kv_path, kv_db_opts, kv_cfs_opts) {
+
+    let valuelog_kv = Arc::new(WOTR::wotr_init(kv_vlog_path.as_str()).unwrap());
+
+    let kv_db = match new_engine_opt(kv_path, kv_db_opts, kv_cfs_opts, valuelog_kv.clone()) {
         Ok(db) => db,
         Err(e) => handle_engine_error(e),
     };
     let mut kv_db = RocksEngine::from_db(Arc::new(kv_db));
+    kv_db.set_wotr(valuelog_kv.clone());
     kv_db.set_shared_block_cache(shared_block_cache);
 
     let cfg_controller = ConfigController::default();
@@ -87,15 +93,20 @@ pub fn new_debug_executor(
         raft_db_opts.set_env(env);
         let raft_db_cf_opts = cfg.raftdb.build_cf_opts(&cache);
         let raft_path = cfg.infer_raft_db_path(Some(data_dir)).unwrap();
+        let raft_vlog_path = cfg.infer_vlog_raft_path(Some(data_dir)).unwrap();
+
         if !db_exist(&raft_path) {
             error!("raft db not exists: {}", raft_path);
             process::exit(-1);
         }
-        let raft_db = match new_engine_opt(&raft_path, raft_db_opts, raft_db_cf_opts) {
+        let valuelog_raft = Arc::new(WOTR::wotr_init(raft_vlog_path.as_str()).unwrap());
+        
+        let raft_db = match new_engine_opt(&raft_path, raft_db_opts, raft_db_cf_opts, valuelog_raft.clone()) {
             Ok(db) => db,
             Err(e) => handle_engine_error(e),
         };
         let mut raft_db = RocksEngine::from_db(Arc::new(raft_db));
+        raft_db.set_wotr(valuelog_raft.clone());
         raft_db.set_shared_block_cache(shared_block_cache);
         let debugger = Debugger::new(Engines::new(kv_db, raft_db), cfg_controller);
         Box::new(debugger) as Box<dyn DebugExecutor>
