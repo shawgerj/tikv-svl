@@ -567,6 +567,8 @@ impl<ER: RaftEngine> TiKVServer<ER> {
     }
 
     fn init_servers(&mut self) -> Arc<VersionTrack<ServerConfig>> {
+        dbg!(&self.valuelog_raft);
+	dbg!(&self.valuelog_kv);
         let flow_controller = Arc::new(FlowController::new(
             &self.config.storage.flow_control,
             self.engines.as_ref().unwrap().engine.kv_engine(),
@@ -1311,7 +1313,7 @@ impl TiKVServer<RocksEngine> {
         .unwrap_or_else(|s| fatal!("failed to create kv engine: {}", s));
 
         let mut kv_engine = RocksEngine::from_db(Arc::new(kv_engine), self.valuelog_kv.clone());
-        let mut raft_engine = RocksEngine::from_db(Arc::new(raft_engine), self.valuelog_kv.clone());
+        let mut raft_engine = RocksEngine::from_db(Arc::new(raft_engine), self.valuelog_raft.clone());
         let shared_block_cache = block_cache.is_some();
         kv_engine.set_shared_block_cache(shared_block_cache);
         raft_engine.set_shared_block_cache(shared_block_cache);
