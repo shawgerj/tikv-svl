@@ -261,8 +261,8 @@ impl<ER: RaftEngine> TiKVServer<ER> {
         // Initialize concurrency manager
         let latest_ts = block_on(pd_client.get_tso()).expect("failed to get timestamp from PD");
         let concurrency_manager = ConcurrencyManager::new(latest_ts);
-        let valuelog_raft = Arc::new(WOTR::wotr_init(&config.valuelog_raft.path).unwrap());
-        let valuelog_kv = Arc::new(WOTR::wotr_init(&config.valuelog_kv.path).unwrap());
+        let valuelog_raft = Arc::new(engine_rocks::raw_util::new_wotr(&config.valuelog_raft.path).unwrap());
+        let valuelog_kv = Arc::new(engine_rocks::raw_util::new_wotr(&config.valuelog_kv.path).unwrap());
 
         TiKVServer {
             config,

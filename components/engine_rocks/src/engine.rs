@@ -30,6 +30,7 @@ pub struct RocksEngine {
 }
 
 impl RocksEngine {
+    // we assume that db has already been opened using the log, which must be registered with the db separately
     pub fn from_db(db: Arc<DB>, log: Arc<WOTR>) -> Self {
         RocksEngine {
             db,

@@ -80,6 +80,12 @@ fn adjust_dynamic_level_bytes(
     }
 }
 
+pub fn new_wotr(
+    path: &str,
+) -> Result<WOTR> {
+    Ok(WOTR::wotr_init(path)?)
+}
+
 pub fn new_engine_opt(
     path: &str,
     mut db_opt: DBOptions,
