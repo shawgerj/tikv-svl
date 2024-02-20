@@ -65,7 +65,7 @@ mod tests {
 
     use crate::engine::RocksEngine;
     use crate::raw::{ColumnFamilyOptions, DBOptions};
-    use crate::raw_util::{new_engine_opt, CFOptions};
+    use crate::raw_util::{new_engine_opt, new_wotr, CFOptions};
     use std::sync::Arc;
     use rocksdb::WOTR;
 
@@ -94,11 +94,10 @@ mod tests {
                 CFOptions::new(cf, opt)
             })
             .collect();
-        let w = Arc::new(WOTR::wotr_init(path_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let w = Arc::new(new_wotr(path_dir.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
 
-        let db = new_engine_opt(path_str, DBOptions::new(), cfs_opts, w.clone()).unwrap();
-        let db = Arc::new(db);
-        let db = RocksEngine::from_db(db);
+        let db = Arc::new(new_engine_opt(path_str, DBOptions::new(), cfs_opts, w.clone()).unwrap());
+        let db = RocksEngine::from_db(db, w.clone());
         let mut wb = db.write_batch();
         for i in 1000..5000 {
             let v = i.to_string();

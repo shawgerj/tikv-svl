@@ -60,10 +60,11 @@ impl Iterable for RocksSnapshot {
         unsafe {
             opt.set_snapshot(&self.snap);
         }
-        Ok(RocksEngineIterator::from_raw(DBIterator::new(
+        Ok(RocksEngineIterator::from_raw(
+            DBIterator::new(self.db.clone(), opt),
             self.db.clone(),
-            opt,
-        )))
+            None::<String>,
+        ))
     }
 
     fn iterator_cf_opt(&self, cf: &str, opts: IterOptions) -> Result<Self::Iterator> {
@@ -73,11 +74,10 @@ impl Iterable for RocksSnapshot {
             opt.set_snapshot(&self.snap);
         }
         let handle = get_cf_handle(self.db.as_ref(), cf)?;
-        Ok(RocksEngineIterator::from_raw(DBIterator::new_cf(
+        Ok(RocksEngineIterator::from_raw(
+            DBIterator::new_cf(self.db.clone(), handle, opt),
             self.db.clone(),
-            handle,
-            opt,
-        )))
+            Some(cf.to_string())))
     }
 }
 

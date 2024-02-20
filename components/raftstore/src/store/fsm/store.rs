@@ -981,7 +981,6 @@ impl<EK: KvEngine, ER: RaftEngine, T> RaftPollerBuilder<EK, ER, T> {
         let mut meta = self.store_meta.lock().unwrap();
         let mut replication_state = self.global_replication_state.lock().unwrap();
         kv_engine.scan_cf(CF_RAFT, start_key, end_key, false, |key, value| {
-	    return Ok(true); // shawgerj remove me!!!
             let (region_id, suffix) = box_try!(keys::decode_region_meta_key(key));
             if suffix != keys::REGION_STATE_SUFFIX {
                 return Ok(true);

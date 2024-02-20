@@ -119,20 +119,20 @@ impl Iterable for RocksEngine {
 
     fn iterator_opt(&self, opts: IterOptions) -> Result<Self::Iterator> {
         let opt: RocksReadOptions = opts.into();
-        Ok(RocksEngineIterator::from_raw(DBIterator::new(
+        Ok(RocksEngineIterator::from_raw(
+            DBIterator::new(self.db.clone(), opt.into_raw()),
             self.db.clone(),
-            opt.into_raw(),
-        )))
+            None::<String>,
+        ))
     }
 
     fn iterator_cf_opt(&self, cf: &str, opts: IterOptions) -> Result<Self::Iterator> {
         let handle = get_cf_handle(&self.db, cf)?;
         let opt: RocksReadOptions = opts.into();
-        Ok(RocksEngineIterator::from_raw(DBIterator::new_cf(
+        Ok(RocksEngineIterator::from_raw(
+            DBIterator::new_cf(self.db.clone(), handle, opt.into_raw()),
             self.db.clone(),
-            handle,
-            opt.into_raw(),
-        )))
+            Some(cf.to_string())))
     }
 }
 
@@ -273,11 +273,11 @@ mod tests {
     fn test_scan() {
         let path = Builder::new().prefix("var").tempdir().unwrap();
         let cf = "cf";
-        let w = Arc::new(WOTR::wotr_init(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
+        let w = Arc::new(raw_util::new_wotr(path.path().join("wotrlog.txt").to_str().unwrap()).unwrap());
 
-        let mut engine = RocksEngine::from_db(Arc::new(
-            raw_util::new_engine(path.path().to_str().unwrap(), None, &[cf], None, w.clone()).unwrap()),
-                                              w.clone(),
+        let mut engine = RocksEngine::from_db(
+            Arc::new(raw_util::new_engine(path.path().to_str().unwrap(), None, &[cf], None, w.clone()).unwrap()),
+            w.clone(),
         );
 
         engine.put(b"a1", b"v1").unwrap();

@@ -1,33 +1,69 @@
 // Copyright 2019 TiKV Project Authors. Licensed under Apache-2.0.
 
 use std::sync::Arc;
-
-use engine_traits::{self, Error, Result};
+use engine_traits::{self, Error, Result, Iterator};
 use rocksdb::{DBIterator, SeekKey as RawSeekKey, DB};
+use rocksdb::rocksdb_options::ReadOptions;
+use crate::util::get_cf_handle;
 
 // FIXME: Would prefer using &DB instead of Arc<DB>.  As elsewhere in
 // this crate, it would require generic associated types.
-pub struct RocksEngineIterator(DBIterator<Arc<DB>>);
+pub struct RocksEngineIterator {
+    iter: DBIterator<Arc<DB>>,
+    db: Arc<DB>,
+    cf: Option<String>,
+    value: Vec<u8>,
+}
 
 impl RocksEngineIterator {
-    pub fn from_raw(iter: DBIterator<Arc<DB>>) -> RocksEngineIterator {
-        RocksEngineIterator(iter)
+    pub fn from_raw(iter: DBIterator<Arc<DB>>, db: Arc<DB>, cf: Option<String>) -> RocksEngineIterator {
+       RocksEngineIterator {
+           iter,
+           db,
+           cf,
+           value: vec![],
+       }
     }
 
     pub fn sequence(&self) -> Option<u64> {
-        self.0.sequence()
+        self.iter.sequence()
     }
 }
 
 impl engine_traits::Iterator for RocksEngineIterator {
     fn seek(&mut self, key: engine_traits::SeekKey<'_>) -> Result<bool> {
         let k: RocksSeekKey<'_> = key.into();
-        self.0.seek(k.into_raw()).map_err(Error::Engine)
+        match self.iter.seek(k.into_raw()) {
+            Err(e) => return Err(Error::Engine(e)),
+            Ok(true) => {
+                if let Some(h) = &self.cf {
+                    let handle = get_cf_handle(&self.db, h.as_str()).unwrap();
+                    match self.db.get_external_cf(handle, self.iter.key(), &ReadOptions::default()) {
+                        Ok(Some(v)) => {
+                            self.value = v.to_vec();
+                            Ok(true)
+                        },
+                        _ => Err(Error::Engine("get external iterator error".to_string()))
+                    }
+                }
+                else {
+                    match self.db.get_external(self.iter.key(), &ReadOptions::default()) {
+                        Ok(Some(v)) => {
+                            self.value = v.to_vec();
+                            dbg!(&self.value);
+                            Ok(true)
+                        },
+                        _ => Err(Error::Engine("get external iterator error".to_string()))
+                    }
+                }
+            }
+            Ok(false) => Ok(false)
+        }
     }
 
     fn seek_for_prev(&mut self, key: engine_traits::SeekKey<'_>) -> Result<bool> {
         let k: RocksSeekKey<'_> = key.into();
-        self.0.seek_for_prev(k.into_raw()).map_err(Error::Engine)
+        self.iter.seek_for_prev(k.into_raw()).map_err(Error::Engine)
     }
 
     fn prev(&mut self) -> Result<bool> {
@@ -35,7 +71,7 @@ impl engine_traits::Iterator for RocksEngineIterator {
         if !self.valid()? {
             return Err(Error::Engine("Iterator invalid".to_string()));
         }
-        self.0.prev().map_err(Error::Engine)
+        self.iter.prev().map_err(Error::Engine)
     }
 
     fn next(&mut self) -> Result<bool> {
@@ -43,23 +79,50 @@ impl engine_traits::Iterator for RocksEngineIterator {
         if !self.valid()? {
             return Err(Error::Engine("Iterator invalid".to_string()));
         }
-        self.0.next().map_err(Error::Engine)
+        //let res = self.iter.next().map_err(Error::Engine);
+
+        match self.iter.next() {
+            Err(e) => return Err(Error::Engine(e)),
+            Ok(true) => {
+                if let Some(h) = &self.cf {
+                    let handle = get_cf_handle(&self.db, h.as_str()).unwrap();
+                    match self.db.get_external_cf(handle, self.iter.key(), &ReadOptions::default()) {
+                        Ok(Some(v)) => {
+                            self.value = v.to_vec();
+                            Ok(true)
+                        },
+                        _ => Err(Error::Engine("get external iterator error".to_string()))
+                    }
+                }
+                else {
+                    match self.db.get_external(self.iter.key(), &ReadOptions::default()) {
+                        Ok(Some(v)) => {
+                            self.value = v.to_vec();
+                            dbg!(&self.value);
+                            Ok(true)
+                        },
+                        _ => Err(Error::Engine("get external iterator error".to_string()))
+                    }
+                }
+            }
+            Ok(false) => Ok(false)
+        }
     }
 
     fn key(&self) -> &[u8] {
         #[cfg(not(feature = "nortcheck"))]
         assert!(self.valid().unwrap());
-        self.0.key()
+        self.iter.key()
     }
 
     fn value(&self) -> &[u8] {
         #[cfg(not(feature = "nortcheck"))]
         assert!(self.valid().unwrap());
-        self.0.value()
+        self.value.as_slice()
     }
 
     fn valid(&self) -> Result<bool> {
-        self.0.valid().map_err(Error::Engine)
+        self.iter.valid().map_err(Error::Engine)
     }
 }
 
