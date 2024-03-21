@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use engine_traits::{
-    Error, IterOptions, Iterable, KvEngine, Peekable, ReadOptions, Result, SyncMutable,
+    Error, IterOptions, Iterable, KvEngine, Peekable, ReadOptions, Result, SyncMutable, GetStyle
 };
 use rocksdb::{DBIterator, Writable, DB, WOTR};
 
@@ -139,9 +139,19 @@ impl Iterable for RocksEngine {
 impl Peekable for RocksEngine {
     type DBVector = RocksDBVector;
 
-    fn get_value_opt(&self, opts: &ReadOptions, key: &[u8]) -> Result<Option<RocksDBVector>> {
+    fn get_value_opt(
+        &self,
+        opts: &ReadOptions,
+        key: &[u8],
+        gs: GetStyle,
+    ) -> Result<Option<RocksDBVector>> {
         let opt: RocksReadOptions = opts.into();
-        let v = self.db.get_external(key, &opt.into_raw())?;
+        let v = match gs {
+            GetStyle::Get => self.db.get_opt(key, &opt.into_raw())?,
+            GetStyle::GetP => self.db.get_p_external(key, &opt.into_raw())?,
+            GetStyle::GetExternal => self.db.get_external(key, &opt.into_raw())?,
+        };
+        
         Ok(v.map(RocksDBVector::from_raw))
     }
 
@@ -150,10 +160,16 @@ impl Peekable for RocksEngine {
         opts: &ReadOptions,
         cf: &str,
         key: &[u8],
+        gs: GetStyle,
     ) -> Result<Option<RocksDBVector>> {
         let opt: RocksReadOptions = opts.into();
         let handle = get_cf_handle(&self.db, cf)?;
-        let v = self.db.get_external_cf(handle, key, &opt.into_raw())?;
+        let v = match gs {
+            GetStyle::Get => self.db.get_cf_opt(handle, key, &opt.into_raw())?,
+            GetStyle::GetP => self.db.get_p_external_cf(handle, key, &opt.into_raw())?,
+            GetStyle::GetExternal => self.db.get_external_cf(handle, key, &opt.into_raw())?,
+        };
+        
         Ok(v.map(RocksDBVector::from_raw))
     }
 }

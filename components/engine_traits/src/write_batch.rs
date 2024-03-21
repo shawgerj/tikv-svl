@@ -83,9 +83,17 @@ pub trait WriteBatch<E: WriteBatchExt + Sized>: Mutable {
     /// Create a WriteBatch with a given command capacity
     fn with_capacity(e: &E, cap: usize) -> Self;
 
+    /// Commit the WriteBatch to LSN (no WOTR) with the given options
+    fn write_lsm_opt(&self, opts: &WriteOptions) -> Result<()>;
+
     /// Commit the WriteBatch to disk with the given options
     fn write_opt(&self, opts: &WriteOptions) -> Result<Vec<usize>>;
 
+    /// Commit the WriteBatch to disk atomically
+    fn write_lsm(&self) -> Result<()> {
+        self.write_lsm_opt(&WriteOptions::default())
+    }
+    
     /// Commit the WriteBatch to disk atomically
     fn write(&self) -> Result<Vec<usize>> {
         self.write_opt(&WriteOptions::default())

@@ -5,8 +5,7 @@ use crate::{util, RocksEngine, RocksWriteBatch};
 
 use engine_traits::{
     Error, Iterable, KvEngine, MiscExt, Mutable, Peekable, RaftEngine, RaftEngineReadOnly,
-    RaftLogBatch, RaftLogGCTask, Result, SyncMutable, WriteBatch, WriteBatchExt, WriteOptions,
-    CF_DEFAULT,
+    RaftLogBatch, RaftLogGCTask, Result, SyncMutable, WriteBatch, WriteBatchExt, WriteOptions, CF_DEFAULT, GetStyle,
 };
 use kvproto::raft_serverpb::RaftLocalState;
 use protobuf::Message;
@@ -43,7 +42,7 @@ impl RaftEngineReadOnly for RocksEngine {
                     break;
                 }
                 let key = keys::raft_log_key(region_id, i);
-                match self.get_value(&key) {
+                match self.get_value(&key, GetStyle::GetExternal) {
                     Ok(None) => return Err(Error::EntriesCompacted),
                     Ok(Some(v)) => {
                         let mut entry = Entry::default();

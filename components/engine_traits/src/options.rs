@@ -29,6 +29,12 @@ impl Default for ReadOptions {
     }
 }
 
+pub enum GetStyle {
+    Get,
+    GetP,
+    GetExternal,
+}
+
 #[derive(Clone)]
 pub struct WriteOptions {
     sync: bool,

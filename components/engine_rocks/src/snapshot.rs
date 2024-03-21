@@ -3,7 +3,7 @@
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
-use engine_traits::{self, IterOptions, Iterable, Peekable, ReadOptions, Result, Snapshot};
+use engine_traits::{self, IterOptions, Iterable, Peekable, ReadOptions, GetStyle, Result, Snapshot};
 use rocksdb::rocksdb_options::UnsafeSnap;
 use rocksdb::{DBIterator, DB};
 
@@ -84,13 +84,19 @@ impl Iterable for RocksSnapshot {
 impl Peekable for RocksSnapshot {
     type DBVector = RocksDBVector;
 
-    fn get_value_opt(&self, opts: &ReadOptions, key: &[u8]) -> Result<Option<RocksDBVector>> {
+    fn get_value_opt(&self, opts: &ReadOptions, key: &[u8], gs: GetStyle) -> Result<Option<RocksDBVector>> {
         let opt: RocksReadOptions = opts.into();
         let mut opt = opt.into_raw();
         unsafe {
             opt.set_snapshot(&self.snap);
         }
-        let v = self.db.get_external(key, &opt)?;
+
+        let v = match gs {
+            GetStyle::Get => self.db.get_opt(key, &opt)?,
+            GetStyle::GetP => self.db.get_p_external(key, &opt)?,
+            GetStyle::GetExternal => self.db.get_external(key, &opt)?,
+        };
+
         Ok(v.map(RocksDBVector::from_raw))
     }
 
@@ -99,6 +105,7 @@ impl Peekable for RocksSnapshot {
         opts: &ReadOptions,
         cf: &str,
         key: &[u8],
+        gs: GetStyle,
     ) -> Result<Option<RocksDBVector>> {
         let opt: RocksReadOptions = opts.into();
         let mut opt = opt.into_raw();
@@ -106,7 +113,13 @@ impl Peekable for RocksSnapshot {
             opt.set_snapshot(&self.snap);
         }
         let handle = get_cf_handle(self.db.as_ref(), cf)?;
-        let v = self.db.get_external_cf(handle, key, &opt)?;
+        
+        let v = match gs {
+            GetStyle::Get => self.db.get_cf_opt(handle, key, &opt)?,
+            GetStyle::GetP => self.db.get_p_external_cf(handle, key, &opt)?,
+            GetStyle::GetExternal => self.db.get_external_cf(handle, key, &opt)?,
+        };
+
         Ok(v.map(RocksDBVector::from_raw))
     }
 }

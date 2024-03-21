@@ -195,6 +195,7 @@ where
         &self,
         opts: &ReadOptions,
         key: &[u8],
+        gs: GetStyle,
     ) -> EngineResult<Option<Self::DBVector>> {
         check_key_in_range(
             key,
@@ -205,7 +206,7 @@ where
         .map_err(|e| EngineError::Other(box_err!(e)))?;
         let data_key = keys::data_key(key);
         self.snap
-            .get_value_opt(opts, &data_key)
+            .get_value_opt(opts, &data_key, gs)
             .map_err(|e| self.handle_get_value_error(e, "", key))
     }
 

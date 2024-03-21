@@ -4,7 +4,7 @@ use crate::db_vector::PanicDBVector;
 use crate::snapshot::PanicSnapshot;
 use crate::write_batch::PanicWriteBatch;
 use engine_traits::{
-    IterOptions, Iterable, Iterator, KvEngine, Peekable, ReadOptions, Result, SeekKey, SyncMutable,
+    IterOptions, Iterable, Iterator, KvEngine, Peekable, ReadOptions, GetStyle, Result, SeekKey, SyncMutable,
     WriteOptions,
 };
 
@@ -28,7 +28,7 @@ impl KvEngine for PanicEngine {
 impl Peekable for PanicEngine {
     type DBVector = PanicDBVector;
 
-    fn get_value_opt(&self, opts: &ReadOptions, key: &[u8]) -> Result<Option<Self::DBVector>> {
+    fn get_value_opt(&self, opts: &ReadOptions, key: &[u8], gs: GetStyle) -> Result<Option<Self::DBVector>> {
         panic!()
     }
     fn get_value_cf_opt(
@@ -36,6 +36,7 @@ impl Peekable for PanicEngine {
         opts: &ReadOptions,
         cf: &str,
         key: &[u8],
+        gs: GetStyle,
     ) -> Result<Option<Self::DBVector>> {
         panic!()
     }

@@ -402,6 +402,8 @@ where
     apply_time: LocalHistogram,
 
     key_buffer: Vec<u8>,
+    data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
+    entry_size: usize,
 }
 
 impl<EK, W> ApplyContext<EK, W>
@@ -421,6 +423,7 @@ where
         store_id: u64,
         pending_create_peers: Arc<Mutex<HashMap<u64, (u64, bool)>>>,
         priority: Priority,
+        data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,        
     ) -> ApplyContext<EK, W> {
         // If `enable_multi_batch_write` was set true, we create `RocksWriteBatchVec`.
         // Otherwise create `RocksWriteBatch`.
@@ -457,7 +460,17 @@ where
             apply_wait: APPLY_TASK_WAIT_TIME_HISTOGRAM.local(),
             apply_time: APPLY_TIME_HISTOGRAM.local(),
             key_buffer: Vec::with_capacity(1024),
+            data_locations,
+            entry_size: 0,
         }
+    }
+
+    pub fn set_entry_size(&mut self, size: usize) {
+        self.entry_size = size;
+    }
+
+    pub fn get_entry_size(&self) -> usize {
+        self.entry_size
     }
 
     /// Prepares for applying entries for `delegate`.
@@ -513,8 +526,9 @@ where
         }
         if !self.kv_wb_mut().is_empty() {
             let mut write_opts = engine_traits::WriteOptions::new();
-            write_opts.set_sync(need_sync);
-            self.kv_wb().write_opt(&write_opts).unwrap_or_else(|e| {
+            write_opts.set_sync(false);
+            write_opts.set_disable_wal(true);
+            self.kv_wb().write_lsm_opt(&write_opts).unwrap_or_else(|e| {
                 panic!("failed to write to engine: {:?}", e);
             });
             self.perf_context.report_metrics();
@@ -1037,6 +1051,21 @@ where
         let index = entry.get_index();
         let term = entry.get_term();
         let data = entry.get_data();
+        let mut datasize = data.len();
+        let mut entry_size_bytes = 0;
+
+        while datasize != 0 {
+            datasize >>= 7;
+            entry_size_bytes += 1;
+        }
+
+        // shawgerj
+        // this Request is part of the data field of the entry, which is
+        // prefixed by a varint-encoded length. We need to figure out how
+        // many bytes are in the varint so we can calculate the offset
+        // correctly
+
+        apply_ctx.set_entry_size(entry_size_bytes);
 
         if !data.is_empty() {
             let cmd = util::parse_data_at(data, index, &self.tag);
@@ -1491,6 +1520,16 @@ where
     }
 }
 
+
+fn get_lsm_value(offset: usize, data_length: usize) -> [u8; 16] {
+    let offset_bytes: [u8; 8] = offset.to_be_bytes();
+    let length_bytes: [u8; 8] = data_length.to_be_bytes();
+    let mut value = [0; 16];
+    value[..8].copy_from_slice(&offset_bytes);
+    value[8..].copy_from_slice(&length_bytes);
+    value
+}
+
 // Write commands related.
 impl<EK> ApplyDelegate<EK>
 where
@@ -1501,43 +1540,66 @@ where
         ctx: &mut ApplyContext<EK, W>,
         req: &Request,
     ) -> Result<()> {
+        let location_key = keys::raft_log_key(self.region_id(), ctx.exec_log_index);
         let (key, value) = (req.get_put().get_key(), req.get_put().get_value());
+        let sizebytes = ctx.get_entry_size();
+
+
+        // offset from start of WOTR logentry is equal to:
+        // 24 bytes fixed-width of WOTR item_header +
+        // 19 bytes fixed-width beginning of Entry protobuf + 
+        // size of Entry key +
+        // varint size for entry bytes field
+        // the offset of the value field in Put<key, value>
+
+        let offset = req.get_put().get_value_offset() + 19 + 24 + sizebytes as u64 + location_key.len() as u64;
+        let length = value.len();
+
         // region key range has no data prefix, so we must use origin key to check.
         util::check_key_in_region(key, &self.region)?;
 
         keys::data_key_with_buffer(key, &mut ctx.key_buffer);
         let key = ctx.key_buffer.as_slice();
 
-        self.metrics.size_diff_hint += key.len() as i64;
-        self.metrics.size_diff_hint += value.len() as i64;
-        if !req.get_put().get_cf().is_empty() {
-            let cf = req.get_put().get_cf();
-            // TODO: don't allow write preseved cfs.
-            if cf == CF_LOCK {
-                self.metrics.lock_cf_written_bytes += key.len() as u64;
-                self.metrics.lock_cf_written_bytes += value.len() as u64;
+        let locs = ctx.data_locations.lock().unwrap();
+        if let Some(entry_offset) = locs.get(&location_key.to_vec()) {
+            // this value is different from the one above!
+            // this is what we are actually inserting to the KV-LSM tree
+            let value = gen_lsm_value(offset as usize + entry_offset, length);
+
+            
+            
+            self.metrics.size_diff_hint += key.len() as i64;
+            self.metrics.size_diff_hint += value.len() as i64;
+            if !req.get_put().get_cf().is_empty() {
+                let cf = req.get_put().get_cf();
+                // TODO: don't allow write preseved cfs.
+                if cf == CF_LOCK {
+                    self.metrics.lock_cf_written_bytes += key.len() as u64;
+                    self.metrics.lock_cf_written_bytes += value.len() as u64;
+                }
+                // TODO: check whether cf exists or not.
+                ctx.kv_wb.put_cf(cf, key, value).unwrap_or_else(|e| {
+                    panic!(
+                        "{} failed to write ({}, {}) to cf {}: {:?}",
+                        self.tag,
+                        log_wrappers::Value::key(key),
+                        log_wrappers::Value::value(value),
+                        cf,
+                        e
+                    )
+                });
+            } else {
+                ctx.kv_wb.put(key, value).unwrap_or_else(|e| {
+                    panic!(
+                        "{} failed to write ({}, {}): {:?}",
+                        self.tag,
+                        log_wrappers::Value::key(key),
+                        log_wrappers::Value::value(value),
+                        e
+                    );
+                });
             }
-            // TODO: check whether cf exists or not.
-            ctx.kv_wb.put_cf(cf, key, value).unwrap_or_else(|e| {
-                panic!(
-                    "{} failed to write ({}, {}) to cf {}: {:?}",
-                    self.tag,
-                    log_wrappers::Value::key(key),
-                    log_wrappers::Value::value(value),
-                    cf,
-                    e
-                )
-            });
-        } else {
-            ctx.kv_wb.put(key, value).unwrap_or_else(|e| {
-                panic!(
-                    "{} failed to write ({}, {}): {:?}",
-                    self.tag,
-                    log_wrappers::Value::key(key),
-                    log_wrappers::Value::value(value),
-                    e
-                );
-            });
         }
         Ok(())
     }
@@ -3874,6 +3936,7 @@ pub struct Builder<EK: KvEngine, W: WriteBatch<EK>> {
     _phantom: PhantomData<W>,
     store_id: u64,
     pending_create_peers: Arc<Mutex<HashMap<u64, (u64, bool)>>>,
+    data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
 }
 
 impl<EK: KvEngine, W> Builder<EK, W>
@@ -3897,6 +3960,7 @@ where
             router,
             store_id: builder.store.get_id(),
             pending_create_peers: builder.pending_create_peers.clone(),
+            data_locations: builder.data_locations.clone(),
         }
     }
 }
@@ -3924,6 +3988,7 @@ where
                 self.store_id,
                 self.pending_create_peers.clone(),
                 priority,
+                self.data_locations.clone(),
             ),
             messages_per_tick: cfg.messages_per_tick,
             cfg_tracker: self.cfg.clone().tracker(self.tag.clone()),
@@ -3950,6 +4015,7 @@ where
             _phantom: self._phantom,
             store_id: self.store_id,
             pending_create_peers: self.pending_create_peers.clone(),
+            data_locations: self..data_locations.clone(),
         }
     }
 }

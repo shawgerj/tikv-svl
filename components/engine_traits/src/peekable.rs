@@ -17,7 +17,12 @@ pub trait Peekable {
     /// Reads from the default column family.
     ///
     /// Returns `None` if they key does not exist.
-    fn get_value_opt(&self, opts: &ReadOptions, key: &[u8]) -> Result<Option<Self::DBVector>>;
+    fn get_value_opt(
+        &self,
+        opts: &ReadOptions,
+        key: &[u8],
+        gs: GetStyle,
+    ) -> Result<Option<Self::DBVector>>;
 
     /// Read a value for a key from a given column family, given a set of options.
     ///
@@ -27,6 +32,7 @@ pub trait Peekable {
         opts: &ReadOptions,
         cf: &str,
         key: &[u8],
+        gs: GetStyle,
     ) -> Result<Option<Self::DBVector>>;
 
     /// Read a value for a key.
@@ -34,8 +40,8 @@ pub trait Peekable {
     /// Uses the default options and column family.
     ///
     /// Returns `None` if the key does not exist.
-    fn get_value(&self, key: &[u8]) -> Result<Option<Self::DBVector>> {
-        self.get_value_opt(&ReadOptions::default(), key)
+    fn get_value(&self, key: &[u8], gs: GetStyle) -> Result<Option<Self::DBVector>> {
+        self.get_value_opt(&ReadOptions::default(), key, gs)
     }
 
     /// Read a value for a key from a given column family.
@@ -43,13 +49,13 @@ pub trait Peekable {
     /// Uses the default options.
     ///
     /// Returns `None` if the key does not exist.
-    fn get_value_cf(&self, cf: &str, key: &[u8]) -> Result<Option<Self::DBVector>> {
-        self.get_value_cf_opt(&ReadOptions::default(), cf, key)
+    fn get_value_cf(&self, cf: &str, key: &[u8], gs: GetStyle) -> Result<Option<Self::DBVector>> {
+        self.get_value_cf_opt(&ReadOptions::default(), cf, key, gs)
     }
 
     /// Read a value and return it as a protobuf message.
     fn get_msg<M: protobuf::Message + Default>(&self, key: &[u8]) -> Result<Option<M>> {
-        let value = self.get_value(key)?;
+        let value = self.get_value(key, GetStyle::GetExternal)?;
         if value.is_none() {
             return Ok(None);
         }
@@ -65,7 +71,7 @@ pub trait Peekable {
         cf: &str,
         key: &[u8],
     ) -> Result<Option<M>> {
-        let value = self.get_value_cf(cf, key)?;
+        let value = self.get_value_cf(cf, key, GetStyle::GetExternal)?;
         if value.is_none() {
             return Ok(None);
         }

@@ -3,7 +3,7 @@
 use crate::db_vector::PanicDBVector;
 use crate::engine::PanicEngine;
 use engine_traits::{
-    IterOptions, Iterable, Iterator, Peekable, ReadOptions, Result, SeekKey, Snapshot,
+    IterOptions, Iterable, Iterator, Peekable, ReadOptions, GetStyle, Result, SeekKey, Snapshot,
 };
 use std::ops::Deref;
 
@@ -19,7 +19,7 @@ impl Snapshot for PanicSnapshot {
 impl Peekable for PanicSnapshot {
     type DBVector = PanicDBVector;
 
-    fn get_value_opt(&self, opts: &ReadOptions, key: &[u8]) -> Result<Option<Self::DBVector>> {
+    fn get_value_opt(&self, opts: &ReadOptions, key: &[u8], gs: GetStyle) -> Result<Option<Self::DBVector>> {
         panic!()
     }
     fn get_value_cf_opt(
@@ -27,6 +27,7 @@ impl Peekable for PanicSnapshot {
         opts: &ReadOptions,
         cf: &str,
         key: &[u8],
+        gs: GetStyle,
     ) -> Result<Option<Self::DBVector>> {
         panic!()
     }

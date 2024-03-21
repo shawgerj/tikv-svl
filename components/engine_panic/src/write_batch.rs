@@ -28,6 +28,10 @@ impl WriteBatch<PanicEngine> for PanicWriteBatch {
         panic!()
     }
 
+    fn write_lsm_opt(&self, _: &WriteOptions) -> Result<()> {
+        panic!()
+    }
+
     fn write_opt(&self, _: &WriteOptions) -> Result<Vec<usize>> {
         panic!()
     }
