@@ -1520,8 +1520,7 @@ where
     }
 }
 
-
-fn get_lsm_value(offset: usize, data_length: usize) -> [u8; 16] {
+pub fn gen_lsm_value(offset: usize, data_length: usize) -> [u8; 16] {
     let offset_bytes: [u8; 8] = offset.to_be_bytes();
     let length_bytes: [u8; 8] = data_length.to_be_bytes();
     let mut value = [0; 16];
@@ -1529,6 +1528,7 @@ fn get_lsm_value(offset: usize, data_length: usize) -> [u8; 16] {
     value[8..].copy_from_slice(&length_bytes);
     value
 }
+
 
 // Write commands related.
 impl<EK> ApplyDelegate<EK>
@@ -1567,8 +1567,6 @@ where
             // this is what we are actually inserting to the KV-LSM tree
             let value = gen_lsm_value(offset as usize + entry_offset, length);
 
-            
-            
             self.metrics.size_diff_hint += key.len() as i64;
             self.metrics.size_diff_hint += value.len() as i64;
             if !req.get_put().get_cf().is_empty() {
@@ -1579,23 +1577,23 @@ where
                     self.metrics.lock_cf_written_bytes += value.len() as u64;
                 }
                 // TODO: check whether cf exists or not.
-                ctx.kv_wb.put_cf(cf, key, value).unwrap_or_else(|e| {
+                ctx.kv_wb.put_cf(cf, key, &value).unwrap_or_else(|e| {
                     panic!(
                         "{} failed to write ({}, {}) to cf {}: {:?}",
                         self.tag,
                         log_wrappers::Value::key(key),
-                        log_wrappers::Value::value(value),
+                        log_wrappers::Value::value(&value),
                         cf,
                         e
                     )
                 });
             } else {
-                ctx.kv_wb.put(key, value).unwrap_or_else(|e| {
+                ctx.kv_wb.put(key, &value).unwrap_or_else(|e| {
                     panic!(
                         "{} failed to write ({}, {}): {:?}",
                         self.tag,
                         log_wrappers::Value::key(key),
-                        log_wrappers::Value::value(value),
+                        log_wrappers::Value::value(&value),
                         e
                     );
                 });
@@ -4015,7 +4013,7 @@ where
             _phantom: self._phantom,
             store_id: self.store_id,
             pending_create_peers: self.pending_create_peers.clone(),
-            data_locations: self..data_locations.clone(),
+            data_locations: self.data_locations.clone(),
         }
     }
 }

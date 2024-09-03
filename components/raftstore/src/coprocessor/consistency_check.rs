@@ -2,7 +2,7 @@
 
 use std::marker::PhantomData;
 
-use engine_traits::{KvEngine, Snapshot, CF_RAFT};
+use engine_traits::{KvEngine, Snapshot, CF_RAFT, GetStyle};
 use kvproto::metapb::Region;
 
 use crate::coprocessor::{ConsistencyCheckMethod, Coprocessor};
@@ -74,7 +74,7 @@ fn compute_hash_on_raw<S: Snapshot>(region: &Region, snap: &S) -> Result<u32> {
     // Computes the hash from the Region state too.
     let region_state_key = keys::region_state_key(region_id);
     digest.update(&region_state_key);
-    match snap.get_value_cf(CF_RAFT, &region_state_key) {
+    match snap.get_value_cf(CF_RAFT, &region_state_key, GetStyle::GetExternal) {
         Err(e) => return Err(e.into()),
         Ok(Some(v)) => digest.update(&v),
         Ok(None) => {}

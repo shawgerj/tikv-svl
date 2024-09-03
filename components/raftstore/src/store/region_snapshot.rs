@@ -2,7 +2,7 @@
 
 // #[PerformanceCriticalPath]
 use engine_traits::{
-    IterOptions, KvEngine, Peekable, ReadOptions, Result as EngineResult, Snapshot,
+    IterOptions, KvEngine, Peekable, ReadOptions, Result as EngineResult, Snapshot, GetStyle,
 };
 use kvproto::kvrpcpb::ExtraOp as TxnExtraOp;
 use kvproto::metapb::Region;
@@ -215,6 +215,7 @@ where
         opts: &ReadOptions,
         cf: &str,
         key: &[u8],
+	gs: GetStyle,
     ) -> EngineResult<Option<Self::DBVector>> {
         check_key_in_range(
             key,
@@ -225,7 +226,7 @@ where
         .map_err(|e| EngineError::Other(box_err!(e)))?;
         let data_key = keys::data_key(key);
         self.snap
-            .get_value_cf_opt(opts, cf, &data_key)
+            .get_value_cf_opt(opts, cf, &data_key, gs)
             .map_err(|e| self.handle_get_value_error(e, cf, key))
     }
 }

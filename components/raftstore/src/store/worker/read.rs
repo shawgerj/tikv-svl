@@ -27,7 +27,7 @@ use crate::store::{
 use crate::Error;
 use crate::Result;
 
-use engine_traits::{KvEngine, RaftEngine, Snapshot};
+use engine_traits::{KvEngine, RaftEngine, Snapshot, GetStyle};
 use tikv_util::codec::number::decode_u64;
 use tikv_util::lru::LruCache;
 use tikv_util::time::monotonic_raw_now;
@@ -41,7 +41,7 @@ pub trait ReadExecutor<E: KvEngine> {
     fn get_engine(&self) -> &E;
     fn get_snapshot(&mut self, ts: Option<ThreadReadId>) -> Arc<E::Snapshot>;
 
-    fn get_value(&self, req: &Request, region: &metapb::Region) -> Result<Response> {
+    fn get_value(&self, req: &Request, region: &metapb::Region, gs: GetStyle) -> Result<Response> {
         let key = req.get_get().get_key();
         // region key range has no data prefix, so we must use origin key to check.
         util::check_key_in_region(key, region)?;
@@ -51,7 +51,7 @@ pub trait ReadExecutor<E: KvEngine> {
         let res = if !req.get_get().get_cf().is_empty() {
             let cf = req.get_get().get_cf();
             engine
-                .get_value_cf(cf, &keys::data_key(key))
+                .get_value_cf(cf, &keys::data_key(key), gs)
                 .unwrap_or_else(|e| {
                     panic!(
                         "[region {}] failed to get {} with cf {}: {:?}",
@@ -62,7 +62,7 @@ pub trait ReadExecutor<E: KvEngine> {
                     )
                 })
         } else {
-            engine.get_value(&keys::data_key(key)).unwrap_or_else(|e| {
+            engine.get_value(&keys::data_key(key), gs).unwrap_or_else(|e| {
                 panic!(
                     "[region {}] failed to get {}: {:?}",
                     region.get_id(),
@@ -95,7 +95,7 @@ pub trait ReadExecutor<E: KvEngine> {
         for req in requests {
             let cmd_type = req.get_cmd_type();
             let mut resp = match cmd_type {
-                CmdType::Get => match self.get_value(req, region.as_ref()) {
+                CmdType::Get => match self.get_value(req, region.as_ref(), GetStyle::GetExternal) {
                     Ok(resp) => resp,
                     Err(e) => {
                         error!(?e;

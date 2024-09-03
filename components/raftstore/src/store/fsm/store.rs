@@ -3,7 +3,7 @@
 // #[PerformanceCriticalPath]
 use std::cell::Cell;
 use std::cmp::{Ord, Ordering as CmpOrdering};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -16,7 +16,7 @@ use batch_system::{
     Priority,
 };
 use crossbeam::channel::{unbounded, Sender, TryRecvError, TrySendError};
-use engine_traits::{Engines, KvEngine, Mutable, PerfContextKind, WriteBatch, WriteBatchExt};
+use engine_traits::{Engines, KvEngine, Mutable, PerfContextKind, WriteBatch, WriteBatchExt, GetStyle};
 use engine_traits::{CF_DEFAULT, CF_LOCK, CF_RAFT, CF_WRITE};
 use fail::fail_point;
 use futures::compat::Future01CompatExt;
@@ -420,6 +420,7 @@ where
     pub sync_write_worker: Option<WriteWorker<EK, ER, RaftRouter<EK, ER>, T>>,
     pub io_reschedule_concurrent_count: Arc<AtomicUsize>,
     pub pending_latency_inspect: Vec<util::LatencyInspector>,
+    pub data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
 }
 
 impl<EK, ER, T> PollContext<EK, ER, T>
@@ -956,6 +957,8 @@ pub struct RaftPollerBuilder<EK: KvEngine, ER: RaftEngine, T> {
     feature_gate: FeatureGate,
     write_senders: Vec<Sender<WriteMsg<EK, ER>>>,
     io_reschedule_concurrent_count: Arc<AtomicUsize>,
+    pub data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
+    pub key_queue: Arc<Mutex<VecDeque<Vec<u8>>>>,
 }
 
 impl<EK: KvEngine, ER: RaftEngine, T> RaftPollerBuilder<EK, ER, T> {
@@ -1145,6 +1148,8 @@ where
                 self.router.clone(),
                 self.trans.clone(),
                 &self.cfg,
+		self.data_locations.clone(),
+		self.key_queue.clone(),
             ))
         } else {
             None
@@ -1189,6 +1194,7 @@ where
             sync_write_worker,
             io_reschedule_concurrent_count: self.io_reschedule_concurrent_count.clone(),
             pending_latency_inspect: vec![],
+	    data_locations: self.data_locations.clone(),
         };
         ctx.update_ticks_timeout();
         let tag = format!("[store {}]", ctx.store.get_id());
@@ -1238,6 +1244,8 @@ where
             feature_gate: self.feature_gate.clone(),
             write_senders: self.write_senders.clone(),
             io_reschedule_concurrent_count: self.io_reschedule_concurrent_count.clone(),
+	    data_locations: self.data_locations.clone(),
+	    key_queue: self.key_queue.clone(),
         }
     }
 }
@@ -1307,6 +1315,8 @@ impl<EK: KvEngine, ER: RaftEngine> RaftBatchSystem<EK, ER> {
         concurrency_manager: ConcurrencyManager,
         collector_reg_handle: CollectorRegHandle,
         health_service: Option<HealthService>,
+	data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
+	key_queue: Arc<Mutex<VecDeque<Vec<u8>>>>,
     ) -> Result<()> {
         assert!(self.workers.is_none());
         // TODO: we can get cluster meta regularly too later.
@@ -1383,8 +1393,15 @@ impl<EK: KvEngine, ER: RaftEngine> RaftBatchSystem<EK, ER> {
             .background_worker
             .start("consistency-check", consistency_check_runner);
 
-        self.store_writers
-            .spawn(meta.get_id(), &engines, &self.router, &trans, &cfg)?;
+        self.store_writers.spawn(
+	    meta.get_id(),
+	    &engines,
+	    &self.router,
+	    &trans,
+	    &cfg,
+	    data_locations.clone(),
+	    key_queue.clone(),
+	)?;
 
         let mut builder = RaftPollerBuilder {
             cfg,
@@ -1409,6 +1426,8 @@ impl<EK: KvEngine, ER: RaftEngine> RaftBatchSystem<EK, ER> {
             feature_gate: pd_client.feature_gate().clone(),
             write_senders: self.store_writers.senders().clone(),
             io_reschedule_concurrent_count: Arc::new(AtomicUsize::new(0)),
+	    data_locations,
+	    key_queue,
         };
         let region_peers = builder.init()?;
         let engine = builder.engines.kv.clone();
@@ -1882,7 +1901,7 @@ impl<'a, EK: KvEngine, ER: RaftEngine, T: Transport> StoreFsmDelegate<'a, EK, ER
                 .ctx
                 .engines
                 .kv
-                .get_value_cf(CF_RAFT, &keys::region_state_key(region_id))?
+                .get_value_cf(CF_RAFT, &keys::region_state_key(region_id), GetStyle::GetExternal)?
                 .is_some()
         {
             return Ok(false);
