@@ -1111,9 +1111,9 @@ where
                         if let Err(e) = scheduler.schedule(task) {
                             error!("notify pd failed"; "err" => ?e);
                         }
-                    } else if resp.has_plan() {
+                    } else if resp.has_recovery_plan() {
                         info!("asked to execute recovery plan");
-                        for create in resp.get_plan().get_creates() {
+                        for create in resp.get_recovery_plan().get_creates() {
                             info!("asked to create region"; "region" => ?create);
                             if let Err(e) =
                                 router.send_control(StoreMsg::CreatePeer(create.clone()))
@@ -1121,13 +1121,13 @@ where
                                 error!("fail to send creat peer message for recovery"; "err" => ?e);
                             }
                         }
-                        for delete in resp.get_plan().get_deletes() {
+                        for delete in resp.get_recovery_plan().get_tombstones() {
                             info!("asked to delete peer"; "peer" => delete);
                             if let Err(e) = router.force_send(*delete, PeerMsg::Destroy(*delete)) {
                                 error!("fail to send delete peer message for recovery"; "err" => ?e);
                             }
                         }
-                        for update in resp.get_plan().get_updates() {
+                        for update in resp.get_recovery_plan().get_updates() {
                             info!("asked to update region's range"; "region" => ?update);
                             if let Err(e) = router.force_send(
                                 update.get_id(),

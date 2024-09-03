@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::storage::mvcc::{Lock, LockType, WriteRef, WriteType};
 use engine_traits::{
-    IterOptions, Iterable, Iterator as EngineIterator, KvEngine, Peekable, SeekKey,
+    IterOptions, Iterable, Iterator as EngineIterator, KvEngine, Peekable, SeekKey, GetStyle
 };
 use engine_traits::{CF_DEFAULT, CF_LOCK, CF_RAFT, CF_WRITE};
 use kvproto::kvrpcpb::{MvccInfo, MvccLock, MvccValue, MvccWrite, Op};
@@ -109,7 +109,7 @@ impl<E: KvEngine> ConsistencyCheckObserver<E> for Mvcc<E> {
         let mut digest = scanner.observer.digest;
         let region_state_key = keys::region_state_key(region.get_id());
         digest.update(&region_state_key);
-        match snap.get_value_cf(CF_RAFT, &region_state_key) {
+        match snap.get_value_cf(CF_RAFT, &region_state_key, GetStyle::GetExternal) {
             Err(e) => return Err(e.into()),
             Ok(Some(v)) => digest.update(&v),
             Ok(None) => {}

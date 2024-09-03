@@ -37,6 +37,9 @@ pub trait RaftEngine: RaftEngineReadOnly + Clone + Sync + Send + 'static {
     /// Synchronize the Raft engine.
     fn sync(&self) -> Result<()>;
 
+    /// Get all the keys from a LogBatch (used by WOTR)
+    fn get_keys<'a>(&self, batch: &'a Self::LogBatch) -> Option<Vec<&'a [u8]>>;
+
     /// Consume the write batch by moving the content into the engine itself
     /// and return written bytes.
     fn consume(&self, batch: &mut Self::LogBatch, sync: bool) -> Result<usize>;

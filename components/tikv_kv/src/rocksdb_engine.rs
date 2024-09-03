@@ -11,7 +11,7 @@ use engine_rocks::raw_util::CFOptions;
 use engine_rocks::{RocksEngine as BaseRocksEngine, RocksEngineIterator};
 use engine_traits::CfName;
 use engine_traits::{
-    Engines, IterOptions, Iterable, Iterator, KvEngine, Peekable, ReadOptions, SeekKey,
+    Engines, IterOptions, Iterable, Iterator, KvEngine, Peekable, ReadOptions, SeekKey, GetStyle
 };
 use rocksdb::WOTR;
 use file_system::IORateLimiter;
@@ -238,19 +238,19 @@ impl Snapshot for Arc<RocksSnapshot> {
 
     fn get(&self, key: &Key) -> Result<Option<Value>> {
         trace!("RocksSnapshot: get"; "key" => %key);
-        let v = self.get_value(key.as_encoded())?;
+        let v = self.get_value(key.as_encoded(), GetStyle::GetExternal)?;
         Ok(v.map(|v| v.to_vec()))
     }
 
     fn get_cf(&self, cf: CfName, key: &Key) -> Result<Option<Value>> {
         trace!("RocksSnapshot: get_cf"; "cf" => cf, "key" => %key);
-        let v = self.get_value_cf(cf, key.as_encoded())?;
+        let v = self.get_value_cf(cf, key.as_encoded(), GetStyle::GetExternal)?;
         Ok(v.map(|v| v.to_vec()))
     }
 
     fn get_cf_opt(&self, opts: ReadOptions, cf: CfName, key: &Key) -> Result<Option<Value>> {
         trace!("RocksSnapshot: get_cf"; "cf" => cf, "key" => %key);
-        let v = self.get_value_cf_opt(&opts, cf, key.as_encoded())?;
+        let v = self.get_value_cf_opt(&opts, cf, key.as_encoded(), GetStyle::GetExternal)?;
         Ok(v.map(|v| v.to_vec()))
     }
 

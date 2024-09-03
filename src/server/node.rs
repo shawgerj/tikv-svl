@@ -3,6 +3,8 @@
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+use std::collections::VecDeque;
+use collections::HashMap;
 
 use super::RaftKv;
 use super::Result;
@@ -82,6 +84,8 @@ pub struct Node<C: PdClient + 'static, EK: KvEngine, ER: RaftEngine> {
     state: Arc<Mutex<GlobalReplicationState>>,
     bg_worker: Worker,
     health_service: Option<HealthService>,
+    data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
+    key_queue: Arc<Mutex<VecDeque<Vec<u8>>>>,
 }
 
 impl<C, EK, ER> Node<C, EK, ER>
@@ -136,6 +140,9 @@ where
             labels.push(label);
         }
         store.set_labels(labels.into());
+	let data_locations = Arc::new(Mutex::new(HashMap::default()));
+        let key_queue = Arc::new(Mutex::new(VecDeque::default()));
+
 
         Node {
             cluster_id: cfg.cluster_id,
@@ -148,6 +155,8 @@ where
             state,
             bg_worker,
             health_service,
+	    data_locations: data_locations,
+	    key_queue: key_queue,
         }
     }
 
@@ -219,6 +228,8 @@ where
             auto_split_controller,
             concurrency_manager,
             collector_reg_handle,
+	    self.data_locations.clone(),
+	    self.key_queue.clone(),
         )?;
 
         Ok(())
@@ -461,6 +472,8 @@ where
         auto_split_controller: AutoSplitController,
         concurrency_manager: ConcurrencyManager,
         collector_reg_handle: CollectorRegHandle,
+	data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
+	key_queue: Arc<Mutex<VecDeque<Vec<u8>>>>,
     ) -> Result<()>
     where
         T: Transport + 'static,
@@ -493,6 +506,8 @@ where
             concurrency_manager,
             collector_reg_handle,
             self.health_service.clone(),
+	    data_locations,
+	    key_queue,
         )?;
         Ok(())
     }

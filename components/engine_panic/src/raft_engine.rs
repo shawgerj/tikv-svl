@@ -42,6 +42,10 @@ impl RaftEngine for PanicEngine {
         panic!()
     }
 
+    fn get_keys<'a>(&self, batch: &'a Self::LogBatch) -> Option<Vec<&'a [u8]>> {
+	panic!()
+    }
+
     fn consume(&self, batch: &mut Self::LogBatch, sync_log: bool) -> Result<usize> {
         panic!()
     }

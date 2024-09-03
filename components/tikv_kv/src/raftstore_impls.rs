@@ -8,7 +8,7 @@ use crate::{
     Snapshot as EngineSnapshot, SnapshotExt,
 };
 use engine_traits::CfName;
-use engine_traits::{IterOptions, Peekable, ReadOptions, Snapshot};
+use engine_traits::{IterOptions, Peekable, ReadOptions, Snapshot, GetStyle};
 use kvproto::kvrpcpb::ExtraOp as TxnExtraOp;
 use raftstore::store::{RegionIterator, RegionSnapshot, TxnExt};
 use raftstore::Error as RaftServerError;
@@ -59,7 +59,7 @@ impl<S: Snapshot> EngineSnapshot for RegionSnapshot<S> {
         fail_point!("raftkv_snapshot_get", |_| Err(box_err!(
             "injected error for get"
         )));
-        let v = box_try!(self.get_value(key.as_encoded()));
+        let v = box_try!(self.get_value(key.as_encoded(), GetStyle::GetExternal));
         Ok(v.map(|v| v.to_vec()))
     }
 
@@ -67,7 +67,7 @@ impl<S: Snapshot> EngineSnapshot for RegionSnapshot<S> {
         fail_point!("raftkv_snapshot_get_cf", |_| Err(box_err!(
             "injected error for get_cf"
         )));
-        let v = box_try!(self.get_value_cf(cf, key.as_encoded()));
+        let v = box_try!(self.get_value_cf(cf, key.as_encoded(), GetStyle::GetExternal));
         Ok(v.map(|v| v.to_vec()))
     }
 
@@ -75,7 +75,7 @@ impl<S: Snapshot> EngineSnapshot for RegionSnapshot<S> {
         fail_point!("raftkv_snapshot_get_cf", |_| Err(box_err!(
             "injected error for get_cf"
         )));
-        let v = box_try!(self.get_value_cf_opt(&opts, cf, key.as_encoded()));
+        let v = box_try!(self.get_value_cf_opt(&opts, cf, key.as_encoded(), GetStyle::GetExternal));
         Ok(v.map(|v| v.to_vec()))
     }
 

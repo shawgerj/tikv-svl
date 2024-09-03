@@ -21,7 +21,7 @@ use engine_rocks::RocksMvccProperties;
 use engine_rocks::{Compat, RocksEngine, RocksEngineIterator, RocksWriteBatch};
 use engine_traits::{
     Engines, IterOptions, Iterable, Iterator as EngineIterator, Mutable, Peekable, RaftEngine,
-    RangePropertiesExt, SeekKey, SyncMutable, WriteBatch, WriteOptions,
+    RangePropertiesExt, SeekKey, SyncMutable, WriteBatch, WriteOptions, GetStyle
 };
 use rocksdb::WOTR;
 use engine_traits::{MvccProperties, Range, WriteBatchExt, CF_DEFAULT, CF_LOCK, CF_RAFT, CF_WRITE};
@@ -169,7 +169,7 @@ impl<ER: RaftEngine> Debugger<ER> {
     pub fn get(&self, db: DBType, cf: &str, key: &[u8]) -> Result<Vec<u8>> {
         validate_db_and_cf(db, cf)?;
         let db = self.get_db_from_type(db)?;
-        match db.c().get_value_cf(cf, key) {
+        match db.c().get_value_cf(cf, key, GetStyle::GetExternal) {
             Ok(Some(v)) => Ok(v.to_vec()),
             Ok(None) => Err(Error::NotFound(format!(
                 "value for key {:?} in db {:?}",
@@ -640,7 +640,7 @@ impl<ER: RaftEngine> Debugger<ER> {
                 let kv = &self.engines.kv;
                 for region_id in region_ids {
                     let key = keys::region_state_key(region_id);
-                    if let Some(value) = box_try!(kv.get_value_cf(CF_RAFT, &key)) {
+                    if let Some(value) = box_try!(kv.get_value_cf(CF_RAFT, &key, GetStyle::GetExternal)) {
                         box_try!(remove_stores(&key, &value, &mut wb));
                     } else {
                         let msg = format!("No such region {} on the store", region_id);

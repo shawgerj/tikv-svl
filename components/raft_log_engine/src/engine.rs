@@ -264,6 +264,10 @@ impl RaftEngine for RaftLogEngine {
         self.0.sync().map_err(transfer_error)
     }
 
+    fn get_keys<'a>(&self, _: &'a Self::LogBatch) -> Option<Vec<&'a [u8]>> {
+        panic!()
+    }
+
     fn consume(&self, batch: &mut Self::LogBatch, sync: bool) -> Result<usize> {
         self.0.write(&mut batch.0, sync).map_err(transfer_error)
     }
