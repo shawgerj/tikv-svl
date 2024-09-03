@@ -375,7 +375,7 @@ where
             .get_perf_context(cfg.value().perf_level, PerfContextKind::RaftstoreStore);
         let cfg_tracker = cfg.clone().tracker(tag.clone());
 	let data_locations = locs_hm.clone();
-	let keys = key_queue.clone();
+//	let keys = key_queue.clone();
         Self {
             store_id,
             tag,
