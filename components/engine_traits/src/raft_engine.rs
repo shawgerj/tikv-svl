@@ -42,7 +42,7 @@ pub trait RaftEngine: RaftEngineReadOnly + Clone + Sync + Send + 'static {
 
     /// Consume the write batch by moving the content into the engine itself
     /// and return written bytes.
-    fn consume(&self, batch: &mut Self::LogBatch, sync: bool) -> Result<usize>;
+    fn consume(&self, batch: &mut Self::LogBatch, sync: bool) -> Result<(usize, Vec<usize>)>;
 
     /// Like `consume` but shrink `batch` if need.
     fn consume_and_shrink(
@@ -51,7 +51,7 @@ pub trait RaftEngine: RaftEngineReadOnly + Clone + Sync + Send + 'static {
         sync: bool,
         max_capacity: usize,
         shrink_to: usize,
-    ) -> Result<usize>;
+    ) -> Result<(usize, Vec<usize>)>;
 
     fn clean(
         &self,
@@ -64,7 +64,7 @@ pub trait RaftEngine: RaftEngineReadOnly + Clone + Sync + Send + 'static {
     /// Append some log entries and return written bytes.
     ///
     /// Note: `RaftLocalState` won't be updated in this call.
-    fn append(&self, raft_group_id: u64, entries: Vec<Entry>) -> Result<usize>;
+    fn append(&self, raft_group_id: u64, entries: Vec<Entry>) -> Result<(usize, Vec<usize>)>;
 
     fn put_raft_state(&self, raft_group_id: u64, state: &RaftLocalState) -> Result<()>;
 

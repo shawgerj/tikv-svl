@@ -527,7 +527,7 @@ where
 
             let now = Instant::now();
             self.perf_context.start_observe();
-            self.engines
+            let (size, offsets) = self.engines
                 .raft
                 .consume_and_shrink(
                     &mut self.batch.raft_wb,
@@ -541,6 +541,19 @@ where
                         self.store_id, self.tag, e
                     );
                 });
+
+	    // pair offsets to keys we have inserted and add to hashmap
+            let mut locs = self.data_locations.lock().unwrap();
+            for o in offsets {
+                let key = key_queue.pop_front();
+                match key {
+                    Some(k) => { locs.insert(k.to_vec(), o); },
+                    None => {
+                        panic!("tried to match an offset but missing key");
+                    }
+                };
+            }
+
             self.perf_context.report_metrics();
             write_raft_time = duration_to_sec(now.saturating_elapsed());
             STORE_WRITE_RAFTDB_DURATION_HISTOGRAM.observe(write_raft_time);

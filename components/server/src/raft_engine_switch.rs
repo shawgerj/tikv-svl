@@ -202,7 +202,7 @@ fn run_dump_raftdb_worker(
                                     .append(region_id, std::mem::take(&mut entries))
                                     .unwrap();
 
-                                let size = new_engine.consume(&mut batch, false).unwrap();
+                                let (size, _offsets) = new_engine.consume(&mut batch, false).unwrap();
                                 count_size.fetch_add(size, Ordering::Relaxed);
                             }
                             Ok(true)
@@ -212,7 +212,7 @@ fn run_dump_raftdb_worker(
             )
             .unwrap();
     }
-    let size = new_engine.consume(&mut batch, false).unwrap();
+    let (size, _offsets) = new_engine.consume(&mut batch, false).unwrap();
     count_size.fetch_add(size, Ordering::Relaxed);
 }
 
@@ -297,7 +297,7 @@ fn run_dump_raft_engine_worker(
                     .fetch_entries_to(id, begin, end, Some(BATCH_THRESHOLD), &mut entries)
                     .unwrap() as u64;
                 batch.append(id, entries).unwrap();
-                let size = new_engine.consume(&mut batch, false).unwrap();
+                let (size, _offsets) = new_engine.consume(&mut batch, false).unwrap();
                 count_size.fetch_add(size, Ordering::Relaxed);
             }
         }

@@ -177,13 +177,13 @@ impl RaftEngine for RocksEngine {
         batch.as_inner().keys_to_write()
     }
 
-    fn consume(&self, batch: &mut Self::LogBatch, sync_log: bool) -> Result<usize> {
+    fn consume(&self, batch: &mut Self::LogBatch, sync_log: bool) -> Result<(usize, Vec<usize>)> {
         let bytes = batch.data_size();
         let mut opts = WriteOptions::default();
         opts.set_sync(sync_log);
-        batch.write_opt(&opts)?;
+        let offsets = batch.write_opt(&opts).unwrap();
         batch.clear();
-        Ok(bytes)
+        Ok((bytes, offsets))
     }
 
     fn consume_and_shrink(
@@ -192,12 +192,12 @@ impl RaftEngine for RocksEngine {
         sync_log: bool,
         max_capacity: usize,
         shrink_to: usize,
-    ) -> Result<usize> {
-        let data_size = self.consume(batch, sync_log)?;
+    ) -> Result<(usize, Vec<usize>)> {
+        let (data_size, offsets) = self.consume(batch, sync_log)?;
         if data_size > max_capacity {
             *batch = self.write_batch_with_cap(shrink_to);
         }
-        Ok(data_size)
+        Ok((data_size, offsets))
     }
 
     fn clean(
@@ -234,7 +234,7 @@ impl RaftEngine for RocksEngine {
         Ok(())
     }
 
-    fn append(&self, raft_group_id: u64, entries: Vec<Entry>) -> Result<usize> {
+    fn append(&self, raft_group_id: u64, entries: Vec<Entry>) -> Result<(usize, Vec<usize>)> {
         let mut wb = RocksWriteBatch::new(self.as_inner().clone());
         let buf = Vec::with_capacity(1024);
         wb.append_impl(raft_group_id, &entries, buf)?;
