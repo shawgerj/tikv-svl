@@ -3,8 +3,9 @@
 #![feature(proc_macro_hygiene)]
 
 use std::path::Path;
-use std::process;
+use std::{env, process};
 
+use fail::{fail_point, FailScenario, has_failpoints};
 use clap::{crate_authors, App, Arg};
 use server::setup::{ensure_no_unrecognized_config, validate_and_persist_config};
 use tikv::config::TiKvConfig;
@@ -186,6 +187,11 @@ fn main() {
         println!("config check successful");
         process::exit(0)
     }
+
+    let s = FailScenario::setup();
+    fail_point!("init-crash");
+    s.teardown();
+    println!("This gets reached");
 
     server::server::run_tikv(config);
 }
