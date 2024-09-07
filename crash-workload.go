@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"github.com/pingcap/tidb/config"
+	tikvRaw "github.com/pingcap/tidb/store/tikv"
 	tikverr "github.com/tikv/client-go/v2/error"
 	tikv "github.com/tikv/client-go/v2/txnkv"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
@@ -172,8 +174,69 @@ func failingTransaction(client *tikv.Client, i int) {
 			}
 			if err != nil {
 				continue
-			} else if string(v) != item.value {
+			} else if string(v) == item.value {
 				log.Fatalf("ABLE TO READ DATA FROM UNCOMITTED TRANSACTION")
+			}
+		}
+	}
+}
+
+func failingRawKV(i int) {
+	client, err := tikvRaw.NewRawKVClient([]string{"192.168.199.113:2379"}, config.Security{})
+	if err != nil {
+		panic(err)
+	}
+	defer client.Close()
+
+	var newItems [1000]kvPair
+	for j, _ := range newItems {
+		newItems[j] = kvPair{
+			key:   defaultKey + strconv.Itoa(1000*(i+1)),
+			value: defaultValue + strconv.Itoa(1000*(i+1)),
+		}
+	}
+
+	var writtenItems [1000]kvPair
+	var lastWritten int
+	for i, item := range newItems {
+		err = client.Put([]byte(item.key), []byte(item.value))
+		if err != nil {
+			lastWritten = i
+			break
+		}
+		writtenItems[i] = item
+	}
+
+	if !isTiKVServerRunning() {
+		launchServers := exec.Command("./launch-server.sh")
+		err = launchServers.Start()
+		if err != nil {
+			log.Println(err.Error())
+			log.Fatalf("Unable to launch servers")
+
+		}
+	}
+
+	for i, item := range writtenItems {
+		v, err := client.Get([]byte(item.key))
+		if i < lastWritten {
+			if tikverr.IsErrNotFound(err) {
+				log.Fatalf("UNABLE TO READ SUCCESSFULLY WRITTEN KEY")
+			}
+			if string(v) != item.value {
+				log.Fatalf("VALUE READ DOES NOT MATCH WRITTEN VALUE")
+			}
+			if err != nil {
+				log.Fatalf("OTHER ERROR DURING READ")
+			}
+		} else {
+			if tikverr.IsErrNotFound(err) {
+				continue
+			}
+			if err != nil {
+				continue
+			} else if string(v) == item.value {
+				log.Fatalf("ABLE TO READ DATA FROM FAILED PUT")
 			}
 		}
 	}
@@ -235,7 +298,7 @@ func main() {
 		}
 
 		if isTiKVServerRunning() {
-			failingTransaction(client, i)
+			failingRawKV(i)
 		} else {
 			launchServers = exec.Command("./launch-server.sh")
 			err = launchServers.Start()
@@ -244,7 +307,7 @@ func main() {
 				log.Fatalf("Unable to launch servers")
 
 			}
-			failingTransaction(client, i)
+			failingRawKV(i)
 		}
 
 		client.Close()
