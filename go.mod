@@ -1,6 +1,8 @@
-module github.com/ajhingran/wotr-crash-consistency
+module wotr-crash-consistency
 
-go 1.21.1
+go 1.22.5
+
+require github.com/tikv/client-go/v2 v2.0.7
 
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
@@ -29,7 +31,6 @@ require (
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
 	github.com/tiancaiamao/gp v0.0.0-20221230034425-4025bc8a4d4a // indirect
-	github.com/tikv/client-go/v2 v2.0.7 // indirect
 	github.com/tikv/pd/client v0.0.0-20230329114254-1948c247c2b1 // indirect
 	github.com/twmb/murmur3 v1.1.3 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.2 // indirect

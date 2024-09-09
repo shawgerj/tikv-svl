@@ -5,9 +5,8 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"github.com/pingcap/tidb/config"
-	tikvRaw "github.com/pingcap/tidb/store/tikv"
 	tikverr "github.com/tikv/client-go/v2/error"
+	"github.com/tikv/client-go/v2/rawkv"
 	tikv "github.com/tikv/client-go/v2/txnkv"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
 	"log"
@@ -105,7 +104,6 @@ func doInitialTransaction() (*transaction.KVTxn, [1000]kvPair) {
 }
 
 func readBackTransaction(client *tikv.Client, items [1000]kvPair) {
-
 	t, err := client.Begin()
 	if err != nil {
 		log.Fatalf("Unable to start read TiKV transaction on %s", clientAddr)
@@ -182,7 +180,7 @@ func failingTransaction(client *tikv.Client, i int) {
 }
 
 func failingRawKV(i int) {
-	client, err := tikvRaw.NewRawKVClient([]string{"192.168.199.113:2379"}, config.Security{})
+	client, err := rawkv.NewClientWithOpts(context.TODO(), []string{clientAddr})
 	if err != nil {
 		panic(err)
 	}
@@ -196,16 +194,18 @@ func failingRawKV(i int) {
 		}
 	}
 
+	log.Println("STARTING TO WRITE 1000 KV PAIRS")
 	var writtenItems [1000]kvPair
-	var lastWritten int
+	var lastWritten = 1000
 	for i, item := range newItems {
-		err = client.Put([]byte(item.key), []byte(item.value))
+		err = client.Put(context.TODO(), []byte(item.key), []byte(item.value))
 		if err != nil {
 			lastWritten = i
 			break
 		}
 		writtenItems[i] = item
 	}
+	log.Println("WRITTEN SOME KEYS")
 
 	if !isTiKVServerRunning() {
 		launchServers := exec.Command("./launch-server.sh")
@@ -217,8 +217,9 @@ func failingRawKV(i int) {
 		}
 	}
 
+	log.Println("STARTING TO READ WRITTEN PAIRS")
 	for i, item := range writtenItems {
-		v, err := client.Get([]byte(item.key))
+		v, err := client.Get(context.TODO(), []byte(item.key))
 		if i < lastWritten {
 			if tikverr.IsErrNotFound(err) {
 				log.Fatalf("UNABLE TO READ SUCCESSFULLY WRITTEN KEY")
@@ -234,7 +235,8 @@ func failingRawKV(i int) {
 				continue
 			}
 			if err != nil {
-				continue
+				log.Println("TIKV CRASHED READING FAILED KEY. OK")
+				return
 			} else if string(v) == item.value {
 				log.Fatalf("ABLE TO READ DATA FROM FAILED PUT")
 			}
@@ -296,6 +298,7 @@ func main() {
 		if isTiKVServerRunning() {
 			readBackTransaction(client, initialItems)
 		}
+		client.Close()
 
 		if isTiKVServerRunning() {
 			failingRawKV(i)
@@ -309,8 +312,6 @@ func main() {
 			}
 			failingRawKV(i)
 		}
-
-		client.Close()
 
 		if isTiKVServerRunning() {
 			killServer = exec.Command(kill, serverProcess)
