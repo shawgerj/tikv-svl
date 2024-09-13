@@ -30,7 +30,7 @@ use engine_traits::{
     WriteBatch,
 };
 use engine_traits::{SSTMetaInfo, ALL_CFS, CF_DEFAULT, CF_LOCK, CF_RAFT, CF_WRITE};
-use fail::fail_point;
+use fail::{fail_point, FailScenario, has_failpoints};
 use kvproto::import_sstpb::SstMeta;
 use kvproto::kvrpcpb::ExtraOp as TxnExtraOp;
 use kvproto::metapb::{PeerRole, Region, RegionEpoch};
@@ -85,6 +85,8 @@ const DEFAULT_APPLY_WB_SIZE: usize = 4 * 1024;
 const APPLY_WB_SHRINK_SIZE: usize = 1024 * 1024;
 const SHRINK_PENDING_CMD_QUEUE_CAP: usize = 64;
 const MAX_APPLY_BATCH_SIZE: usize = 64 * 1024 * 1024;
+
+static mut apply_calls: i32 = 0;
 
 pub struct PendingCmd<S>
 where
@@ -495,10 +497,19 @@ where
     /// Writes all the changes into RocksDB.
     /// If it returns true, all pending writes are persisted in engines.
     pub fn write_to_db(&mut self) -> bool {
+        unsafe{
+            apply_calls += 1;
+            println!("apply_calls value: {}", apply_calls);
+        }
         let need_sync = self.sync_log_hint;
         // There may be put and delete requests after ingest request in the same fsm.
         // To guarantee the correct order, we must ingest the pending_sst first, and
         // then persist the kv write batch to engine.
+        unsafe {
+            let s = FailScenario::setup();
+            fail_point!("apply_before_save", apply_calls == 25, |_| panic!("panicking"));
+            s.teardown();
+        }
         if !self.pending_ssts.is_empty() {
             let tag = self.tag.clone();
             self.importer
@@ -531,6 +542,13 @@ where
             self.kv_wb_last_bytes = 0;
             self.kv_wb_last_keys = 0;
         }
+
+        unsafe {
+            let s = FailScenario::setup();
+            fail_point!("apply_before_callback", apply_calls == 25, |_| panic!("panicking"));
+            s.teardown();
+        }
+
         if !self.delete_ssts.is_empty() {
             let tag = self.tag.clone();
             for sst in self.delete_ssts.drain(..) {
@@ -618,6 +636,11 @@ where
         let is_synced = self.write_to_db();
 
         if !self.apply_res.is_empty() {
+            unsafe {
+                let s = FailScenario::setup();
+                fail_point!("apply_before_notifier", apply_calls == 25, |_| panic!("panicking"));
+                s.teardown();
+            }
             fail_point!("before_nofity_apply_res");
             let apply_res = mem::take(&mut self.apply_res);
             self.notifier.notify(apply_res);
@@ -637,6 +660,11 @@ where
             self.committed_count
         );
         self.committed_count = 0;
+        unsafe {
+            let s = FailScenario::setup();
+            fail_point!("apply_after_flush", apply_calls == 25, |_| panic!("panicking"));
+            s.teardown();
+        }
         is_synced
     }
 }

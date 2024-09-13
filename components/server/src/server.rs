@@ -98,7 +98,6 @@ use tikv_util::{
     worker::{Builder as WorkerBuilder, LazyWorker, Worker},
 };
 use tokio::runtime::Builder;
-
 use crate::raft_engine_switch::{check_and_dump_raft_db, check_and_dump_raft_engine};
 use crate::{memory::*, setup::*, signal_handler};
 
@@ -151,6 +150,7 @@ pub fn run_tikv(config: TiKvConfig) {
             tikv.stop();
         }};
     }
+
 
     if !config.raft_engine.enable {
         run_impl!(RocksEngine)

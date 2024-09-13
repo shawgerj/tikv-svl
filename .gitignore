@@ -43,3 +43,5 @@ core.*
 
 # Ignore all logs
 *.log
+tidb-latest-linux-amd64.tar.gz
+tidb-v5.0.1-linux-amd64
