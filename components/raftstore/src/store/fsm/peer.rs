@@ -741,7 +741,7 @@ where
             .ctx
             .engines
             .kv
-            .get_msg_cf::<RegionLocalState>(CF_RAFT, &region_state_key)
+            .get_msg_cf_valuelog::<RegionLocalState>(CF_RAFT, &region_state_key)
         {
             Ok(Some(region_state)) => region_state,
             Ok(None) => {

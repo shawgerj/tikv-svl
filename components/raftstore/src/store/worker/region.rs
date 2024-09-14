@@ -358,7 +358,7 @@ where
 
         let state_key = keys::apply_state_key(region_id);
         let apply_state: RaftApplyState =
-            match box_try!(self.engine.get_msg_cf(CF_RAFT, &state_key)) {
+            match box_try!(self.engine.get_msg_cf_valuelog(CF_RAFT, &state_key)) {
                 Some(state) => state,
                 None => {
                     return Err(box_err!(
@@ -988,7 +988,7 @@ mod tests {
             let (tx, rx) = mpsc::sync_channel(1);
             let apply_state: RaftApplyState = engine
                 .kv
-                .get_msg_cf(CF_RAFT, &keys::apply_state_key(id))
+                .get_msg_cf_valuelog(CF_RAFT, &keys::apply_state_key(id))
                 .unwrap()
                 .unwrap();
             let idx = apply_state.get_applied_index();
@@ -1028,7 +1028,7 @@ mod tests {
             let region_key = keys::region_state_key(id);
             let mut region_state = engine
                 .kv
-                .get_msg_cf::<RegionLocalState>(CF_RAFT, &region_key)
+                .get_msg_cf_valuelog::<RegionLocalState>(CF_RAFT, &region_key)
                 .unwrap()
                 .unwrap();
             region_state.set_state(PeerState::Applying);
@@ -1069,7 +1069,7 @@ mod tests {
                 thread::sleep(Duration::from_millis(100));
                 if engine
                     .kv
-                    .get_msg_cf::<RegionLocalState>(CF_RAFT, &region_key)
+                    .get_msg_cf_valuelog::<RegionLocalState>(CF_RAFT, &region_key)
                     .unwrap()
                     .unwrap()
                     .get_state()

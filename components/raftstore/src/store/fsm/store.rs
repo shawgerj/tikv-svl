@@ -16,7 +16,7 @@ use batch_system::{
     Priority,
 };
 use crossbeam::channel::{unbounded, Sender, TryRecvError, TrySendError};
-use engine_traits::{Engines, KvEngine, Mutable, PerfContextKind, WriteBatch, WriteBatchExt};
+use engine_traits::{Engines, KvEngine, Mutable, PerfContextKind, WriteBatch, WriteBatchExt, ReadOptions};
 use engine_traits::{CF_DEFAULT, CF_LOCK, CF_RAFT, CF_WRITE};
 use fail::fail_point;
 use futures::compat::Future01CompatExt;
@@ -995,6 +995,8 @@ impl<EK: KvEngine, ER: RaftEngine, T> RaftPollerBuilder<EK, ER, T> {
         let mut meta = self.store_meta.lock().unwrap();
         let mut replication_state = self.global_replication_state.lock().unwrap();
         kv_engine.scan_cf(CF_RAFT, start_key, end_key, false, |key, value| {
+            // shawgerj hacky, I should fix iterators instead of doing this
+            let logvalue = kv_engine.get_value_cf_valuelog_opt(&ReadOptions::default(), CF_RAFT, key).unwrap().unwrap();
             let (region_id, suffix) = box_try!(keys::decode_region_meta_key(key));
             if suffix != keys::REGION_STATE_SUFFIX {
                 return Ok(true);
@@ -1003,7 +1005,7 @@ impl<EK: KvEngine, ER: RaftEngine, T> RaftPollerBuilder<EK, ER, T> {
             total_count += 1;
 
             let mut local_state = RegionLocalState::default();
-            local_state.merge_from_bytes(value)?;
+            local_state.merge_from_bytes(&logvalue)?;
 
             let region = local_state.get_region();
             if local_state.get_state() == PeerState::Tombstone {
@@ -1055,7 +1057,7 @@ impl<EK: KvEngine, ER: RaftEngine, T> RaftPollerBuilder<EK, ER, T> {
 
         if !kv_wb.is_empty() {
             kv_wb.write().unwrap();
-            self.engines.kv.sync_wal().unwrap();
+            self.engines.kv.sync().unwrap();
         }
         if !raft_wb.is_empty() {
             self.engines.raft.consume(&mut raft_wb, true).unwrap();
@@ -1329,6 +1331,7 @@ impl<EK: KvEngine, ER: RaftEngine> RaftBatchSystem<EK, ER> {
         data_locations: Arc<Mutex<HashMap<Vec<u8>, usize>>>,
         key_queue: Arc<Mutex<VecDeque<Vec<u8>>>>,
     ) -> Result<()> {
+        println!("fsm spawn");
         assert!(self.workers.is_none());
         // TODO: we can get cluster meta regularly too later.
 
@@ -1387,6 +1390,7 @@ impl<EK: KvEngine, ER: RaftEngine> RaftBatchSystem<EK, ER> {
                 };
             },
         );
+        
         let compact_runner = CompactRunner::new(engines.kv.clone());
         let cleanup_sst_runner = CleanupSSTRunner::new(
             meta.get_id(),
@@ -1403,7 +1407,7 @@ impl<EK: KvEngine, ER: RaftEngine> RaftBatchSystem<EK, ER> {
         let consistency_check_scheduler = workers
             .background_worker
             .start("consistency-check", consistency_check_runner);
-
+                
         self.store_writers.spawn(
             meta.get_id(),
             &engines,

@@ -56,6 +56,7 @@ impl<E: KvEngine> ConsistencyCheckObserver<E> for Raw<E> {
 }
 
 fn compute_hash_on_raw<S: Snapshot>(region: &Region, snap: &S) -> Result<u32> {
+    println!("compute hash on raw");
     let region_id = region.get_id();
     let mut digest = crc32fast::Hasher::new();
     let mut cf_names = snap.cf_names();

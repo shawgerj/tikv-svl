@@ -474,6 +474,7 @@ fn init_applied_index_term<EK: KvEngine, ER: RaftEngine>(
         return Ok(truncated_state.get_term());
     }
 
+    println!("before get applied index entry");
     match engines
         .raft
         .get_entry(region.get_id(), apply_state.applied_index)?
@@ -513,7 +514,7 @@ fn init_apply_state<EK: KvEngine, ER: RaftEngine>(
     Ok(
         match engines
             .kv
-            .get_msg_cf(CF_RAFT, &keys::apply_state_key(region.get_id()))?
+            .get_msg_cf_valuelog(CF_RAFT, &keys::apply_state_key(region.get_id()))?
         {
             Some(s) => s,
             None => {
@@ -546,7 +547,9 @@ fn init_last_term<EK: KvEngine, ER: RaftEngine>(
     } else {
         assert!(last_idx > RAFT_INIT_LOG_INDEX);
     }
+    println!("before get entry");
     let entry = engines.raft.get_entry(region.get_id(), last_idx)?;
+    println!("after get entry");
     match entry {
         None => Err(box_err!(
             "[region {}] entry at {} doesn't exist, may lose data.",
@@ -577,6 +580,7 @@ fn validate_states<EK: KvEngine, ER: RaftEngine>(
     if commit_index < recorded_commit_index {
         let entry = engines.raft.get_entry(region_id, recorded_commit_index)?;
         if entry.map_or(true, |e| e.get_term() != apply_state.get_commit_term()) {
+            println!("problem getting entry");
             return Err(box_err!(
                 "log at recorded commit index [{}] {} doesn't exist, may lose data, {}",
                 apply_state.get_commit_term(),
@@ -589,6 +593,7 @@ fn validate_states<EK: KvEngine, ER: RaftEngine>(
     }
     // Invariant: applied index <= max(commit index, recorded commit index)
     if apply_state.get_applied_index() > commit_index {
+        println!("applied index gr commit index");
         return Err(box_err!(
             "applied index > max(commit index, recorded commit index), {}",
             state_str()
@@ -596,6 +601,7 @@ fn validate_states<EK: KvEngine, ER: RaftEngine>(
     }
     // Invariant: max(commit index, recorded commit index) <= last index
     if commit_index > last_index {
+        println!("commit index gr last index");
         return Err(box_err!(
             "max(commit index, recorded commit index) > last index, {}",
             state_str()
@@ -604,6 +610,7 @@ fn validate_states<EK: KvEngine, ER: RaftEngine>(
     // Since the entries must be persisted before applying, the term of raft state should also
     // be persisted. So it should be greater than the commit term of apply state.
     if raft_state.get_hard_state().get_term() < apply_state.get_commit_term() {
+        println!("term lt commit term");
         return Err(box_err!(
             "term of raft state < commit term of apply state, {}",
             state_str()
@@ -685,20 +692,25 @@ where
         peer_id: u64,
         tag: String,
     ) -> Result<PeerStorage<EK, ER>> {
+        println!("shawgerj creating new peer storage");
         debug!(
             "creating storage on specified path";
             "region_id" => region.get_id(),
             "peer_id" => peer_id,
             "path" => ?engines.kv.path(),
         );
+        println!("before init raft state");
         let mut raft_state = init_raft_state(&engines, region)?;
+        println!("before init apply state");
         let apply_state = init_apply_state(&engines, region)?;
+        println!("before validate states");
         if let Err(e) = validate_states(region.get_id(), &engines, &mut raft_state, &apply_state) {
             return Err(box_err!("{} validate state fail: {:?}", tag, e));
         }
         let last_term = init_last_term(&engines, region, &raft_state, &apply_state)?;
         let applied_index_term = init_applied_index_term(&engines, region, &apply_state)?;
 
+        println!("before peer storage constructor");
         Ok(PeerStorage {
             engines,
             peer_id,
@@ -1636,7 +1648,7 @@ where
     );
 
     let msg = kv_snap
-        .get_msg_cf(CF_RAFT, &keys::apply_state_key(region_id))
+        .get_msg_cf_valuelog(CF_RAFT, &keys::apply_state_key(region_id))
         .map_err(into_other::<_, raft::Error>)?;
     let apply_state: RaftApplyState = match msg {
         None => {

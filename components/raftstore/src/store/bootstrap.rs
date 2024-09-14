@@ -7,6 +7,7 @@ use super::util::new_peer;
 use crate::Result;
 use engine_traits::{Engines, KvEngine, Mutable, RaftEngine, WriteBatch};
 use engine_traits::{CF_DEFAULT, CF_RAFT};
+use engine_traits::WriteOptions;
 
 use kvproto::metapb;
 use kvproto::raft_serverpb::{RaftLocalState, RegionLocalState, StoreIdent};
@@ -79,7 +80,7 @@ pub fn prepare_bootstrap_cluster(
     box_try!(wb.put_msg(keys::PREPARE_BOOTSTRAP_KEY, region));
     box_try!(wb.put_msg_cf(CF_RAFT, &keys::region_state_key(region.get_id()), &state));
     write_initial_apply_state(&mut wb, region.get_id())?;
-    wb.write()?;
+    wb.write_valuelog(&WriteOptions::default())?;
     engines.sync_kv()?;
 
     let mut raft_wb = engines.raft.log_batch(1024);

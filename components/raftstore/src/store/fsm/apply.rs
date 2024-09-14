@@ -2445,7 +2445,7 @@ where
             let region_state_key = keys::region_state_key(*region_id);
             match ctx
                 .engine
-                .get_msg_cf::<RegionLocalState>(CF_RAFT, &region_state_key)
+                .get_msg_cf_valuelog::<RegionLocalState>(CF_RAFT, &region_state_key)
             {
                 Ok(None) => (),
                 Ok(Some(state)) => {

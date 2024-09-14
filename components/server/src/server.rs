@@ -1307,9 +1307,8 @@ impl TiKVServer<RocksEngine> {
         raft_engine.set_shared_block_cache(shared_block_cache);
 
         let mut engines = Engines::new(kv_engine, raft_engine);
-        // recover the raft log, do not recover the kv log (tikv must do this later)
         assert!(engines.raft.register_valuelog(self.valuelog_mgr.clone(), true).is_ok());
-        assert!(engines.kv.register_valuelog(self.valuelog_mgr.clone(), false).is_ok());
+        assert!(engines.kv.register_valuelog(self.valuelog_mgr.clone(), true).is_ok());
 
         check_and_dump_raft_engine(
             &self.config,

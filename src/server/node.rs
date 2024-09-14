@@ -163,6 +163,7 @@ where
         let mut store_id = self.check_store(&engines)?;
         if store_id == INVALID_ID {
             store_id = self.alloc_id()?;
+            println!("allocating new id: {}", &store_id);
             debug!("alloc store id"; "store_id" => store_id);
             store::bootstrap_store(&engines, self.cluster_id, store_id)?;
             fail_point!("node_after_bootstrap_store", |_| Err(box_err!(
@@ -170,6 +171,7 @@ where
             )));
         }
         self.check_api_version(&engines)?;
+        println!("reusing store_id {}", &store_id);
         self.store.set_id(store_id);
         Ok(())
     }
@@ -257,8 +259,10 @@ where
     // check store, return store id for the engine.
     // If the store is not bootstrapped, use INVALID_ID.
     fn check_store(&self, engines: &Engines<EK, ER>) -> Result<u64> {
+        println!("check_store");
         let res = engines.kv.get_msg::<StoreIdent>(keys::STORE_IDENT_KEY)?;
         if res.is_none() {
+            println!("found none");
             return Ok(INVALID_ID);
         }
 
@@ -414,6 +418,7 @@ where
                         "injected error: node_after_bootstrap_cluster"
                     )));
                     store::clear_prepare_bootstrap_key(engines)?;
+                    println!("after clear prepare bootstrap key");
                     return Ok(());
                 }
                 Err(PdError::ClusterBootstrapped(_)) => match self.pd_client.get_region(b"") {

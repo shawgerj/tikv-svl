@@ -199,6 +199,7 @@ impl RaftLogBatchTrait for RaftLogBatch {
     }
 
     fn put_raft_state(&mut self, raft_group_id: u64, state: &RaftLocalState) -> Result<()> {
+        println!("raft_log_engine put_raft_state2");
         self.0
             .put_message(raft_group_id, RAFT_LOG_STATE_KEY.to_vec(), state)
             .map_err(transfer_error)
@@ -322,6 +323,7 @@ impl RaftEngine for RaftLogEngine {
     }
 
     fn put_raft_state(&self, raft_group_id: u64, state: &RaftLocalState) -> Result<()> {
+        println!("raft_log_engine put_raft_state");
         let mut batch = Self::LogBatch::default();
         batch
             .0

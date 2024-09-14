@@ -1062,14 +1062,15 @@ where
                     keys::REGION_META_MIN_KEY,
                     keys::REGION_META_MAX_KEY,
                     false,
-                    |key, value| {
+                    |key, _value| {
+                        let value = store_info.kv_engine.get_valuelog(&key).unwrap().unwrap();
                         let (_, suffix) = box_try!(keys::decode_region_meta_key(key));
                         if suffix != keys::REGION_STATE_SUFFIX {
                             return Ok(true);
                         }
 
                         let mut region_local_state = RegionLocalState::default();
-                        region_local_state.merge_from_bytes(value)?;
+                        region_local_state.merge_from_bytes(&value)?;
                         if region_local_state.get_state() == PeerState::Tombstone {
                             return Ok(true);
                         }

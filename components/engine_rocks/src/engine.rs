@@ -85,7 +85,8 @@ impl KvEngine for RocksEngine {
     }
 
     fn sync(&self) -> Result<()> {
-        self.db.sync_wal().map_err(Error::Engine)
+        self.db.flush(true).map_err(Error::Engine)
+//        self.db.sync_wal().map_err(Error::Engine)
     }
 
     fn flush_metrics(&self, instance: &str) {
@@ -229,6 +230,7 @@ impl SyncMutable for RocksEngine {
     }
 
     fn delete(&self, key: &[u8]) -> Result<()> {
+        println!("engine delete");
         self.db.delete(key).map_err(Error::Engine)
     }
 

@@ -385,7 +385,7 @@ dependencies = [
  "futures 0.3.15",
  "futures-util",
  "grpcio",
- "hex 0.4.2",
+ "hex 0.4.3",
  "keys",
  "kvproto",
  "lazy_static",
@@ -1265,7 +1265,7 @@ dependencies = [
  "file_system",
  "futures 0.3.15",
  "futures-util",
- "hex 0.4.2",
+ "hex 0.4.3",
  "kvproto",
  "lazy_static",
  "matches",
@@ -2094,9 +2094,9 @@ checksum = "805026a5d0141ffc30abb3be3173848ad46a1b1664fe632428479619a3644d77"
 
 [[package]]
 name = "hex"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "644f9158b2f133fd50f5fb3242878846d9eb792e445c893805ff0e3824006e35"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hmac"
@@ -2450,7 +2450,7 @@ dependencies = [
 [[package]]
 name = "librocksdb_sys"
 version = "0.1.0"
-source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#14ff33f5b9196600664990fb9b5621a41092565b"
+source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#486fa77fc9f70fabeffae02d24aa4c87ad92f31c"
 dependencies = [
  "bindgen 0.62.0",
  "bzip2-sys",
@@ -2514,7 +2514,7 @@ dependencies = [
 name = "log_wrappers"
 version = "0.0.1"
 dependencies = [
- "hex 0.4.2",
+ "hex 0.4.3",
  "protobuf",
  "slog",
  "slog-term",
@@ -3484,7 +3484,7 @@ checksum = "0941606b9934e2d98a3677759a971756eb821f75764d0e0d26946d08e74d9104"
 dependencies = [
  "bitflags",
  "byteorder",
- "hex 0.4.2",
+ "hex 0.4.3",
  "lazy_static",
  "libc 0.2.106",
 ]
@@ -3699,7 +3699,7 @@ dependencies = [
  "fail",
  "fs2",
  "hashbrown 0.11.2",
- "hex 0.4.2",
+ "hex 0.4.3",
  "lazy_static",
  "libc 0.2.106",
  "log",
@@ -4092,7 +4092,7 @@ dependencies = [
  "fail",
  "futures 0.3.15",
  "grpcio",
- "hex 0.4.2",
+ "hex 0.4.3",
  "kvproto",
  "lazy_static",
  "log_wrappers",
@@ -4173,8 +4173,9 @@ dependencies = [
 [[package]]
 name = "rocksdb"
 version = "0.3.0"
-source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#14ff33f5b9196600664990fb9b5621a41092565b"
+source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#486fa77fc9f70fabeffae02d24aa4c87ad92f31c"
 dependencies = [
+ "hex 0.4.3",
  "libc 0.2.106",
  "librocksdb_sys",
 ]
@@ -4271,7 +4272,7 @@ dependencies = [
  "chrono",
  "digest",
  "futures 0.3.15",
- "hex 0.4.2",
+ "hex 0.4.3",
  "hmac",
  "http",
  "hyper",
@@ -4630,7 +4631,7 @@ dependencies = [
  "futures 0.3.15",
  "grpcio",
  "grpcio-health",
- "hex 0.4.2",
+ "hex 0.4.3",
  "keys",
  "kvproto",
  "libc 0.2.106",
@@ -5438,7 +5439,7 @@ dependencies = [
  "collections",
  "encoding_rs 0.8.29 (git+https://github.com/xiongjiwei/encoding_rs.git?rev=68e0bc5a72a37a78228d80cd98047326559cf43c)",
  "error_code",
- "hex 0.4.2",
+ "hex 0.4.3",
  "kvproto",
  "lazy_static",
  "log_wrappers",
@@ -5500,7 +5501,7 @@ dependencies = [
  "codec",
  "file_system",
  "flate2",
- "hex 0.4.2",
+ "hex 0.4.3",
  "log_wrappers",
  "match_template",
  "num",
@@ -5562,7 +5563,7 @@ dependencies = [
  "futures-util",
  "grpcio",
  "grpcio-health",
- "hex 0.4.2",
+ "hex 0.4.3",
  "http",
  "hyper",
  "hyper-openssl",
@@ -5663,7 +5664,7 @@ dependencies = [
  "futures 0.3.15",
  "gag",
  "grpcio",
- "hex 0.4.2",
+ "hex 0.4.3",
  "keys",
  "kvproto",
  "libc 0.2.106",

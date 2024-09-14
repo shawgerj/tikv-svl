@@ -47,11 +47,9 @@ impl RaftEngineReadOnly for RocksEngine {
                 let key = keys::raft_log_key(region_id, i);
                 match self.get_valuelog(&key) {
                     Ok(None) => {
-                        println!("err1");
                         return Err(Error::EntriesCompacted)
                     }
                     Ok(Some(v)) => {
-                        println!("case1");
                         let mut entry = Entry::default();
                         entry.merge_from_bytes(&v)?;
                         assert_eq!(entry.get_index(), i);
@@ -116,9 +114,10 @@ impl RaftEngineReadOnly for RocksEngine {
             &start_key,
             &end_key,
             false, // fill_cache
-            |_, value| {
+            |key, _value| {
+                let realvalue = self.get_valuelog(key).unwrap().unwrap();
                 let mut entry = Entry::default();
-                entry.merge_from_bytes(value)?;
+                entry.merge_from_bytes(&realvalue)?;
                 buf.push(entry);
                 Ok(true)
             },

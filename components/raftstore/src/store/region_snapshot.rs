@@ -91,9 +91,10 @@ where
     }
 
     fn get_apply_index_from_storage(&self) -> Result<u64> {
+    println!("attempted to get apply index from storage");
         let apply_state: Option<RaftApplyState> = self
             .snap
-            .get_msg_cf(CF_RAFT, &keys::apply_state_key(self.region.get_id()))?;
+            .get_msg_cf_valuelog(CF_RAFT, &keys::apply_state_key(self.region.get_id()))?;
         match apply_state {
             Some(s) => {
                 let apply_index = s.get_applied_index();
