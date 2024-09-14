@@ -503,7 +503,7 @@ where
             let mut write_opts = WriteOptions::new();
             write_opts.set_sync(true);
             // TODO: Add perf context
-            self.batch.kv_wb.write_opt(&write_opts).unwrap_or_else(|e| {
+            self.batch.kv_wb.write_valuelog(&write_opts).unwrap_or_else(|e| {
                 panic!(
                     "store {}: {} failed to write to kv engine: {:?}",
                     self.store_id, self.tag, e
@@ -760,7 +760,7 @@ where
     if !batch.kv_wb.is_empty() {
         let mut write_opts = WriteOptions::new();
         write_opts.set_sync(true);
-        batch.kv_wb.write_opt(&write_opts).unwrap_or_else(|e| {
+        batch.kv_wb.write_valuelog(&write_opts).unwrap_or_else(|e| {
             panic!("test failed to write to kv engine: {:?}", e);
         });
     }

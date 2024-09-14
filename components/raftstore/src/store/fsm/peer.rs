@@ -763,7 +763,7 @@ where
         });
         let mut write_opts = WriteOptions::new();
         write_opts.set_sync(true);
-        if let Err(e) = kv_wb.write_opt(&write_opts) {
+        if let Err(e) = kv_wb.write_valuelog(&write_opts) {
             panic!("fail to update RegionLocalstate {:?} err {:?}", region, e);
         }
 

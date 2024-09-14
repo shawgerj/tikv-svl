@@ -501,7 +501,7 @@ where
     /// This call is valid only when it's between a `prepare_for` and `finish_for`.
     pub fn commit(&mut self, delegate: &mut ApplyDelegate<EK>) {
         if delegate.last_flush_applied_index < delegate.apply_state.get_applied_index() {
-            delegate.write_apply_state(self.kv_wb_mut());
+            delegate.write_apply_state(self.kv_wb_wotr_mut());
         }
         self.commit_opt(delegate, true);
     }
@@ -540,28 +540,6 @@ where
             self.pending_ssts = vec![];
         }
 
-        // do writes to wotr first (does it matter?)
-        if !self.kv_wb_wotr_mut().is_empty() {
-            let mut write_opts = engine_traits::WriteOptions::new();
-            write_opts.set_sync(true);
-            self.kv_wb_wotr().write_valuelog(&write_opts).unwrap_or_else(|e| {
-                panic!("failed to write to engine: {:?}", e);
-            });
-            self.perf_context.report_metrics();
-            self.sync_log_hint = false;
-            let data_size = self.kv_wb_wotr().data_size();
-            if data_size > APPLY_WB_SHRINK_SIZE {
-                // Control the memory usage for the WriteBatch. Whether it's `RocksWriteBatch` or
-                // `RocksWriteBatchVec` depends on the `enable_multi_batch_write` configuration.
-                self.kv_wb_wotr = W::with_capacity(&self.engine, DEFAULT_APPLY_WB_SIZE);
-            } else {
-                // Clear data, reuse the WriteBatch, this can reduce memory allocations and deallocations.
-                self.kv_wb_wotr_mut().clear();
-            }
-            self.kv_wb_wotr_last_bytes = 0;
-            self.kv_wb_wotr_last_keys = 0;
-        }
-
         // this writebatch contains <key, offset> pairs
         if !self.kv_wb_mut().is_empty() {
             let mut write_opts = engine_traits::WriteOptions::new();
@@ -584,6 +562,29 @@ where
             self.kv_wb_last_bytes = 0;
             self.kv_wb_last_keys = 0;
         }
+
+	// do writes to wotr last since it has the apply state
+        if !self.kv_wb_wotr_mut().is_empty() {
+            let mut write_opts = engine_traits::WriteOptions::new();
+            write_opts.set_sync(true);
+            self.kv_wb_wotr().write_valuelog(&write_opts).unwrap_or_else(|e| {
+                panic!("failed to write to engine: {:?}", e);
+            });
+            self.perf_context.report_metrics();
+            self.sync_log_hint = false;
+            let data_size = self.kv_wb_wotr().data_size();
+            if data_size > APPLY_WB_SHRINK_SIZE {
+                // Control the memory usage for the WriteBatch. Whether it's `RocksWriteBatch` or
+                // `RocksWriteBatchVec` depends on the `enable_multi_batch_write` configuration.
+                self.kv_wb_wotr = W::with_capacity(&self.engine, DEFAULT_APPLY_WB_SIZE);
+            } else {
+                // Clear data, reuse the WriteBatch, this can reduce memory allocations and deallocations.
+                self.kv_wb_wotr_mut().clear();
+            }
+            self.kv_wb_wotr_last_bytes = 0;
+            self.kv_wb_wotr_last_keys = 0;
+        }
+
         if !self.delete_ssts.is_empty() {
             let tag = self.tag.clone();
             for sst in self.delete_ssts.drain(..) {
@@ -624,7 +625,7 @@ where
         results: VecDeque<ExecResult<EK::Snapshot>>,
     ) {
         if !delegate.pending_remove {
-            delegate.write_apply_state(self.kv_wb_mut());
+            delegate.write_apply_state(self.kv_wb_wotr_mut());
         }
         self.commit_opt(delegate, false);
         self.apply_res.push(ApplyRes {
@@ -2047,7 +2048,7 @@ where
         } else {
             PeerState::Normal
         };
-        if let Err(e) = write_peer_state(ctx.kv_wb_mut(), &region, state, None) {
+        if let Err(e) = write_peer_state(ctx.kv_wb_wotr_mut(), &region, state, None) {
             panic!("{} failed to update region state: {:?}", self.tag, e);
         }
 
@@ -2092,7 +2093,7 @@ where
             PeerState::Normal
         };
 
-        if let Err(e) = write_peer_state(ctx.kv_wb_mut(), &region, state, None) {
+        if let Err(e) = write_peer_state(ctx.kv_wb_wotr_mut(), &region, state, None) {
             panic!("{} failed to update region state: {:?}", self.tag, e);
         }
 
@@ -2478,6 +2479,7 @@ where
         }
 
         let kv_wb_mut = ctx.kv_wb_mut();
+	let kv_wb_wotr_mut = ctx.kv_wb_wotr_mut();
         for new_region in &regions {
             if new_region.get_id() == derived.get_id() {
                 continue;
@@ -2494,8 +2496,8 @@ where
                 );
                 continue;
             }
-            write_peer_state(kv_wb_mut, new_region, PeerState::Normal, None)
-                .and_then(|_| write_initial_apply_state(kv_wb_mut, new_region.get_id()))
+            write_peer_state(kv_wb_wotr_mut, new_region, PeerState::Normal, None)
+                .and_then(|_| write_initial_apply_state(kv_wb_wotr_mut, new_region.get_id()))
                 .unwrap_or_else(|e| {
                     panic!(
                         "{} fails to save split region {:?}: {:?}",
@@ -2503,7 +2505,7 @@ where
                     )
                 });
         }
-        write_peer_state(kv_wb_mut, &derived, PeerState::Normal, None).unwrap_or_else(|e| {
+        write_peer_state(kv_wb_wotr_mut, &derived, PeerState::Normal, None).unwrap_or_else(|e| {
             panic!("{} fails to update region {:?}: {:?}", self.tag, derived, e)
         });
         let mut resp = AdminResponse::default();
@@ -2566,7 +2568,7 @@ where
         merging_state.set_target(prepare_merge.get_target().to_owned());
         merging_state.set_commit(ctx.exec_log_index);
         write_peer_state(
-            ctx.kv_wb_mut(),
+            ctx.kv_wb_wotr_mut(),
             &region,
             PeerState::Merging,
             Some(merging_state.clone()),
@@ -2703,13 +2705,14 @@ where
             region.set_start_key(source_region.get_start_key().to_vec());
         }
         let kv_wb_mut = ctx.kv_wb_mut();
-        write_peer_state(kv_wb_mut, &region, PeerState::Normal, None)
+	let kv_wb_wotr_mut = ctx.kv_wb_wotr_mut();
+        write_peer_state(kv_wb_wotr_mut, &region, PeerState::Normal, None)
             .and_then(|_| {
                 // TODO: maybe all information needs to be filled?
                 let mut merging_state = MergeState::default();
                 merging_state.set_target(self.region.clone());
                 write_peer_state(
-                    kv_wb_mut,
+                    kv_wb_wotr_mut,
                     source_region,
                     PeerState::Tombstone,
                     Some(merging_state),
@@ -2760,7 +2763,7 @@ where
         let version = region.get_region_epoch().get_version();
         // Update version to avoid duplicated rollback requests.
         region.mut_region_epoch().set_version(version + 1);
-        write_peer_state(ctx.kv_wb_mut(), &region, PeerState::Normal, None).unwrap_or_else(|e| {
+        write_peer_state(ctx.kv_wb_wotr_mut(), &region, PeerState::Normal, None).unwrap_or_else(|e| {
             panic!(
                 "{} failed to rollback merge {:?}: {:?}",
                 self.tag, rollback, e
@@ -3598,7 +3601,7 @@ where
             if apply_ctx.timer.is_none() {
                 apply_ctx.timer = Some(Instant::now_coarse());
             }
-            self.delegate.write_apply_state(apply_ctx.kv_wb_mut());
+            self.delegate.write_apply_state(apply_ctx.kv_wb_wotr_mut());
             fail_point!(
                 "apply_on_handle_snapshot_1_1",
                 self.delegate.id == 1 && self.delegate.region_id() == 1,

@@ -2678,7 +2678,7 @@ impl<'a, EK: KvEngine, ER: RaftEngine, T: Transport> StoreFsmDelegate<'a, EK, ER
             });
         let mut write_opts = WriteOptions::new();
         write_opts.set_sync(true);
-        if let Err(e) = kv_wb.write_opt(&write_opts) {
+        if let Err(e) = kv_wb.write_valuelog(&write_opts) {
             panic!("fail to write while creating {:?} err {:?}", region, e);
         }
         let (sender, mut peer) = match PeerFsm::create(

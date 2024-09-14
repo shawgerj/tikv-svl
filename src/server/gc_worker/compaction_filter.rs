@@ -444,7 +444,7 @@ impl WriteCompactionFilter {
                     "Ingested fail point".to_string(),
                 ))
             });
-            wb.write_opt(wopts)?;
+            wb.write_valuelog(wopts)?;
             Ok(())
         }
 

@@ -660,7 +660,7 @@ where
                 info!("handling GcTask::OrphanVersions"; "id" => id);
                 let mut wopts = WriteOptions::default();
                 wopts.set_sync(true);
-                if let Err(e) = wb.write_opt(&wopts) {
+                if let Err(e) = wb.write_valuelog(&wopts) {
                     error!("write GcTask::OrphanVersions fail"; "id" => id, "err" => ?e);
                     update_metrics(true);
                     return;

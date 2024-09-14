@@ -24,7 +24,7 @@ impl<K: KvEngine, R: RaftEngine> Engines<K, R> {
         wb.write()
     }
 
-    pub fn write_kv_opt(&self, wb: &K::WriteBatch, opts: &WriteOptions) -> Result<Vec<usize>> {
+    pub fn write_kv_opt(&self, wb: &K::WriteBatch, opts: &WriteOptions) -> Result<()> {
         wb.write_opt(opts)
     }
 

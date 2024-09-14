@@ -84,7 +84,7 @@ pub trait WriteBatch<E: WriteBatchExt + Sized>: Mutable {
     fn with_capacity(e: &E, cap: usize) -> Self;
 
     /// Commit the WriteBatch to disk with the given options
-    fn write_opt(&self, opts: &WriteOptions) -> Result<Vec<usize>>;
+    fn write_opt(&self, opts: &WriteOptions) -> Result<()>;
 
     /// Commit the WriteBatch to disk atomically
     fn write(&self) -> Result<Vec<usize>> {

@@ -301,7 +301,7 @@ impl RaftEngine for RocksEngine {
             let mut opts = WriteOptions::default();
             opts.set_disable_wal(true);
             opts.set_sync(false);
-            raft_wb.write_opt(&opts)?;
+            raft_wb.write_valuelog(&opts)?;
         }
         Ok(total)
     }
@@ -314,7 +314,7 @@ impl RaftEngine for RocksEngine {
             let mut opts = WriteOptions::default();
             opts.set_disable_wal(true);
             opts.set_sync(false);
-            raft_wb.write_opt(&opts)?;
+            raft_wb.write_valuelog(&opts)?;
         }
         Ok(total)
     }
