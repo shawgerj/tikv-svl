@@ -2,7 +2,7 @@
 
 use crate::engine::PanicEngine;
 use crate::write_batch::PanicWriteBatch;
-use engine_traits::{Error, RaftEngine, RaftEngineReadOnly, RaftLogBatch, Result};
+use engine_traits::{Error, RaftEngine, RaftEngineReadOnly, RaftLogBatch, Result, DBVector};
 use kvproto::raft_serverpb::RaftLocalState;
 use raft::eraftpb::Entry;
 
@@ -15,6 +15,10 @@ impl RaftEngineReadOnly for PanicEngine {
         panic!()
     }
 
+    fn get_entry_location(&self, key: &[u8]) -> Option<u64> {
+        panic!()
+    }
+    
     fn fetch_entries_to(
         &self,
         region_id: u64,

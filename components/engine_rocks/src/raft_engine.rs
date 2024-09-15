@@ -8,6 +8,7 @@ use engine_traits::{
     RaftLogBatch, RaftLogGCTask, Result, SyncMutable, WriteBatch, WriteBatchExt, WriteOptions,
     CF_DEFAULT,
 };
+use crate::db_vector::RocksDBVector;
 use kvproto::raft_serverpb::RaftLocalState;
 use protobuf::Message;
 use raft::eraftpb::Entry;
@@ -16,6 +17,7 @@ use tikv_util::{box_err, box_try};
 const RAFT_LOG_MULTI_GET_CNT: u64 = 8;
 
 impl RaftEngineReadOnly for RocksEngine {
+//    type DBVector =  RocksDBVector;
     fn get_raft_state(&self, raft_group_id: u64) -> Result<Option<RaftLocalState>> {
         let key = keys::raft_state_key(raft_group_id);
         self.get_msg_cf_valuelog(CF_DEFAULT, &key)
@@ -24,6 +26,23 @@ impl RaftEngineReadOnly for RocksEngine {
     fn get_entry(&self, raft_group_id: u64, index: u64) -> Result<Option<Entry>> {
         let key = keys::raft_log_key(raft_group_id, index);
         self.get_msg_cf_valuelog(CF_DEFAULT, &key)
+    }
+
+    // presume we already know the key
+    fn get_entry_location(&self, key: &[u8]) -> Option<u64> {
+        match self.get_value(&key) {
+            Ok(result) => {
+                if let Some(logoffset) = result {
+                    let data = std::str::from_utf8(&logoffset).ok()?;
+                    let value: u64 = data.parse().ok()?;
+                    println!("got value {}", value);
+                    Some(value)
+                } else {
+                    return None;
+                }
+            },
+            Err(_) => { return None; }
+        }
     }
 
     fn fetch_entries_to(
@@ -116,9 +135,10 @@ impl RaftEngineReadOnly for RocksEngine {
             &start_key,
             &end_key,
             false, // fill_cache
-            |_, value| {
+            |key, _value| {
+                let realvalue = self.get_valuelog(key).unwrap().unwrap();
                 let mut entry = Entry::default();
-                entry.merge_from_bytes(value)?;
+                entry.merge_from_bytes(&realvalue)?;
                 buf.push(entry);
                 Ok(true)
             },

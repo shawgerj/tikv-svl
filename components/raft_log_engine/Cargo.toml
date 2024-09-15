@@ -5,6 +5,7 @@ publish = false
 edition = "2018"
 
 [dependencies]
+engine_rocks = { path = "../engine_rocks" }
 engine_traits = { path = "../engine_traits", default-features = false }
 tikv_util = { path = "../tikv_util", default-features = false }
 encryption = { path = "../encryption" }

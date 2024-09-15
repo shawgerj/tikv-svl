@@ -85,7 +85,9 @@ impl KvEngine for RocksEngine {
     }
 
     fn sync(&self) -> Result<()> {
-        self.db.sync_wal().map_err(Error::Engine)
+//        self.db.sync_wal().map_err(Error::Engine)
+        self.db.flush(true).map_err(Error::Engine)
+
     }
 
     fn flush_metrics(&self, instance: &str) {

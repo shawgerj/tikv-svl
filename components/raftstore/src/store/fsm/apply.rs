@@ -3407,6 +3407,24 @@ where
                 entries.extend(e);
             }
         }
+
+        // shawgerj we need to make sure all entries have a location in hashmap
+        for entry in &entries {
+            let lockey = keys::raft_log_key(self.delegate.region_id(), entry.index);
+            let mut locs = apply_ctx.data_locations.lock().unwrap();
+            match locs.get(&lockey.to_vec()) {
+                Some(offset) => continue,
+                None => {
+                    if let Some(logoffset) = self.delegate.raft_engine.get_entry_location(&lockey.to_vec()) {
+                        locs.insert(lockey.to_vec(), logoffset as usize);
+//                        println!("read back from raft: {} ", &logoffset);
+                    } else {
+                        println!("no raft entry found...");
+                    }
+                }
+            }
+        }
+        
         if dangle_size > 0 {
             MEMTRACE_ENTRY_CACHE.trace(TraceEvent::Sub(dangle_size));
             RAFT_ENTRIES_CACHES_GAUGE.sub(dangle_size as i64);

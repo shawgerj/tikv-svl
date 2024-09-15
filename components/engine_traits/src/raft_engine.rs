@@ -9,6 +9,8 @@ pub trait RaftEngineReadOnly: Sync + Send + 'static {
 
     fn get_entry(&self, raft_group_id: u64, index: u64) -> Result<Option<Entry>>;
 
+    fn get_entry_location(&self, key: &[u8]) -> Option<u64>;
+
     /// Return count of fetched entries.
     fn fetch_entries_to(
         &self,
