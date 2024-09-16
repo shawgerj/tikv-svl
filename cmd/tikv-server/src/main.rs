@@ -4,6 +4,7 @@
 
 use std::path::Path;
 use std::process;
+use fail::{fail_point, FailScenario, has_failpoints};
 
 use clap::{crate_authors, App, Arg};
 use server::setup::{ensure_no_unrecognized_config, validate_and_persist_config};

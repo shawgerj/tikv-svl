@@ -28,7 +28,7 @@ use engine_traits::{
     WriteOptions,
 };
 use error_code::ErrorCodeExt;
-use fail::fail_point;
+use fail::{fail_point, FailScenario, has_failpoints};
 use kvproto::raft_serverpb::{RaftLocalState, RaftMessage};
 use protobuf::Message;
 use raft::eraftpb::Entry;
@@ -40,7 +40,7 @@ const KV_WB_SHRINK_SIZE: usize = 1024 * 1024;
 const KV_WB_DEFAULT_SIZE: usize = 16 * 1024;
 const RAFT_WB_SHRINK_SIZE: usize = 10 * 1024 * 1024;
 const RAFT_WB_DEFAULT_SIZE: usize = 256 * 1024;
-
+static mut raft_calls: i32 = 0;
 /// Notify the event to the specified region.
 pub trait Notifier: Clone + Send + 'static {
     fn notify_persisted(&self, region_id: u64, peer_id: u64, ready_number: u64);
@@ -491,7 +491,11 @@ where
             key_queue.push_back(k.to_vec());
         }
 
-        fail_point!("raft_before_save");
+        unsafe {
+            let s = FailScenario::setup();
+            fail_point!("raft_before_save", raft_calls == 25, |_| {});
+            s.teardown();
+        }
 
         let mut write_kv_time = 0f64;
         if !self.batch.kv_wb.is_empty() {
@@ -518,7 +522,11 @@ where
 
         self.batch.after_write_to_kv_db(&self.metrics);
 
-        fail_point!("raft_between_save");
+        unsafe {
+            let s = FailScenario::setup();
+            fail_point!("raft_between_save", raft_calls == 25, |_| {});
+            s.teardown();
+        }
 
 
         let now = Instant::now();
@@ -566,8 +574,17 @@ where
         self.perf_context.report_metrics();
         let write_raft_time = duration_to_sec(now.saturating_elapsed());
         STORE_WRITE_RAFTDB_DURATION_HISTOGRAM.observe(write_raft_time);
-            
-        fail_point!("raft_after_save");
+
+        unsafe {
+            let s = FailScenario::setup();
+            fail_point!("raft_after_save", raft_calls == 25, |_| {});
+            s.teardown();
+        }
+
+        unsafe {
+            raft_calls += 1;
+            println!("raft_calls value: {}", raft_calls);
+        }
 
         self.batch.after_write_to_raft_db(&self.metrics);
 

@@ -2450,6 +2450,7 @@ dependencies = [
 [[package]]
 name = "librocksdb_sys"
 version = "0.1.0"
+source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#486fa77fc9f70fabeffae02d24aa4c87ad92f31c"
 dependencies = [
  "bindgen 0.62.0",
  "bzip2-sys",
@@ -4173,6 +4174,7 @@ dependencies = [
 [[package]]
 name = "rocksdb"
 version = "0.3.0"
+source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#486fa77fc9f70fabeffae02d24aa4c87ad92f31c"
 dependencies = [
  "hex 0.4.3",
  "libc 0.2.106",
@@ -5733,6 +5735,7 @@ name = "tikv-server"
 version = "0.0.1"
 dependencies = [
  "clap",
+ "fail",
  "server",
  "tikv",
  "time",

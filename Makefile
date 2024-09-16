@@ -80,9 +80,8 @@ ifneq ($(ROCKSDB_SYS_SSE),0)
 ENABLE_FEATURES += sse
 endif
 
-ifeq ($(FAIL_POINT),1)
 ENABLE_FEATURES += failpoints
-endif
+
 
 ifeq ($(BCC_IOSNOOP),1)
 ENABLE_FEATURES += bcc-iosnoop
