@@ -13,6 +13,7 @@ use kvproto::raft_serverpb::RaftLocalState;
 use protobuf::Message;
 use raft::eraftpb::Entry;
 use tikv_util::{box_err, box_try};
+use std::ops::Deref;
 
 const RAFT_LOG_MULTI_GET_CNT: u64 = 8;
 
@@ -33,8 +34,13 @@ impl RaftEngineReadOnly for RocksEngine {
         match self.get_value(&key) {
             Ok(result) => {
                 if let Some(logoffset) = result {
-                    let data = std::str::from_utf8(&logoffset).ok()?;
-                    let value: u64 = data.parse().ok()?;
+		    let value = unsafe {
+		        let vptr = logoffset.as_ptr() as *const u64;
+		        *vptr
+		    };
+//		    let value = u64::from_le_bytes(varr);
+//                    let data = std::str::from_utf8(&logoffset).ok()?;
+//                    let value: u64 = data.parse().ok()?;
                     println!("got value {}", value);
                     Some(value)
                 } else {
