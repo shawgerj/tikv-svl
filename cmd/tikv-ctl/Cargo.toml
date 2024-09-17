@@ -86,9 +86,10 @@ toml = "0.5"
 txn_types = { path = "../../components/txn_types", default-features = false }
 
 [dependencies.rocksdb]
-git = "https://github.com/shawgerj/rust-rocksdb-1.git"
+path = "/data/rust-rocksdb-1"
+#git = "https://github.com/shawgerj/rust-rocksdb-1.git"
 package = "rocksdb"
-branch = "wotr"
+#branch = "wotr"
 features = ["encryption", "static_libcpp"]
 
 

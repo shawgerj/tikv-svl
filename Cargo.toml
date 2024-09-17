@@ -165,9 +165,10 @@ resource_metering = { path = "components/resource_metering" }
 seahash = "4.1.0"
 
 [dependencies.rocksdb]
-git = "https://github.com/shawgerj/rust-rocksdb-1.git"
+path = "/data/rust-rocksdb-1"
+#git = "https://github.com/shawgerj/rust-rocksdb-1.git"
 package = "rocksdb"
-branch = "wotr"
+#branch = "wotr"
 features = ["encryption", "static_libcpp"]
 
 

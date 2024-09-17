@@ -166,6 +166,7 @@ impl RaftEngine for RocksEngine {
         let bytes = batch.data_size();
         let mut opts = WriteOptions::default();
         opts.set_sync(sync_log);
+        opts.set_disable_wal(true);
         batch.write_opt(&opts)?;
         batch.clear();
         Ok(bytes)
@@ -238,7 +239,10 @@ impl RaftEngine for RocksEngine {
         }
         // TODO: disable WAL here.
         if !WriteBatch::is_empty(&raft_wb) {
-            raft_wb.write()?;
+            let mut opts = WriteOptions::default();
+            opts.set_disable_wal(true);
+            opts.set_sync(false);
+            raft_wb.write_opt(&opts)?;
         }
         Ok(total)
     }
