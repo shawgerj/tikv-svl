@@ -104,6 +104,7 @@ pub struct IterOptions {
     // never fail a request as incomplete, even on skipping too many keys.
     // It's used to avoid encountering too many tombstones when seeking.
     max_skippable_internal_keys: u64,
+    use_wotr: bool,
 }
 
 impl IterOptions {
@@ -111,6 +112,7 @@ impl IterOptions {
         lower_bound: Option<KeyBuilder>,
         upper_bound: Option<KeyBuilder>,
         fill_cache: bool,
+	use_wotr: bool,
     ) -> IterOptions {
         IterOptions {
             lower_bound,
@@ -122,6 +124,7 @@ impl IterOptions {
             key_only: false,
             seek_mode: SeekMode::TotalOrder,
             max_skippable_internal_keys: 0,
+	    use_wotr,
         }
     }
 
@@ -148,6 +151,16 @@ impl IterOptions {
     #[inline]
     pub fn set_fill_cache(&mut self, v: bool) {
         self.fill_cache = v;
+    }
+
+    #[inline]
+    pub fn use_wotr(&self) -> bool {
+        self.use_wotr
+    }
+
+    #[inline]
+    pub fn set_use_wotr(&mut self, v: bool) {
+        self.use_wotr = v;
     }
 
     #[inline]
@@ -270,6 +283,7 @@ impl Default for IterOptions {
             key_only: false,
             seek_mode: SeekMode::TotalOrder,
             max_skippable_internal_keys: 0,
+	    use_wotr: false,
         }
     }
 }

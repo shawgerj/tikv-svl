@@ -152,7 +152,7 @@ impl<Iter: EngineIterator, Ob: MvccInfoObserver> MvccInfoScanner<Iter, Ob> {
             Ok(Some(KeyBuilder::from_vec(key.to_vec(), 0, 0)))
         };
 
-        let iter_opts = IterOptions::new(key_builder(from)?, key_builder(to)?, false);
+        let iter_opts = IterOptions::new(key_builder(from)?, key_builder(to)?, false, false);
         let gen_iter = |cf: &str| -> Result<Iter> {
             let mut iter = f(cf, iter_opts.clone())?;
             box_try!(iter.seek(SeekKey::Key(from)));

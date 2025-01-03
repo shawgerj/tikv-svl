@@ -434,11 +434,12 @@ pub struct CursorBuilder<'a, S: Snapshot> {
     hint_max_ts: Option<TimeStamp>,
     key_only: bool,
     max_skippable_internal_keys: u64,
+    use_wotr: bool,
 }
 
 impl<'a, S: 'a + Snapshot> CursorBuilder<'a, S> {
     /// Initialize a new `CursorBuilder`.
-    pub fn new(snapshot: &'a S, cf: CfName) -> Self {
+    pub fn new(snapshot: &'a S, cf: CfName, use_wotr: bool) -> Self {
         CursorBuilder {
             snapshot,
             cf,
@@ -452,6 +453,7 @@ impl<'a, S: 'a + Snapshot> CursorBuilder<'a, S> {
             hint_max_ts: None,
             key_only: false,
             max_skippable_internal_keys: 0,
+	    use_wotr,
         }
     }
 
@@ -537,7 +539,7 @@ impl<'a, S: 'a + Snapshot> CursorBuilder<'a, S> {
         } else {
             None
         };
-        let mut iter_opt = IterOptions::new(l_bound, u_bound, self.fill_cache);
+        let mut iter_opt = IterOptions::new(l_bound, u_bound, self.fill_cache, self.use_wotr);
         if let Some(ts) = self.hint_min_ts {
             iter_opt.set_hint_min_ts(Bound::Included(ts.into_inner()));
         }

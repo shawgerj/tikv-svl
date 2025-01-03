@@ -119,13 +119,13 @@ where
 
     // scan scans database using an iterator in range [start_key, end_key), calls function f for
     // each iteration, if f returns false, terminates this scan.
-    pub fn scan<F>(&self, start_key: &[u8], end_key: &[u8], fill_cache: bool, f: F) -> Result<()>
+    pub fn scan<F>(&self, start_key: &[u8], end_key: &[u8], fill_cache: bool, use_wotr: bool, f: F) -> Result<()>
     where
         F: FnMut(&[u8], &[u8]) -> Result<bool>,
     {
         let start = KeyBuilder::from_slice(start_key, DATA_PREFIX_KEY.len(), 0);
         let end = KeyBuilder::from_slice(end_key, DATA_PREFIX_KEY.len(), 0);
-        let iter_opt = IterOptions::new(Some(start), Some(end), fill_cache);
+        let iter_opt = IterOptions::new(Some(start), Some(end), fill_cache, use_wotr);
         self.scan_impl(self.iter(iter_opt), start_key, f)
     }
 
@@ -136,6 +136,7 @@ where
         start_key: &[u8],
         end_key: &[u8],
         fill_cache: bool,
+	use_wotr: bool,
         f: F,
     ) -> Result<()>
     where
@@ -143,7 +144,7 @@ where
     {
         let start = KeyBuilder::from_slice(start_key, DATA_PREFIX_KEY.len(), 0);
         let end = KeyBuilder::from_slice(end_key, DATA_PREFIX_KEY.len(), 0);
-        let iter_opt = IterOptions::new(Some(start), Some(end), fill_cache);
+        let iter_opt = IterOptions::new(Some(start), Some(end), fill_cache, use_wotr);
         self.scan_impl(self.iter_cf(cf, iter_opt)?, start_key, f)
     }
 

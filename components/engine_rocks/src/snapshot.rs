@@ -55,6 +55,7 @@ impl Iterable for RocksSnapshot {
     type Iterator = RocksEngineIterator;
 
     fn iterator_opt(&self, opts: IterOptions) -> Result<Self::Iterator> {
+	let use_wotr = opts.use_wotr();
         let opt: RocksReadOptions = opts.into();
         let mut opt = opt.into_raw();
         unsafe {
@@ -63,10 +64,12 @@ impl Iterable for RocksSnapshot {
         Ok(RocksEngineIterator::from_raw(DBIterator::new(
             self.db.clone(),
             opt,
+	    use_wotr,
         )))
     }
 
     fn iterator_cf_opt(&self, cf: &str, opts: IterOptions) -> Result<Self::Iterator> {
+	let use_wotr = opts.use_wotr();
         let opt: RocksReadOptions = opts.into();
         let mut opt = opt.into_raw();
         unsafe {
@@ -77,6 +80,7 @@ impl Iterable for RocksSnapshot {
             self.db.clone(),
             handle,
             opt,
+	    use_wotr,
         )))
     }
 }

@@ -72,7 +72,7 @@ where
     };
 
     let mut stats = BuildStatistics::default();
-    box_try!(snap.scan_cf(cf, start_key, end_key, false, |key, value| {
+    box_try!(snap.scan_cf(cf, start_key, end_key, false, false, |key, value| {
         stats.key_count += 1;
         stats.total_size += key.len() + value.len();
         box_try!(BytesEncoder::encode_compact_bytes(&mut writer, key));
@@ -114,7 +114,8 @@ where
     let mut sst_writer = create_sst_file_writer::<E>(engine, cf, path)?;
     let mut stats = BuildStatistics::default();
     let mut remained_quota = 0;
-    box_try!(snap.scan_cf(cf, start_key, end_key, false, |key, value| {
+    // shawgerj surely this is broken but I don't think we are evaluating this
+    box_try!(snap.scan_cf(cf, start_key, end_key, false, false, |key, value| {
         let entry_len = key.len() + value.len();
         while entry_len > remained_quota {
             // It's possible to acquire more than necessary, but let it be.

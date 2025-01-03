@@ -108,7 +108,7 @@ impl<S: Snapshot> PointGetterBuilder<S> {
 
     /// Build `PointGetter` from the current configuration.
     pub fn build(self) -> Result<PointGetter<S>> {
-        let write_cursor = CursorBuilder::new(&self.snapshot, CF_WRITE)
+        let write_cursor = CursorBuilder::new(&self.snapshot, CF_WRITE, false)
             .fill_cache(self.fill_cache)
             .prefix_seek(true)
             .scan_mode(if self.multi {

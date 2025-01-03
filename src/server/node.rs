@@ -307,6 +307,7 @@ where
                         &keys::data_key(start),
                         &keys::data_key(end),
                         false,
+			false,
                         |key, _| {
                             unexpected_data_key = Some(key[DATA_KEY_PREFIX_LEN..].to_vec());
                             Ok(false)

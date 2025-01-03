@@ -34,7 +34,8 @@ impl RocksEngine {
             .fold(ranges[0].end_key, |x, y| std::cmp::max(x, y.end_key));
         let start = KeyBuilder::from_slice(ranges[0].start_key, 0, 0);
         let end = KeyBuilder::from_slice(max_end_key, 0, 0);
-        let mut opts = IterOptions::new(Some(start), Some(end), false);
+	// don't use wotr, because we only use keys in this iterator
+        let mut opts = IterOptions::new(Some(start), Some(end), false, false);
         if self.is_titan() {
             // Cause DeleteFilesInRange may expose old blob index keys, setting key only for Titan
             // to avoid referring to missing blob files.
@@ -101,7 +102,8 @@ impl RocksEngine {
     fn delete_all_in_range_cf_by_key(&self, cf: &str, range: &Range<'_>) -> Result<()> {
         let start = KeyBuilder::from_slice(range.start_key, 0, 0);
         let end = KeyBuilder::from_slice(range.end_key, 0, 0);
-        let mut opts = IterOptions::new(Some(start), Some(end), false);
+	// since this function is only deleting keys, let's not use wotr at all just in case
+        let mut opts = IterOptions::new(Some(start), Some(end), false, false);
         if self.is_titan() {
             // Cause DeleteFilesInRange may expose old blob index keys, setting key only for Titan
             // to avoid referring to missing blob files.

@@ -64,7 +64,6 @@ impl RaftEngineReadOnly for RocksEngine {
         if high - low <= RAFT_LOG_MULTI_GET_CNT {
             // If election happens in inactive regions, they will just try to fetch one empty log.
             for i in low..high {
-                println!("in the loop");
                 if total_size > 0 && total_size >= max_size {
                     println!("case0");
                     break;
@@ -101,6 +100,7 @@ impl RaftEngineReadOnly for RocksEngine {
             &start_key,
             &end_key,
             true, // fill_cache
+	    false, // use_wotr disabled for raft keys
             |key, _value| {
                 let realvalue = self.get_valuelog(key).unwrap().unwrap();
                 let mut entry = Entry::default();
@@ -141,6 +141,7 @@ impl RaftEngineReadOnly for RocksEngine {
             &start_key,
             &end_key,
             false, // fill_cache
+	    false, // use_wotr (shawgerj: we could do a better job here if the wotr iterator could either use GetExternal or GetP. But right now we do the extra reads with GetExternal in tikv 
             |key, _value| {
                 let realvalue = self.get_valuelog(key).unwrap().unwrap();
                 let mut entry = Entry::default();

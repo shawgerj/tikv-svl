@@ -143,14 +143,14 @@ pub trait Iterable {
 
     /// scan the key between start_key(inclusive) and end_key(exclusive),
     /// the upper bound is omitted if end_key is empty
-    fn scan<F>(&self, start_key: &[u8], end_key: &[u8], fill_cache: bool, f: F) -> Result<()>
+    fn scan<F>(&self, start_key: &[u8], end_key: &[u8], fill_cache: bool, use_wotr: bool, f: F) -> Result<()>
     where
         F: FnMut(&[u8], &[u8]) -> Result<bool>,
     {
         let start = KeyBuilder::from_slice(start_key, DATA_KEY_PREFIX_LEN, 0);
         let end =
             (!end_key.is_empty()).then(|| KeyBuilder::from_slice(end_key, DATA_KEY_PREFIX_LEN, 0));
-        let iter_opt = IterOptions::new(Some(start), end, fill_cache);
+        let iter_opt = IterOptions::new(Some(start), end, fill_cache, use_wotr);
         scan_impl(self.iterator_opt(iter_opt)?, start_key, f)
     }
 
@@ -161,6 +161,7 @@ pub trait Iterable {
         start_key: &[u8],
         end_key: &[u8],
         fill_cache: bool,
+	use_wotr: bool,
         f: F,
     ) -> Result<()>
     where
@@ -169,7 +170,7 @@ pub trait Iterable {
         let start = KeyBuilder::from_slice(start_key, DATA_KEY_PREFIX_LEN, 0);
         let end =
             (!end_key.is_empty()).then(|| KeyBuilder::from_slice(end_key, DATA_KEY_PREFIX_LEN, 0));
-        let iter_opt = IterOptions::new(Some(start), end, fill_cache);
+        let iter_opt = IterOptions::new(Some(start), end, fill_cache, use_wotr);
         scan_impl(self.iterator_cf_opt(cf, iter_opt)?, start_key, f)
     }
 

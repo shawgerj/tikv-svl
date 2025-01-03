@@ -307,7 +307,7 @@ impl ImportDir {
 
                     for &(start, end) in TIDB_RANGES_COMPLEMENT {
                         let mut unexpected_data_key = None;
-                        sst_reader.scan(start, end, false, |key, _| {
+                        sst_reader.scan(start, end, false, false, |key, _| {
                             unexpected_data_key = Some(key.to_vec());
                             Ok(false)
                         })?;

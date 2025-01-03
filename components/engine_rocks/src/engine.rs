@@ -129,20 +129,24 @@ impl Iterable for RocksEngine {
     type Iterator = RocksEngineIterator;
 
     fn iterator_opt(&self, opts: IterOptions) -> Result<Self::Iterator> {
+	let use_wotr = opts.use_wotr();
         let opt: RocksReadOptions = opts.into();
         Ok(RocksEngineIterator::from_raw(DBIterator::new(
             self.db.clone(),
             opt.into_raw(),
+	    use_wotr,
         )))
     }
 
     fn iterator_cf_opt(&self, cf: &str, opts: IterOptions) -> Result<Self::Iterator> {
+	let use_wotr = opts.use_wotr();
         let handle = get_cf_handle(&self.db, cf)?;
         let opt: RocksReadOptions = opts.into();
         Ok(RocksEngineIterator::from_raw(DBIterator::new_cf(
             self.db.clone(),
             handle,
             opt.into_raw(),
+	    use_wotr,
         )))
     }
 }

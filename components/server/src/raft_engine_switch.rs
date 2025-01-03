@@ -62,7 +62,7 @@ fn clear_raft_db(engine: &RocksEngine) -> Result<(), EngineError> {
     engine.sync()?;
 
     let mut count = 0;
-    engine.scan(&start_key, &end_key, false, |_, _| {
+    engine.scan(&start_key, &end_key, false, false, |_, _| {
         count += 1;
         Ok(true)
     })?;
@@ -168,6 +168,7 @@ fn run_dump_raftdb_worker(
                 &keys::raft_log_prefix(id),
                 &keys::raft_log_prefix(id + 1),
                 false,
+		false,
                 |key, value| {
                     let res = keys::decode_raft_key(key);
                     match res {

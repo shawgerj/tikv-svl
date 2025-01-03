@@ -38,7 +38,7 @@ impl<S: Snapshot> DuplicateDetector<S> {
             let key = Key::from_raw(&k);
             KeyBuilder::from_vec(key.into_encoded(), DATA_KEY_PREFIX_LEN, 0)
         });
-        let mut iter_opt = IterOptions::new(Some(l_bound), u_bound, false);
+        let mut iter_opt = IterOptions::new(Some(l_bound), u_bound, false, false);
         iter_opt.set_key_only(key_only);
         let mut iter = snapshot
             .iter_cf(CF_WRITE, iter_opt)

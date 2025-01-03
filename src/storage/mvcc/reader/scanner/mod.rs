@@ -309,7 +309,7 @@ impl<S: Snapshot> ScannerConfig<S> {
         } else {
             (None, None)
         };
-        let cursor = CursorBuilder::new(&self.snapshot, cf)
+        let cursor = CursorBuilder::new(&self.snapshot, cf, false)
             .range(lower, upper)
             .fill_cache(self.fill_cache)
             .scan_mode(scan_mode)
@@ -388,7 +388,7 @@ pub fn has_data_in_range<S: Snapshot>(
     right: &Key,
     statistic: &mut CfStatistics,
 ) -> Result<bool> {
-    let mut cursor = CursorBuilder::new(&snapshot, cf)
+    let mut cursor = CursorBuilder::new(&snapshot, cf, false)
         .range(None, Some(right.clone()))
         .scan_mode(ScanMode::Forward)
         .fill_cache(true)

@@ -134,7 +134,7 @@ pub fn get_old_value<S: EngineSnapshot>(
 pub fn new_old_value_cursor<S: EngineSnapshot>(snapshot: &S, cf: &'static str) -> Cursor<S::Iter> {
     let lower = snapshot.lower_bound().map(Key::from_encoded_slice);
     let upper = snapshot.upper_bound().map(Key::from_encoded_slice);
-    CursorBuilder::new(snapshot, cf)
+    CursorBuilder::new(snapshot, cf, false)
         .fill_cache(false)
         .scan_mode(ScanMode::Mixed)
         .range(lower, upper)
@@ -226,7 +226,7 @@ fn new_write_cursor_on_key<S: EngineSnapshot>(snapshot: &S, key: &Key) -> Cursor
         Some(user_key.append_ts(TimeStamp::zero()))
     };
 
-    CursorBuilder::new(snapshot, CF_WRITE)
+    CursorBuilder::new(snapshot, CF_WRITE, false)
         .fill_cache(false)
         .scan_mode(ScanMode::Mixed)
         // Set the range explicitly to avoid region boundaries are used incorrectly.

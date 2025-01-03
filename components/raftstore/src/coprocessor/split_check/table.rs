@@ -184,6 +184,7 @@ fn last_key_of_region(db: &impl KvEngine, region: &Region) -> Result<Option<Vec<
         Some(KeyBuilder::from_vec(start_key, 0, 0)),
         Some(KeyBuilder::from_vec(end_key, 0, 0)),
         false,
+	false,
     );
     let mut iter = box_try!(db.iterator_cf_opt(CF_WRITE, iter_opt));
 

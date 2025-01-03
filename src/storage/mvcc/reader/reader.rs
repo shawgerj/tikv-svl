@@ -348,7 +348,7 @@ impl<S: EngineSnapshot> MvccReader<S> {
 
     fn create_data_cursor(&mut self) -> Result<()> {
         if self.data_cursor.is_none() {
-            let cursor = CursorBuilder::new(&self.snapshot, CF_DEFAULT)
+            let cursor = CursorBuilder::new(&self.snapshot, CF_DEFAULT, false)
                 .fill_cache(self.fill_cache)
                 .scan_mode(self.get_scan_mode(true))
                 .build()?;
@@ -359,7 +359,7 @@ impl<S: EngineSnapshot> MvccReader<S> {
 
     fn create_write_cursor(&mut self) -> Result<()> {
         if self.write_cursor.is_none() {
-            let cursor = CursorBuilder::new(&self.snapshot, CF_WRITE)
+            let cursor = CursorBuilder::new(&self.snapshot, CF_WRITE, false)
                 .fill_cache(self.fill_cache)
                 // Only use prefix seek in non-scan mode.
                 .prefix_seek(self.scan_mode.is_none())
@@ -372,7 +372,7 @@ impl<S: EngineSnapshot> MvccReader<S> {
 
     fn create_lock_cursor(&mut self) -> Result<()> {
         if self.lock_cursor.is_none() {
-            let cursor = CursorBuilder::new(&self.snapshot, CF_LOCK)
+            let cursor = CursorBuilder::new(&self.snapshot, CF_LOCK, false)
                 .fill_cache(self.fill_cache)
                 .scan_mode(self.get_scan_mode(true))
                 .build()?;
@@ -453,7 +453,7 @@ impl<S: EngineSnapshot> MvccReader<S> {
         mut start: Option<Key>,
         limit: usize,
     ) -> Result<(Vec<Key>, Option<Key>)> {
-        let mut cursor = CursorBuilder::new(&self.snapshot, CF_WRITE)
+        let mut cursor = CursorBuilder::new(&self.snapshot, CF_WRITE, false)
             .fill_cache(self.fill_cache)
             .scan_mode(self.get_scan_mode(false))
             .build()?;

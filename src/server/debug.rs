@@ -142,7 +142,7 @@ impl<ER: RaftEngine> Debugger<ER> {
         let start_key = keys::REGION_META_MIN_KEY;
         let end_key = keys::REGION_META_MAX_KEY;
         let mut regions = Vec::with_capacity(128);
-        box_try!(db.scan_cf(cf, start_key, end_key, false, |key, _| {
+        box_try!(db.scan_cf(cf, start_key, end_key, false, false, |key, _| {
             let (id, suffix) = box_try!(keys::decode_region_meta_key(key));
             if suffix != keys::REGION_STATE_SUFFIX {
                 return Ok(true);
@@ -233,6 +233,7 @@ impl<ER: RaftEngine> Debugger<ER> {
                         start_key,
                         end_key,
                         false,
+			false,
                         |k, v| {
                             size += k.len() + v.len();
                             Ok(true)
@@ -284,7 +285,7 @@ impl<ER: RaftEngine> Debugger<ER> {
             None
         };
         let iter_opt =
-            IterOptions::new(Some(KeyBuilder::from_vec(start.to_vec(), 0, 0)), end, false);
+            IterOptions::new(Some(KeyBuilder::from_vec(start.to_vec(), 0, 0)), end, false, false);
         let mut iter = box_try!(db.iterator_cf_opt(cf, iter_opt));
         if !iter.seek_to_first().unwrap() {
             return Ok(vec![]);
@@ -482,6 +483,7 @@ impl<ER: RaftEngine> Debugger<ER> {
             Some(KeyBuilder::from_vec(from.clone(), 0, 0)),
             Some(KeyBuilder::from_vec(to, 0, 0)),
             false,
+	    true,
         );
         let mut iter = box_try!(self.engines.kv.iterator_cf_opt(CF_RAFT, readopts));
         iter.seek(SeekKey::from(from.as_ref())).unwrap();
@@ -649,6 +651,7 @@ impl<ER: RaftEngine> Debugger<ER> {
                     keys::REGION_META_MIN_KEY,
                     keys::REGION_META_MAX_KEY,
                     false,
+		    true,
                     |key, value| remove_stores(key, value, &mut wb).map(|_| true)
                 ));
             }
@@ -749,6 +752,7 @@ impl<ER: RaftEngine> Debugger<ER> {
             keys::REGION_META_MIN_KEY,
             keys::REGION_META_MAX_KEY,
             false,
+	    true,
             |key, value| {
                 let (_, suffix_type) = box_try!(keys::decode_region_meta_key(key));
                 if suffix_type != keys::REGION_STATE_SUFFIX {
@@ -1042,6 +1046,7 @@ impl MvccChecker {
                 Some(KeyBuilder::from_vec(from, 0, 0)),
                 Some(KeyBuilder::from_vec(to, 0, 0)),
                 false,
+		false,
             );
             let mut iter = box_try!(db.c().iterator_cf_opt(cf, readopts));
             iter.seek(SeekKey::Start).unwrap();
