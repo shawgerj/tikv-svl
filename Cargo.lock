@@ -2450,7 +2450,7 @@ dependencies = [
 [[package]]
 name = "librocksdb_sys"
 version = "0.1.0"
-source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#631de632112bf03bae3c4e18a81915977ee49d2d"
+source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#c5f4a6ab7133133658d700528fde4de0498f19fa"
 dependencies = [
  "bindgen 0.62.0",
  "bzip2-sys",
@@ -2461,6 +2461,7 @@ dependencies = [
  "lz4-sys",
  "openssl-sys",
  "snappy-sys",
+ "tbb-sys",
  "tikv-jemalloc-sys",
  "zstd-sys",
 ]
@@ -4174,7 +4175,7 @@ dependencies = [
 [[package]]
 name = "rocksdb"
 version = "0.3.0"
-source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#631de632112bf03bae3c4e18a81915977ee49d2d"
+source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#c5f4a6ab7133133658d700528fde4de0498f19fa"
 dependencies = [
  "hex 0.4.3",
  "libc 0.2.106",
@@ -5058,6 +5059,16 @@ dependencies = [
  "serde_json",
  "twox-hash",
  "url",
+]
+
+[[package]]
+name = "tbb-sys"
+version = "1.1.0+2021.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be3fe1690d40f14fcc2bf483f3615e89b9c39d342aeb4a1bd94058aef0a2d8ee"
+dependencies = [
+ "cc",
+ "glob",
 ]
 
 [[package]]

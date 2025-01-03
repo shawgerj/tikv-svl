@@ -1,0 +1,5 @@
+Build dependencies (mostly for cloudlab setup sanity)
+- libtbb-dev
+- libclang-dev 
+- llvm
+- cmake
