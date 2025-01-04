@@ -73,6 +73,7 @@ impl<'a, S: Snapshot> RawStore<S> {
         key_only: bool,
     ) -> Result<Vec<Result<KvPair>>> {
         let mut option = IterOptions::default();
+	options.set_use_wotr(true);
         if let Some(end) = end_key {
             option.set_upper_bound(end.as_encoded(), DATA_KEY_PREFIX_LEN);
         }
@@ -108,6 +109,7 @@ impl<'a, S: Snapshot> RawStore<S> {
         key_only: bool,
     ) -> Result<Vec<Result<KvPair>>> {
         let mut option = IterOptions::default();
+	options.set_use_wotr(true);
         if let Some(end) = end_key {
             option.set_lower_bound(end.as_encoded(), DATA_KEY_PREFIX_LEN);
         }
