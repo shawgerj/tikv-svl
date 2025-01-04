@@ -16,6 +16,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::vec::Drain;
 use std::{cmp, usize};
+use std::convert::TryInto;
 
 use batch_system::{
     BasicMailbox, BatchRouter, BatchSystem, Fsm, HandleResult, HandlerBuilder, PollHandler,
@@ -1593,8 +1594,8 @@ where
         // varint size for entry bytes field
         // the offset of the value field in Put<key, value>
 
-        let value_offset = req.get_put().get_value_offset() + 19 + 24 + sizebytes as u64 + lockey.len() as u64;
-        let value_length = value.len();
+        let value_offset: u64 = req.get_put().get_value_offset() + 19 + 24 + sizebytes as u64 + lockey.len() as u64;
+        let value_length: u64 = value.len().try_into().unwrap();
         
         // region key range has no data prefix, so we must use origin key to check.
         util::check_key_in_region(key, &self.region)?;
@@ -1604,13 +1605,11 @@ where
         
         let locs = ctx.data_locations.lock().unwrap();
         if let Some(offset) = locs.get(&lockey.to_vec()) {
-            let offset = offset + value_offset as usize;
-            let offset_bytes: [u8; 8] = offset.to_be_bytes();
-            let length_bytes: [u8; 8] = value_length.to_be_bytes();
-            let mut value = [0; 16];
-            value[..8].copy_from_slice(&offset_bytes);
-            value[8..].copy_from_slice(&length_bytes);
-
+            let logoffset: u64 = *offset as u64 + value_offset;
+	    let value: [u8; 16] = unsafe {
+		mem::transmute([logoffset, value_length])
+	    };
+	    
             self.metrics.size_diff_hint += key.len() as i64;
             self.metrics.size_diff_hint += value.len() as i64;
             if !req.get_put().get_cf().is_empty() {
