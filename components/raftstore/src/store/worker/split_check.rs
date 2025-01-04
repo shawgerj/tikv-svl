@@ -91,7 +91,7 @@ where
                 Some(KeyBuilder::from_slice(start_key, 0, 0)),
                 Some(KeyBuilder::from_slice(end_key, 0, 0)),
                 fill_cache,
-		true,
+		false,
             );
             let mut iter = db.iterator_cf_opt(cf, iter_opt)?;
             let found: Result<bool> = iter.seek(start_key.into()).map_err(|e| box_err!(e));

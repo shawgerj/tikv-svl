@@ -1062,7 +1062,7 @@ where
                     keys::REGION_META_MIN_KEY,
                     keys::REGION_META_MAX_KEY,
                     false,
-		    true,
+		    false,
                     |key, value| {
                         let (_, suffix) = box_try!(keys::decode_region_meta_key(key));
                         if suffix != keys::REGION_STATE_SUFFIX {

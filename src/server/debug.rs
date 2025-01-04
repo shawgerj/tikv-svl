@@ -483,7 +483,7 @@ impl<ER: RaftEngine> Debugger<ER> {
             Some(KeyBuilder::from_vec(from.clone(), 0, 0)),
             Some(KeyBuilder::from_vec(to, 0, 0)),
             false,
-	    true,
+	    false,
         );
         let mut iter = box_try!(self.engines.kv.iterator_cf_opt(CF_RAFT, readopts));
         iter.seek(SeekKey::from(from.as_ref())).unwrap();
@@ -651,7 +651,7 @@ impl<ER: RaftEngine> Debugger<ER> {
                     keys::REGION_META_MIN_KEY,
                     keys::REGION_META_MAX_KEY,
                     false,
-		    true,
+		    false,
                     |key, value| remove_stores(key, value, &mut wb).map(|_| true)
                 ));
             }
@@ -752,7 +752,7 @@ impl<ER: RaftEngine> Debugger<ER> {
             keys::REGION_META_MIN_KEY,
             keys::REGION_META_MAX_KEY,
             false,
-	    true,
+	    false,
             |key, value| {
                 let (_, suffix_type) = box_try!(keys::decode_region_meta_key(key));
                 if suffix_type != keys::REGION_STATE_SUFFIX {

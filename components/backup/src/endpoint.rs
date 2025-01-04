@@ -444,7 +444,7 @@ impl BackupRange {
         let start = Instant::now();
         let mut statistics = Statistics::default();
         let cfstatistics = statistics.mut_cf_statistics(self.cf);
-        let mut cursor = CursorBuilder::new(&snapshot, self.cf, true)
+        let mut cursor = CursorBuilder::new(&snapshot, self.cf, false)
             .range(None, self.end_key.clone())
             .scan_mode(ScanMode::Forward)
             .build()?;
