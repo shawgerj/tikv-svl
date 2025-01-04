@@ -2450,7 +2450,7 @@ dependencies = [
 [[package]]
 name = "librocksdb_sys"
 version = "0.1.0"
-source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#c5f4a6ab7133133658d700528fde4de0498f19fa"
+source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#4bc10ae2157946433e6fbddf22c8ca3a0c3538a6"
 dependencies = [
  "bindgen 0.62.0",
  "bzip2-sys",
@@ -4175,7 +4175,7 @@ dependencies = [
 [[package]]
 name = "rocksdb"
 version = "0.3.0"
-source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#c5f4a6ab7133133658d700528fde4de0498f19fa"
+source = "git+https://github.com/shawgerj/rust-rocksdb-1.git?branch=wotr#4bc10ae2157946433e6fbddf22c8ca3a0c3538a6"
 dependencies = [
  "hex 0.4.3",
  "libc 0.2.106",

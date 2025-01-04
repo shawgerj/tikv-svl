@@ -191,7 +191,7 @@ impl<'a, S: Snapshot> RawStoreInner<S> {
         if limit == 0 {
             return Ok(vec![]);
         }
-        let mut cursor = Cursor::new(self.snapshot.iter_cf(cf, option)?, ScanMode::Forward, true);
+        let mut cursor = Cursor::new(self.snapshot.iter_cf(cf, option)?, ScanMode::Forward, false);
         let statistics = statistics.mut_cf_statistics(cf);
         if !cursor.seek(start_key, statistics)? {
             return Ok(vec![]);
@@ -245,7 +245,7 @@ impl<'a, S: Snapshot> RawStoreInner<S> {
         let mut cursor = Cursor::new(
             self.snapshot.iter_cf(cf, option)?,
             ScanMode::Backward,
-            true,
+            false,
         );
         let statistics = statistics.mut_cf_statistics(cf);
         if !cursor.reverse_seek(start_key, statistics)? {
