@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use engine_traits::{
-    Error, IterOptions, Iterable, KvEngine, Peekable, ReadOptions, Result, SyncMutable,
+    Error, IterOptions, Iterable, KvEngine, Peekable, ReadOptions, Result, SyncMutable, ALL_CFS,
 };
 use rocksdb::{DBIterator, Writable, DB};
 
@@ -85,9 +85,8 @@ impl KvEngine for RocksEngine {
     }
 
     fn sync(&self) -> Result<()> {
-//        self.db.sync_wal().map_err(Error::Engine)
-        self.db.flush(true).map_err(Error::Engine)
-
+	let handles: Vec<_> = ALL_CFS.iter().map(|name| get_cf_handle(&self.db, name).unwrap()).collect();
+        self.db.flush_cfs(&handles, true).map_err(Error::Engine)
     }
 
     fn flush_metrics(&self, instance: &str) {
