@@ -91,12 +91,12 @@ pub trait RaftEngine: RaftEngineReadOnly + Clone + Sync + Send + 'static {
 
     /// Like `cut_logs` but the range could be very large. Return the deleted count.
     /// Generally, `from` can be passed in `0`.
-    fn gc(&self, raft_group_id: u64, from: u64, to: u64) -> Result<usize>;
+    fn gc<E: KvEngine>(&self, raft_group_id: u64, from: u64, to: u64, kv_engine: &E) -> Result<usize>;
 
-    fn batch_gc(&self, tasks: Vec<RaftLogGCTask>) -> Result<usize> {
+    fn batch_gc<E: KvEngine>(&self, tasks: Vec<RaftLogGCTask>, kv_engine: &E) -> Result<usize> {
         let mut total = 0;
         for task in tasks {
-            total += self.gc(task.raft_group_id, task.from, task.to)?;
+            total += self.gc(task.raft_group_id, task.from, task.to, kv_engine)?;
         }
         Ok(total)
     }

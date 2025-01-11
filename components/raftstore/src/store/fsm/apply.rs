@@ -3412,7 +3412,7 @@ where
             let lockey = keys::raft_log_key(self.delegate.region_id(), entry.index);
             let mut locs = apply_ctx.data_locations.lock().unwrap();
             match locs.get(&lockey.to_vec()) {
-                Some(offset) => continue,
+                Some(_) => continue,
                 None => {
                     if let Some(logoffset) = self.delegate.raft_engine.get_entry_location(&lockey.to_vec()) {
                         locs.insert(lockey.to_vec(), logoffset as usize);

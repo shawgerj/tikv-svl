@@ -2,7 +2,7 @@
 
 use crate::engine::PanicEngine;
 use crate::write_batch::PanicWriteBatch;
-use engine_traits::{Error, RaftEngine, RaftEngineReadOnly, RaftLogBatch, Result, DBVector};
+use engine_traits::{Error, RaftEngine, RaftEngineReadOnly, RaftLogBatch, Result, DBVector, KvEngine};
 use kvproto::raft_serverpb::RaftLocalState;
 use raft::eraftpb::Entry;
 
@@ -99,7 +99,7 @@ impl RaftEngine for PanicEngine {
         panic!()
     }
 
-    fn gc(&self, raft_group_id: u64, mut from: u64, to: u64) -> Result<usize> {
+    fn gc<E: KvEngine>(&self, raft_group_id: u64, mut from: u64, to: u64, kv_engine: &E) -> Result<usize> {
         panic!()
     }
 

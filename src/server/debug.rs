@@ -717,7 +717,7 @@ impl<ER: RaftEngine> Debugger<ER> {
                 &new_raft_apply_state
             ));
             box_try!(raft.put_raft_state(region_id, &new_raft_local_state));
-            let deleted_logs = box_try!(raft.gc(region_id, applied_index + 1, last_index + 1));
+            let deleted_logs = box_try!(raft.gc(region_id, applied_index + 1, last_index + 1, kv));
             raft.sync().unwrap();
             kv.sync().unwrap();
 

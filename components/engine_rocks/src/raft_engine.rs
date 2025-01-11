@@ -6,14 +6,17 @@ use crate::{util, RocksEngine, RocksWriteBatch};
 use engine_traits::{
     Error, Iterable, KvEngine, MiscExt, Mutable, Peekable, RaftEngine, RaftEngineReadOnly,
     RaftLogBatch, RaftLogGCTask, Result, SyncMutable, WriteBatch, WriteBatchExt, WriteOptions,
-    CF_DEFAULT,
+    CF_DEFAULT, CF_RAFT,
 };
 use crate::db_vector::RocksDBVector;
 use kvproto::raft_serverpb::RaftLocalState;
+use kvproto::raft_cmdpb::{RaftCmdRequest, CmdType};
 use protobuf::Message;
 use raft::eraftpb::Entry;
 use tikv_util::{box_err, box_try};
+use std::convert::TryInto;
 use std::ops::Deref;
+use std::mem;
 
 const RAFT_LOG_MULTI_GET_CNT: u64 = 8;
 
@@ -153,44 +156,47 @@ impl RaftEngineReadOnly for RocksEngine {
         Ok(())
     }
 }
+
+fn gc_eligible(key: &[u8], end: u64) -> bool {
+    let (_region_id, index) = keys::decode_raft_log_key(key).unwrap();
+    index < end
+}
+
 impl RocksEngine {
-    fn gc_eligible(key: &[u8], end: u64) -> bool {
-	let (region_id, index) = keys::decode_raft_log_key(key);
-	index < end
-    }
-    
     // shawgerj: rather than seek and scan in Raft-LSM, we need to seek and scan the log. 
-    fn gc_impl(
+    fn gc_impl<E: KvEngine>(
         &self,
-        raft_group_id: u64,
-        mut from: u64,
+        _raft_group_id: u64,
+        mut _from: u64,
         to: u64, // equals persisted applied index due to prior sync
         raft_wb: &mut RocksWriteBatch,
+	kv: &E,
     ) -> Result<usize> {
-	let logtail = self.get_cf(CF_DEFAULT, "wotr_tail").unwrap();
-	let vtail = kv.get_cf(CF_DEFAULT, "vtail").unwrap();
-	let new_vtail = vtail;
-	let total = 0;
+	let logtail: usize = unsafe {
+	    mem::transmute(self.get_value_cf(CF_DEFAULT, "logtail".as_bytes()).unwrap().unwrap())
+	};
+	let mut new_logtail = logtail;
+	let mut total = 0;
 	
-	let iter = self.get_wotr().wotr_iter_init().unwrap();
-	let _ = iter.seek(logtail);
+	let iter = self.wotr().wotr_iter_init().unwrap();
+	let _ = iter.seek(logtail.try_into().unwrap());
 
-	let prefix = keys::raft_log_prefix(raft_group_id);
+	let mut kv_wb = kv.write_batch();
 
-	while (iter.valid().unwrap() > 0 && iter.position() < vtail) {
+	while iter.valid().unwrap() > 0 {
 	    // original gc_impl does this too
 	    // we just limit how much gc happens in one go
 	    if raft_wb.count() >= Self::WRITE_BATCH_MAX_KEYS * 2 {
 		break;
 	    }
 	    let key = unsafe {
-		slice::from_raw_parts(iter.key().unwrap(),
-				      iter.key_size().unwrap() as usize)
+		std::slice::from_raw_parts(iter.key().unwrap(),
+					   iter.key_size().unwrap() as usize)
 	    };
 
 	    let value = unsafe {
-		slice::from_raw_parts(iter.value().unwrap(),
-				      iter.value_size().unwrap() as usize)
+		std::slice::from_raw_parts(iter.value().unwrap(),
+					   iter.value_size().unwrap() as usize)
 	    };
 
 	    // not a raft entry: write the k-v again at log head
@@ -200,7 +206,7 @@ impl RocksEngine {
 	    }
 	    
 	    // if raft key can't be gc-ed we break out of here
-	    if (!gc_eligible(&key, &to)) {
+	    if gc_eligible(&key, to) {
 		break;
 	    }
 	    
@@ -208,83 +214,90 @@ impl RocksEngine {
 	    let mut entry = Entry::default();
 	    entry.merge_from_bytes(&value).unwrap();
 
-	    let index = entry.get_index();
-	    let term = entry.get_term();
+//	    let index = entry.get_index();
+//	    let term = entry.get_term();
 	    let data = entry.get_data();
-	    let datasize = entry.len();
+	    let mut datasize = data.len();
 	    let mut entry_varint_len = 0;
 	    
 	    // same calculation as apply.rs:1112
 	    while datasize != 0 {
 		datasize >>= 7;
-		entry_size_bytes += 1;
+		entry_varint_len += 1;
             }
 
 	    // (key, offset, length) for kv_wb
-	    let putkeys: Vec<(Vec<u8>, u64, u64)> = Vec::new();
+	    let mut putkeys: Vec<(Vec<u8>, u64, u64)> = Vec::new();
 	    if !data.is_empty() {
 		let mut cmd = RaftCmdRequest::default();
-		cmd.merge_from_bytes(entry.data()).unwrap_or_else(|e| {
+		cmd.merge_from_bytes(data).unwrap_or_else(|e| {
 		    panic!("log data unexpected at pos {}: {:?}",
-			   iter.position(), e);
+			   iter.position().unwrap(), e);
 		});
 		if !cmd.has_admin_request() {
-		    let requests = req.get_requests();
+		    let requests = cmd.get_requests();
 		    for req in requests {
 			let cmd_type = req.get_cmd_type();
 			match cmd_type {
 			    CmdType::Put => {
-				let key = req.get_put();
+				let k = req.get_put().get_key();
 				// calculate offset like apply.rs:1590
-				let offset = req.get_put().get_value_offset() + 19 + 24 + entry_varint_len + key.len() as u64;
+				let offset = req.get_put().get_value_offset() + 19 + 24 + entry_varint_len + k.len() as u64;
 				let length = req.get_put().get_value().len().try_into().unwrap();
 				
-				putkeys.push((key, offset, length));
+				putkeys.push((k.to_vec(), offset, length));
 
 			    },
 			    _ => continue,
-			}?;
+			};
 		    }
 		}
 	    }
 	    raft_wb.delete(&key)?;
 	    total += 1;
 
-	    if (if putkeys.len() > 0) {
+	    if putkeys.len() > 0 {
 		// must do a manual write to wotr rather than
 		// write_valuelog in raft-lsm because of concurrency
 		// issues. Basically, it is very hard to know we get
 		// the right offset back from rocksdb.
 		// Wotr::WotrWrite() does have a lock.
-		let offset = raft.wotr().write_entry(
-		    key, value, iter.get_cfid.unwrap());
+		let offset = self.wotr().write_entry(
+		    key, value, iter.get_cfid().unwrap()).unwrap();
+		if offset < 0 {
+		    panic!("failed to write entry to wotr key {:?}", key);
+		}
+		    
 
 		// using the vector we've made with keys and offsets
 		// add `offset` above, and make a writebatch for kv-lsm
 		for (key, partial_offset, length) in putkeys {
-		    let value; [u8; 16] = unsafe {
-			mem::transmute([partial_offset + offset, length])
+		    let v: [u8; 16] = unsafe {
+			mem::transmute([partial_offset + offset as u64, length])
 		    };
 		    
-		    kv_wb.put(key, value)?;
+		    kv_wb.put(&key, &v)?;
 		}
 	    }
 		
 	    let _ = iter.next();
-	    new_vtail = iter.position();
+	    new_logtail = iter.position().unwrap() as usize;
 	}
 
 	// valid log entries have already re-appended to log
 	// this deletes gc-ed raft keys from raft-lsm
-	// update logtail (needed for recovery)
+	// update logtail
+	let tail: [u8; 8] = unsafe {
+	    mem::transmute(new_logtail)
+	};
+	raft_wb.put_cf(CF_DEFAULT, "logtail".as_bytes(), &tail);
         raft_wb.write()?;
         raft_wb.clear();
-	// put new kv-keys in kv-lsm, update vtail
-	kv_wb.put_cf(CF_RAFT, new_vtail); // it will get persisted at the same time as applied index
+	// put new kv-keys in kv-lsm
 	kv_wb.write()?;
 
 	// truncate log and sync
-	self.wotr().deallocate(vtail, new_vtail - vtail);
+	self.wotr().deallocate(logtail, new_logtail - logtail);
 	self.wotr().sync();
 
 	Ok(total as usize)
@@ -423,11 +436,11 @@ impl RaftEngine for RocksEngine {
         Ok(())
     }
 
-    fn batch_gc(&self, groups: Vec<RaftLogGCTask>) -> Result<usize> {
+    fn batch_gc<E: KvEngine>(&self, groups: Vec<RaftLogGCTask>, kv_engine: &E) -> Result<usize> {
         let mut total = 0;
         let mut raft_wb = self.write_batch_with_cap(4 * 1024);
         for task in groups {
-            total += self.gc_impl(task.raft_group_id, task.from, task.to, &mut raft_wb)?;
+            total += self.gc_impl(task.raft_group_id, task.from, task.to, &mut raft_wb, kv_engine)?;
         }
         // TODO: disable WAL here.
         if !WriteBatch::is_empty(&raft_wb) {
@@ -439,9 +452,9 @@ impl RaftEngine for RocksEngine {
         Ok(total)
     }
 
-    fn gc(&self, raft_group_id: u64, from: u64, to: u64) -> Result<usize> {
+    fn gc<E: KvEngine>(&self, raft_group_id: u64, from: u64, to: u64, kv_engine: &E) -> Result<usize> {
         let mut raft_wb = self.write_batch_with_cap(1024);
-        let total = self.gc_impl(raft_group_id, from, to, &mut raft_wb)?;
+        let total = self.gc_impl(raft_group_id, from, to, &mut raft_wb, kv_engine)?;
         // TODO: disable WAL here.
         if !WriteBatch::is_empty(&raft_wb) {
             let mut opts = WriteOptions::default();

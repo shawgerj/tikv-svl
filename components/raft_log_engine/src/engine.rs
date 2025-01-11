@@ -8,8 +8,9 @@ use std::sync::Arc;
 use encryption::{DataKeyManager, DecrypterReader, EncrypterWriter};
 use engine_traits::{
     CacheStats, RaftEngine, RaftEngineReadOnly, RaftLogBatch as RaftLogBatchTrait, RaftLogGCTask,
-    Result, DBVector
+    Result, DBVector, KvEngine
 };
+use engine_rocks::{RocksEngine};
 use file_system::{IOOp, IORateLimiter, IOType};
 use kvproto::raft_serverpb::RaftLocalState;
 use raft::eraftpb::Entry;
@@ -336,15 +337,15 @@ impl RaftEngine for RaftLogEngine {
         Ok(())
     }
 
-    fn gc(&self, raft_group_id: u64, from: u64, to: u64) -> Result<usize> {
+    fn gc<E: KvEngine>(&self, raft_group_id: u64, from: u64, to: u64, kv_engine: &E) -> Result<usize> {
         self.batch_gc(vec![RaftLogGCTask {
             raft_group_id,
             from,
             to,
-        }])
+        }], kv_engine)
     }
 
-    fn batch_gc(&self, tasks: Vec<RaftLogGCTask>) -> Result<usize> {
+    fn batch_gc<E: KvEngine>(&self, tasks: Vec<RaftLogGCTask>, _kv_engine: &E) -> Result<usize> {
         let mut batch = self.log_batch(tasks.len());
         let mut old_first_index = Vec::with_capacity(tasks.len());
         for task in &tasks {

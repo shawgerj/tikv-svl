@@ -25,7 +25,7 @@ pub trait SyncMutable {
 
     fn put_msg_valuelog<M: protobuf::Message>(&self, key: &[u8], m: &M)
                                               -> Result<()> {
-        self.put_valuelog(key, &m.write_to_bytes()?);
+        let _ = self.put_valuelog(key, &m.write_to_bytes()?);
         Ok(())
     }
 
