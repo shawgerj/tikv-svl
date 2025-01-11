@@ -211,9 +211,17 @@ impl RocksEngine {
 	    let index = entry.get_index();
 	    let term = entry.get_term();
 	    let data = entry.get_data();
-	    // do I need datasize? see apply.rs:1104
+	    let datasize = entry.len();
+	    let mut entry_varint_len = 0;
+	    
+	    // same calculation as apply.rs:1112
+	    while datasize != 0 {
+		datasize >>= 7;
+		entry_size_bytes += 1;
+            }
 
-	    let putkeys = Vec::new();
+	    // (key, offset, length) for kv_wb
+	    let putkeys: Vec<(Vec<u8>, u64, u64)> = Vec::new();
 	    if !data.is_empty() {
 		let mut cmd = RaftCmdRequest::default();
 		cmd.merge_from_bytes(entry.data()).unwrap_or_else(|e| {
@@ -222,15 +230,16 @@ impl RocksEngine {
 		});
 		if !cmd.has_admin_request() {
 		    let requests = req.get_requests();
-		    // at least one Put -> we must re-append this entry
-		    // for all Puts -> update keys in kv-lsm
 		    for req in requests {
 			let cmd_type = req.get_cmd_type();
 			match cmd_type {
 			    CmdType::Put => {
-				// push key and (partial) offset to vec
-				// we don't have location in log yet
-				putkeys.push(...);
+				let key = req.get_put();
+				// calculate offset like apply.rs:1590
+				let offset = req.get_put().get_value_offset() + 19 + 24 + entry_varint_len + key.len() as u64;
+				let length = req.get_put().get_value().len().try_into().unwrap();
+				
+				putkeys.push((key, offset, length));
 
 			    },
 			    _ => continue,
@@ -248,15 +257,16 @@ impl RocksEngine {
 		// the right offset back from rocksdb.
 		// Wotr::WotrWrite() does have a lock.
 		let offset = raft.wotr().write_entry(
-		    iter.key().unwrap(), iter.key_size().unwrap(),
-		    iter.value().unwrap(), iter.value_size().unwrap(),
-		    iter.get_cfid().unwrap()
-		);
+		    key, value, iter.get_cfid.unwrap());
 
 		// using the vector we've made with keys and offsets
 		// add `offset` above, and make a writebatch for kv-lsm
-		for k in putkeys {
-		    kv_wb.put(...)?;		    
+		for (key, partial_offset, length) in putkeys {
+		    let value; [u8; 16] = unsafe {
+			mem::transmute([partial_offset + offset, length])
+		    };
+		    
+		    kv_wb.put(key, value)?;
 		}
 	    }
 		
@@ -269,10 +279,13 @@ impl RocksEngine {
 	// update logtail (needed for recovery)
         raft_wb.write()?;
         raft_wb.clear();
-	// put new kv-keys in kv-lsm
-	// update vtail
+	// put new kv-keys in kv-lsm, update vtail
 	kv_wb.put_cf(CF_RAFT, new_vtail); // it will get persisted at the same time as applied index
 	kv_wb.write()?;
+
+	// truncate log and sync
+	self.wotr().deallocate(vtail, new_vtail - vtail);
+	self.wotr().sync();
 
 	Ok(total as usize)
     }
