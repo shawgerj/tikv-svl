@@ -51,10 +51,15 @@ fail = "0.5"
 case_macros = { path = "../case_macros" }
 
 [dependencies.rocksdb]
-#path = "/data/rust-rocksdb-1"
-git = "https://github.com/shawgerj/rust-rocksdb-1.git"
+path = "/data/rust-rocksdb-1"
+#git = "https://github.com/shawgerj/rust-rocksdb-1.git"
 package = "rocksdb"
-branch = "wotr"
+#branch = "wotr"
+
+#path = "/data/rust-rocksdb-1"
+#git = "https://github.com/shawgerj/rust-rocksdb-1.git"
+#package = "rocksdb"
+#branch = "wotr"
 features = ["encryption", "static_libcpp"]
 
 [dev-dependencies]
