@@ -978,7 +978,7 @@ impl Write for Snapshot {
                 continue;
             }
 
-            let mut file_for_recving = cf_file.file_for_recving.as_mut().unwrap();
+            let file_for_recving = cf_file.file_for_recving.as_mut().unwrap();
 
             let left = (cf_file.size - file_for_recving.written_size) as usize;
             assert!(left > 0 && !next_buf.is_empty());

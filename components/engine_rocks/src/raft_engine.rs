@@ -210,7 +210,7 @@ impl RocksEngine {
 		    mem::transmute(offset)
 		};
 
-		raft_wb.put(key, &offset_bytes);
+		raft_wb.put(key, &offset_bytes).unwrap();
 		continue;
 	    }
 	    
@@ -285,7 +285,7 @@ impl RocksEngine {
 			mem::transmute([partial_offset + offset as u64, length])
 		    };
 		    
-		    kv_wb.put(&key, &v)?;
+		    kv_wb.put(&key, &v).unwrap();
 		}
 	    }
 		
@@ -299,15 +299,15 @@ impl RocksEngine {
 	let tail: [u8; 8] = unsafe {
 	    mem::transmute(new_logtail)
 	};
-	raft_wb.put_cf(CF_DEFAULT, "logtail".as_bytes(), &tail);
+	raft_wb.put_cf(CF_DEFAULT, "logtail".as_bytes(), &tail).unwrap();
         raft_wb.write()?;
         raft_wb.clear();
 	// put new kv-keys in kv-lsm
 	kv_wb.write()?;
 
 	// truncate log and sync
-	self.wotr().deallocate(logtail, new_logtail - logtail);
-	self.wotr().sync();
+	self.wotr().deallocate(logtail, new_logtail - logtail).unwrap();
+	self.wotr().sync().unwrap();
 
 	Ok(total as usize)
     }
