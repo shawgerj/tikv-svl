@@ -176,7 +176,12 @@ impl RocksEngine {
 
 	let prefix = keys::raft_log_prefix(raft_group_id);
 
-	while (iter.valid().unwrap() > 0 && iter.position() < vtail {
+	while (iter.valid().unwrap() > 0 && iter.position() < vtail) {
+	    // original gc_impl does this too
+	    // we just limit how much gc happens in one go
+	    if raft_wb.count() >= Self::WRITE_BATCH_MAX_KEYS * 2 {
+		break;
+	    }
 	    let key = unsafe {
 		slice::from_raw_parts(iter.key().unwrap(),
 				      iter.key_size().unwrap() as usize)
@@ -226,8 +231,10 @@ impl RocksEngine {
 			    CmdType::Put => {
 				validated = 1;
 				raft_wb.delete(&key)?;
-				// we are going to have to do a manual write to wotr rather than re-insert the key through raft-lsm because of concurrency issues. Basically, it is very hard to know we get the right offset back from rocksdb. Wotr::WotrWrite() does have a lock.
-				kv_wb.put(...)?;
+
+				// push key and (partial) offset to vec
+				putkeys.push(...);
+
 			    },
 			    _ => continue,
 			}?;
@@ -235,12 +242,36 @@ impl RocksEngine {
 		}
 	    }
 
+	    if (validated == 1) {
+		// we have to do a manual write to wotr rather than
+		// re-insert the key through raft-lsm because of
+		// concurrency issues. Basically, it is very hard to
+		// know we get the right offset back from
+		// rocksdb. Wotr::WotrWrite() does have a lock.
+		let offset = raft.wotr().write_entry(
+		    iter.key().unwrap(), iter.key_size().unwrap(),
+		    iter.value().unwrap(), iter.value_size().unwrap(),
+		    iter.get_cfid().unwrap()
+		);
+
+		// using the vector we've made with keys and offsets
+		// add `offset` above, and make a writebatch for kv-lsm
+		kv_wb.put(...)?;
+	    }
+		
 	    let _ = iter.next();
 	    new_vtail = iter.position();
 	}
 
-	self.consume(...); // write the new set of entries to loghead
-	self.put_cf(CF_DEFAULT, new_vtail);
+	// valid log entries have already re-appended to log
+	// this deletes gc-ed raft keys from raft-lsm
+	// update logtail (needed for recovery)
+        raft_wb.write()?;
+        raft_wb.clear();
+	// put new kv-keys in kv-lsm
+	// update vtail
+	kv_wb.put_cf(CF_RAFT, new_vtail); // it will get persisted at the same time as applied index
+	kv_wb.write()?;
 
 	Ok(total as usize)
 	
