@@ -201,12 +201,21 @@ impl RocksEngine {
 
 	    // not a raft entry: write the k-v again at log head
 	    if !keys::is_raft_key(&key) {
-		raft_wb.put(key, value);
+		let offset = self.wotr().write_entry(
+		    key, value, iter.get_cfid().unwrap()).unwrap();
+		if offset < 0 {
+		    panic!("failed to write entry to wotr key {:?}", key);
+		}
+		let offset_bytes: [u8; 8] = unsafe {
+		    mem::transmute(offset)
+		};
+
+		raft_wb.put(key, &offset_bytes);
 		continue;
 	    }
 	    
 	    // if raft key can't be gc-ed we break out of here
-	    if gc_eligible(&key, to) {
+	    if !gc_eligible(&key, to) {
 		break;
 	    }
 	    
