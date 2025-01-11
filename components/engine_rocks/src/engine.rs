@@ -8,7 +8,7 @@ use std::sync::Arc;
 use engine_traits::{
     Error, IterOptions, Iterable, KvEngine, Peekable, ReadOptions, Result, SyncMutable, ALL_CFS,
 };
-use rocksdb::{DBIterator, Writable, DB};
+use rocksdb::{DBIterator, Writable, DB, WOTR};
 
 use crate::db_vector::RocksDBVector;
 use crate::options::RocksReadOptions;
@@ -70,6 +70,10 @@ impl RocksEngine {
 
     pub fn set_wotr(&mut self, logobj: Arc<RocksWOTR>) {
         self.wotr = Some(logobj);
+    }
+
+    pub fn wotr(&self) -> &WOTR {
+	self.wotr.as_ref().expect("db must have wotr").as_inner()
     }
 
     pub fn have_wotr(&self) {

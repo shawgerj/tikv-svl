@@ -88,7 +88,7 @@ impl<EK: KvEngine, ER: RaftEngine> Runner<EK, ER> {
         fail::fail_point!("worker_gc_raft_log", |s| {
             Ok(s.and_then(|s| s.parse().ok()).unwrap_or(0))
         });
-        let deleted = box_try!(self.engines.raft.batch_gc(regions));
+        let deleted = box_try!(self.engines.raft.batch_gc(regions, &self.engines.kv));
         Ok(deleted)
     }
 
@@ -108,7 +108,7 @@ impl<EK: KvEngine, ER: RaftEngine> Runner<EK, ER> {
         self.engines.kv.sync().unwrap_or_else(|e| {
             panic!("failed to sync kv_engine in raft_log_gc: {:?}", e);
         });
-        RAFT_LOG_GC_KV_SYNC_DURATION_HISTOGRAM.observe(start.saturating_elapsed_secs());1;10;0c>|ghostty 1.0.0
+        RAFT_LOG_GC_KV_SYNC_DURATION_HISTOGRAM.observe(start.saturating_elapsed_secs());
         let tasks = std::mem::take(&mut self.tasks);
         let mut groups = Vec::with_capacity(tasks.len());
         let mut cbs = Vec::new();
