@@ -18,7 +18,7 @@ mod imp {
                 SIGTERM | SIGINT | SIGHUP => {
                     info!("receive signal {}, stopping server...", sig as c_int);
 		    if let Some(ref engines) = engines {
-			&engines.kv.sync();
+			let _ = &engines.kv.sync();
 		    }
                     break;
                 }

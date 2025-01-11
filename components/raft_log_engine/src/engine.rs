@@ -7,10 +7,8 @@ use std::sync::Arc;
 
 use encryption::{DataKeyManager, DecrypterReader, EncrypterWriter};
 use engine_traits::{
-    CacheStats, RaftEngine, RaftEngineReadOnly, RaftLogBatch as RaftLogBatchTrait, RaftLogGCTask,
-    Result, DBVector, KvEngine
+    CacheStats, RaftEngine, RaftEngineReadOnly, RaftLogBatch as RaftLogBatchTrait, RaftLogGCTask, Result, KvEngine
 };
-use engine_rocks::{RocksEngine};
 use file_system::{IOOp, IORateLimiter, IOType};
 use kvproto::raft_serverpb::RaftLocalState;
 use raft::eraftpb::Entry;
@@ -231,7 +229,7 @@ impl RaftEngineReadOnly for RaftLogEngine {
             .map_err(transfer_error)
     }
 
-    fn get_entry_location(&self, key: &[u8]) -> Option<u64> {
+    fn get_entry_location(&self, _key: &[u8]) -> Option<u64> {
         panic!()
     }
 

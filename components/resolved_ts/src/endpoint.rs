@@ -512,7 +512,6 @@ where
                         if observe_region.handle.id == observe_id {
                             let logs = ChangeLog::encode_change_log(region_id, batch);
                             if let Err(e) = observe_region.track_change_log(&logs) {
-                                drop(observe_region);
                                 self.re_register_region(region_id, observe_id, e)
                             }
                             return Some(SinkCmd {
