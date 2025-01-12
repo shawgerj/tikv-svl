@@ -175,7 +175,15 @@ impl RocksEngine {
 	let logtail: usize = unsafe {
 	    match self.get_value_cf(CF_DEFAULT, "logtail".as_bytes()).unwrap() {
 		None => 0,
-		Some(n) => mem::transmute(n),
+		Some(n) => {
+		    let bytes: &[u8] = &n;
+		    if bytes.len() != 8 {
+			panic!("key should hold a value 8 bytes long, got {}", bytes.len());
+		    }
+		    
+		    let tail = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
+		    tail
+		}
 	    }
 	};
 	let mut new_logtail = logtail;
@@ -189,7 +197,7 @@ impl RocksEngine {
 	while iter.valid().unwrap() > 0 {
 	    // original gc_impl does this too
 	    // we just limit how much gc happens in one go
-	    if raft_wb.count() >= Self::WRITE_BATCH_MAX_KEYS * 2 {
+	    if raft_wb.count() >= Self::WRITE_BATCH_MAX_KEYS * 3 {
 		break;
 	    }
 	    let key = unsafe {
@@ -210,10 +218,13 @@ impl RocksEngine {
 		    panic!("failed to write entry to wotr key {:?}", key);
 		}
 		let offset_bytes: [u8; 8] = unsafe {
-		    mem::transmute(offset)
+		    usize::to_ne_bytes(offset.try_into().unwrap())
 		};
 
 		raft_wb.put(key, &offset_bytes).unwrap();
+
+		let _ = iter.next();
+		new_logtail = iter.position().unwrap() as usize;
 		continue;
 	    }
 	    
@@ -251,17 +262,19 @@ impl RocksEngine {
 			match cmd_type {
 			    CmdType::Put => {
 				let k = req.get_put().get_key();
+				let k = keys::data_key(k);
 				// calculate offset like apply.rs:1590
 				let offset = req.get_put().get_value_offset() + 19 + 24 + entry_varint_len + k.len() as u64;
 				let length = req.get_put().get_value().len().try_into().unwrap();
 				
-				putkeys.push((k.to_vec(), offset, length));
+				putkeys.push((k, offset, length));
 			    },
 			    _ => continue,
 			};
 		    }
 		}
 	    }
+
 	    raft_wb.delete(&key.to_vec());
 	    total += 1;
 
@@ -269,7 +282,7 @@ impl RocksEngine {
 		// must verify existing offset of key in kv-lsm
 		let (loc, len) = unsafe {
 		    match kv.get_value(&key).unwrap() {
-			None => panic!("key should be stored in kv-lsm {:?}", key),
+			None => panic!("key should be found in kv-lsm {:?}. Found in entry at partial_offset {} and length {}", key, partial_offset, length),
 			Some(n) => {
 			    let bytes: &[u8] = &n;
 			    if bytes.len() != 16 {
@@ -315,7 +328,7 @@ impl RocksEngine {
 	// this deletes gc-ed raft keys from raft-lsm
 	// update logtail
 	let tail: [u8; 8] = unsafe {
-	    mem::transmute(new_logtail)
+	    usize::to_ne_bytes(new_logtail)
 	};
 	raft_wb.put_cf(CF_DEFAULT, "logtail".as_bytes(), &tail).unwrap();
         raft_wb.write().unwrap();
@@ -326,6 +339,7 @@ impl RocksEngine {
 	// truncate log and sync
 	self.wotr().sync().unwrap();
 	kv.sync();
+//	println!("gc completed, deallocating from {} to {}", logtail, new_logtail - logtail);
 	self.wotr().deallocate(logtail, new_logtail - logtail).unwrap();
 
 	Ok(total as usize)
