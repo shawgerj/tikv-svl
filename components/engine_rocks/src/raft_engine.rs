@@ -212,16 +212,27 @@ impl RocksEngine {
 
 	    // not a raft entry: write the k-v again at log head
 	    if !keys::is_raft_key(&key) {
-		let offset = self.wotr().write_entry(
-		    key, value, iter.get_cfid().unwrap()).unwrap();
-		if offset < 0 {
-		    panic!("failed to write entry to wotr key {:?}", key);
-		}
-		let offset_bytes: [u8; 8] = unsafe {
-		    usize::to_ne_bytes(offset.try_into().unwrap())
-		};
+		// must verify existing offset of key in raft-lsm
+		let loc = self.get_value(&key).unwrap().and_then(|n| {
+		    let bytes: &[u8] = &n;
+		    if bytes.len() != 8 {
+			panic!("key should hold a value 8 bytes long, got {}", bytes.len());
+		    }
+			    
+		    Some(usize::from_ne_bytes(bytes[0..8].try_into().unwrap()))
+		});
 
-		raft_wb.put(key, &offset_bytes).unwrap();
+		if let Some(loc) = loc {
+		    if loc == iter.position().unwrap() as usize {
+			let offset = self.wotr().write_entry(
+			    key, value, iter.get_cfid().unwrap()).unwrap();
+			if offset < 0 {
+			    panic!("failed to write entry to wotr key {:?}", key);
+			}
+			let offset_bytes: [u8; 8] = usize::to_ne_bytes(offset.try_into().unwrap());
+			raft_wb.put(key, &offset_bytes).unwrap();
+		    }
+		}
 
 		let _ = iter.next();
 		new_logtail = iter.position().unwrap() as usize;
