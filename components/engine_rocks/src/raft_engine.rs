@@ -173,7 +173,10 @@ impl RocksEngine {
 	kv: &E,
     ) -> Result<usize> {
 	let logtail: usize = unsafe {
-	    mem::transmute(self.get_value_cf(CF_DEFAULT, "logtail".as_bytes()).unwrap().unwrap())
+	    match self.get_value_cf(CF_DEFAULT, "logtail".as_bytes()).unwrap() {
+		None => 0,
+		Some(n) => mem::transmute(n),
+	    }
 	};
 	let mut new_logtail = logtail;
 	let mut total = 0;
@@ -223,8 +226,6 @@ impl RocksEngine {
 	    let mut entry = Entry::default();
 	    entry.merge_from_bytes(&value).unwrap();
 
-//	    let index = entry.get_index();
-//	    let term = entry.get_term();
 	    let data = entry.get_data();
 	    let mut datasize = data.len();
 	    let mut entry_varint_len = 0;
@@ -255,38 +256,55 @@ impl RocksEngine {
 				let length = req.get_put().get_value().len().try_into().unwrap();
 				
 				putkeys.push((k.to_vec(), offset, length));
-
 			    },
 			    _ => continue,
 			};
 		    }
 		}
 	    }
-	    raft_wb.delete(&key)?;
+	    raft_wb.delete(&key.to_vec());
 	    total += 1;
 
-	    if putkeys.len() > 0 {
+	    for (key, partial_offset, length) in putkeys {
+		// must verify existing offset of key in kv-lsm
+		let (loc, len) = unsafe {
+		    match kv.get_value(&key).unwrap() {
+			None => panic!("key should be stored in kv-lsm {:?}", key),
+			Some(n) => {
+			    let bytes: &[u8] = &n;
+			    if bytes.len() != 16 {
+				panic!("key should hold a value 16 bytes long, got {}", bytes.len());
+			    }
+			    
+			    let loc = u64::from_ne_bytes(bytes[0..8].try_into().unwrap());
+			    let len = u64::from_ne_bytes(bytes[8..16].try_into().unwrap());
+			    (loc, len)
+			}
+		    }
+		};
+
+		// if they don't match we can skip this entry without
+		// writing it back to the head of the log
+		if partial_offset + iter.position().unwrap() != loc {
+		    continue;
+		}
+		    
 		// must do a manual write to wotr rather than
 		// write_valuelog in raft-lsm because of concurrency
-		// issues. Basically, it is very hard to know we get
-		// the right offset back from rocksdb.
+		// issues. Basically, it is very hard to get the right
+		// offset back from rocksdb using write_valuelog.
 		// Wotr::WotrWrite() does have a lock.
 		let offset = self.wotr().write_entry(
-		    key, value, iter.get_cfid().unwrap()).unwrap();
+		    &key, value, iter.get_cfid().unwrap()).unwrap();
 		if offset < 0 {
 		    panic!("failed to write entry to wotr key {:?}", key);
 		}
-		    
 
-		// using the vector we've made with keys and offsets
-		// add `offset` above, and make a writebatch for kv-lsm
-		for (key, partial_offset, length) in putkeys {
-		    let v: [u8; 16] = unsafe {
-			mem::transmute([partial_offset + offset as u64, length])
-		    };
+		let v: [u8; 16] = unsafe {
+		    mem::transmute([partial_offset + offset as u64, length])
+		};
 		    
-		    kv_wb.put(&key, &v).unwrap();
-		}
+		kv_wb.put(&key, &v).unwrap();
 	    }
 		
 	    let _ = iter.next();
@@ -300,14 +318,15 @@ impl RocksEngine {
 	    mem::transmute(new_logtail)
 	};
 	raft_wb.put_cf(CF_DEFAULT, "logtail".as_bytes(), &tail).unwrap();
-        raft_wb.write()?;
+        raft_wb.write().unwrap();
         raft_wb.clear();
 	// put new kv-keys in kv-lsm
-	kv_wb.write()?;
+	kv_wb.write().unwrap();
 
 	// truncate log and sync
-	self.wotr().deallocate(logtail, new_logtail - logtail).unwrap();
 	self.wotr().sync().unwrap();
+	kv.sync();
+	self.wotr().deallocate(logtail, new_logtail - logtail).unwrap();
 
 	Ok(total as usize)
     }
