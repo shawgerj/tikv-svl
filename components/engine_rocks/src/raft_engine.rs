@@ -172,20 +172,32 @@ impl RocksEngine {
         raft_wb: &mut RocksWriteBatch,
 	kv: &E,
     ) -> Result<usize> {
-	let logtail: usize = unsafe {
-	    match self.get_value_cf(CF_DEFAULT, "logtail".as_bytes()).unwrap() {
-		None => 0,
-		Some(n) => {
-		    let bytes: &[u8] = &n;
-		    if bytes.len() != 8 {
-			panic!("key should hold a value 8 bytes long, got {}", bytes.len());
-		    }
-		    
-		    let tail = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
-		    tail
+	let logtail: usize = match self.get_value_cf(CF_DEFAULT, "logtail".as_bytes()).unwrap() {
+	    None => 0,
+	    Some(n) => {
+		let bytes: &[u8] = &n;
+		if bytes.len() != 8 {
+		    panic!("key should hold a value 8 bytes long, got {}", bytes.len());
 		}
+		
+		usize::from_ne_bytes(bytes[0..8].try_into().unwrap())
 	    }
 	};
+
+	let old_logtail: usize = match self.get_value_cf(CF_DEFAULT, "logtailold".as_bytes()).unwrap() {
+	    None => 0,
+	    Some(n) => {
+		let bytes: &[u8] = &n;
+		if bytes.len() != 8 {
+		    panic!("key should hold a value 8 bytes long, got {}", bytes.len());
+		}
+		
+		usize::from_ne_bytes(bytes[0..8].try_into().unwrap())
+	    }
+	};
+
+	// we defer deallocate to the beginning of next call to gc to avoid an extra sync
+	self.wotr().deallocate(old_logtail, logtail - old_logtail).unwrap();
 	let mut new_logtail = logtail;
 	let mut total = 0;
 	
@@ -193,7 +205,6 @@ impl RocksEngine {
 	let _ = iter.seek(logtail.try_into().unwrap());
 
 	let mut kv_wb = kv.write_batch();
-	let mut putkeys: Vec<(Vec<u8>, u64, u64)> = Vec::new();
 
 	while iter.valid().unwrap() > 0 {
 	    // original gc_impl does this too
@@ -260,7 +271,7 @@ impl RocksEngine {
             }
 
 	    // (key, offset, length) for kv_wb
-
+	    let mut putkeys: Vec<(Vec<u8>, u64, u64)> = Vec::new();
 	    if !data.is_empty() {
 		let mut cmd = RaftCmdRequest::default();
 		cmd.merge_from_bytes(data).unwrap_or_else(|e| {
@@ -292,19 +303,15 @@ impl RocksEngine {
 
 	    for (key, partial_offset, length) in putkeys {
 		// must verify existing offset of key in kv-lsm
-		let (loc, len) = unsafe {
-		    match kv.get_value(&key).unwrap() {
-			None => panic!("key should be found in kv-lsm {:?}. Found in entry at partial_offset {} and length {}", key, partial_offset, length),
-			Some(n) => {
-			    let bytes: &[u8] = &n;
-			    if bytes.len() != 16 {
-				panic!("key should hold a value 16 bytes long, got {}", bytes.len());
-			    }
-			    
-			    let loc = u64::from_ne_bytes(bytes[0..8].try_into().unwrap());
-			    let len = u64::from_ne_bytes(bytes[8..16].try_into().unwrap());
-			    (loc, len)
+		let loc = match kv.get_value(&key).unwrap() {
+		    None => panic!("key should be found in kv-lsm {:?}. Found in entry at partial_offset {} and length {}", key, partial_offset, length),
+		    Some(n) => {
+			let bytes: &[u8] = &n;
+			if bytes.len() != 16 {
+			    panic!("key should hold a value 16 bytes long, got {}", bytes.len());
 			}
+			
+			u64::from_ne_bytes(bytes[0..8].try_into().unwrap())
 		    }
 		};
 
@@ -331,7 +338,6 @@ impl RocksEngine {
 		    
 		kv_wb.put(&key, &v).unwrap();
 	    }
-	    putkeys.clear();
 		
 	    let _ = iter.next();
 	    new_logtail = iter.position().unwrap() as usize;
@@ -340,18 +346,20 @@ impl RocksEngine {
 	// valid log entries have already re-appended to log
 	// this deletes gc-ed raft keys from raft-lsm
 	// update logtail
-	let tail: [u8; 8] = usize::to_ne_bytes(new_logtail);
+	let newtail: [u8; 8] = usize::to_ne_bytes(new_logtail);
+	let oldtail: [u8; 8] = usize::to_ne_bytes(logtail);
 
-	raft_wb.put_cf(CF_DEFAULT, "logtail".as_bytes(), &tail).unwrap();
+	raft_wb.put_cf(CF_DEFAULT, "logtail".as_bytes(), &newtail).unwrap();
+	raft_wb.put_cf(CF_DEFAULT, "logtailold".as_bytes(), &oldtail).unwrap();
+
+	// no sync here - it is guaranteed to happen before next gc, and we don't fallocate until next gc either
         raft_wb.write().unwrap();
         raft_wb.clear();
 	// put new kv-keys in kv-lsm
 	kv_wb.write().unwrap();
 
-	// truncate log and sync
+	// sync log
 	self.wotr().sync().unwrap();
-	kv.sync();
-	self.wotr().deallocate(logtail, new_logtail - logtail).unwrap();
 
 	Ok(total as usize)
     }
