@@ -193,6 +193,7 @@ impl RocksEngine {
 	let _ = iter.seek(logtail.try_into().unwrap());
 
 	let mut kv_wb = kv.write_batch();
+	let mut putkeys: Vec<(Vec<u8>, u64, u64)> = Vec::new();
 
 	while iter.valid().unwrap() > 0 {
 	    // original gc_impl does this too
@@ -259,7 +260,7 @@ impl RocksEngine {
             }
 
 	    // (key, offset, length) for kv_wb
-	    let mut putkeys: Vec<(Vec<u8>, u64, u64)> = Vec::new();
+
 	    if !data.is_empty() {
 		let mut cmd = RaftCmdRequest::default();
 		cmd.merge_from_bytes(data).unwrap_or_else(|e| {
@@ -330,6 +331,7 @@ impl RocksEngine {
 		    
 		kv_wb.put(&key, &v).unwrap();
 	    }
+	    putkeys.clear();
 		
 	    let _ = iter.next();
 	    new_logtail = iter.position().unwrap() as usize;
@@ -338,9 +340,8 @@ impl RocksEngine {
 	// valid log entries have already re-appended to log
 	// this deletes gc-ed raft keys from raft-lsm
 	// update logtail
-	let tail: [u8; 8] = unsafe {
-	    usize::to_ne_bytes(new_logtail)
-	};
+	let tail: [u8; 8] = usize::to_ne_bytes(new_logtail);
+
 	raft_wb.put_cf(CF_DEFAULT, "logtail".as_bytes(), &tail).unwrap();
         raft_wb.write().unwrap();
         raft_wb.clear();
@@ -350,7 +351,6 @@ impl RocksEngine {
 	// truncate log and sync
 	self.wotr().sync().unwrap();
 	kv.sync();
-//	println!("gc completed, deallocating from {} to {}", logtail, new_logtail - logtail);
 	self.wotr().deallocate(logtail, new_logtail - logtail).unwrap();
 
 	Ok(total as usize)
