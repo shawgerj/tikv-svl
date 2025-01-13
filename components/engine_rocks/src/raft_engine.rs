@@ -162,7 +162,23 @@ fn gc_eligible(key: &[u8], end: u64) -> bool {
     index < end
 }
 
+fn round_down(n: usize, k: usize) -> usize {
+    return n - (n % k)
+}
+
 impl RocksEngine {
+    fn get_offset_or_zero(&self, key: &[u8]) -> usize {
+	match self.get_value(key).unwrap() {
+	    None => 0,
+	    Some(v) => {
+		if v.len() != 8 {
+		    panic!("key should hold a value 8 bytes long, got {}", v.len());
+		}
+		usize::from_ne_bytes(v[0..8].try_into().unwrap())
+	    }
+	}
+    }
+    
     // shawgerj: rather than seek and scan in Raft-LSM, we need to seek and scan the log. 
     fn gc_impl<E: KvEngine>(
         &self,
@@ -172,34 +188,13 @@ impl RocksEngine {
         raft_wb: &mut RocksWriteBatch,
 	kv: &E,
     ) -> Result<usize> {
-	let logtail: usize = match self.get_value_cf(CF_DEFAULT, "logtail".as_bytes()).unwrap() {
-	    None => 0,
-	    Some(n) => {
-		let bytes: &[u8] = &n;
-		if bytes.len() != 8 {
-		    panic!("key should hold a value 8 bytes long, got {}", bytes.len());
-		}
-		
-		usize::from_ne_bytes(bytes[0..8].try_into().unwrap())
-	    }
-	};
-
-	let old_logtail: usize = match self.get_value_cf(CF_DEFAULT, "logtailold".as_bytes()).unwrap() {
-	    None => 0,
-	    Some(n) => {
-		let bytes: &[u8] = &n;
-		if bytes.len() != 8 {
-		    panic!("key should hold a value 8 bytes long, got {}", bytes.len());
-		}
-		
-		usize::from_ne_bytes(bytes[0..8].try_into().unwrap())
-	    }
-	};
+	let mut logtail: usize = self.get_offset_or_zero(b"logtail");
+	let mut old_logtail: usize = self.get_offset_or_zero(b"logtailold");
+	old_logtail = round_down(old_logtail, 4096);
 
 	// we defer deallocate to the beginning of next call to gc to avoid an extra sync
-	println!("deallocating {} bytes starting at {}", logtail - old_logtail, old_logtail);
 	self.wotr().deallocate(old_logtail, logtail - old_logtail).unwrap();
-	let mut new_logtail = logtail;
+	old_logtail = logtail;
 	let mut total = 0;
 	
 	let iter = self.wotr().wotr_iter_init().unwrap();
@@ -237,18 +232,16 @@ impl RocksEngine {
 
 		if let Some(loc) = loc {
 		    if loc == iter.position().unwrap() as usize {
-			let offset = self.wotr().write_entry(
-			    key, value, iter.get_cfid().unwrap()).unwrap();
-			if offset < 0 {
-			    panic!("failed to write entry to wotr key {:?}", key);
-			}
+			let offset = self.wotr()
+			    .write_entry(key, value, iter.get_cfid().unwrap())
+			    .unwrap();
 			let offset_bytes: [u8; 8] = usize::to_ne_bytes(offset.try_into().unwrap());
 			raft_wb.put(key, &offset_bytes).unwrap();
 		    }
 		}
 
 		let _ = iter.next();
-		new_logtail = iter.position().unwrap() as usize;
+		logtail = iter.position().unwrap() as usize;
 		continue;
 	    }
 	    
@@ -271,7 +264,7 @@ impl RocksEngine {
 		entry_varint_len += 1;
             }
 
-	    // (key, offset, length) for kv_wb
+	    // build list of all Put keys in the entry
 	    let mut putkeys: Vec<(Vec<u8>, u64, u64)> = Vec::new();
 	    if !data.is_empty() {
 		let mut cmd = RaftCmdRequest::default();
@@ -302,53 +295,54 @@ impl RocksEngine {
 	    raft_wb.delete(&key.to_vec());
 	    total += 1;
 
-	    for (k, partial_offset, length) in putkeys {
-		// must verify existing offset of key in kv-lsm
-		let loc = match kv.get_value(&k).unwrap() {
-		    None => panic!("key should be found in kv-lsm {:?}. Found in entry at partial_offset {} and length {}", k, partial_offset, length),
-		    Some(n) => {
-			let bytes: &[u8] = &n;
-			if bytes.len() != 16 {
-			    panic!("key should hold a value 16 bytes long, got {}", bytes.len());
+	    // keys are live (or valid) if their loc matches in kv_lsm
+	    let valid_keys: Vec<(Vec<u8>, u64, u64)> = putkeys
+		.iter()
+		.filter_map(|(k, partial_offset, length)| {
+		    match kv.get_value(&k).unwrap() {
+			None => {
+			    println!("key should be found in kv-lsm {:?}", k);
+			    None
 			}
-			
-			u64::from_ne_bytes(bytes[0..8].try_into().unwrap())
+			Some(v) => {
+			    if v.len() != 16 {
+				panic!("key should hold a 16-byte value, got {}", v.len())
+			    }
+			    let loc = u64::from_ne_bytes(v[0..8].try_into().unwrap());
+			    if partial_offset + iter.position().unwrap() == loc {
+				Some((k.clone(), *partial_offset, *length))
+			    } else {
+				None
+			    }
+			}
 		    }
-		};
+		}).collect();
 
-		// if they don't match we can skip this entry without
-		// writing it back to the head of the log
-		if partial_offset + iter.position().unwrap() != loc {
-		    continue;
-		}
+	    // if there is at least one valid key, write the entry to the head of the
+	    // log, and update all the valid keys in the entry in kv_lsm
+	    if let Some(offset) = valid_keys.first().map(|_| {
+		self.wotr()
+		    .write_entry(&key, value, iter.get_cfid().unwrap())
+		    .unwrap()
+	    }) {
+		for (k, partial_offset, length) in valid_keys {
+		    let v: [u8; 16] = unsafe {
+			mem::transmute([partial_offset + offset as u64, length])
+		    };
 		    
-		// must do a manual write to wotr rather than
-		// write_valuelog in raft-lsm because of concurrency
-		// issues. Basically, it is very hard to get the right
-		// offset back from rocksdb using write_valuelog.
-		// Wotr::WotrWrite() does have a lock.
-		let offset = self.wotr().write_entry(
-		    &key, value, iter.get_cfid().unwrap()).unwrap();
-		if offset < 0 {
-		    panic!("failed to write entry to wotr key {:?}", key);
+		    kv_wb.put(&k, &v).unwrap();
 		}
-
-		let v: [u8; 16] = unsafe {
-		    mem::transmute([partial_offset + offset as u64, length])
-		};
-		    
-		kv_wb.put(&k, &v).unwrap();
 	    }
-		
+
 	    let _ = iter.next();
-	    new_logtail = iter.position().unwrap() as usize;
+	    logtail = iter.position().unwrap() as usize;
 	}
 
 	// valid log entries have already re-appended to log
 	// this deletes gc-ed raft keys from raft-lsm
 	// update logtail
-	let newtail: [u8; 8] = usize::to_ne_bytes(new_logtail);
-	let oldtail: [u8; 8] = usize::to_ne_bytes(logtail);
+	let newtail: [u8; 8] = usize::to_ne_bytes(logtail);
+	let oldtail: [u8; 8] = usize::to_ne_bytes(old_logtail);
 
 	raft_wb.put_cf(CF_DEFAULT, "logtail".as_bytes(), &newtail).unwrap();
 	raft_wb.put_cf(CF_DEFAULT, "logtailold".as_bytes(), &oldtail).unwrap();
@@ -361,7 +355,6 @@ impl RocksEngine {
 
 	// sync log
 	self.wotr().sync().unwrap();
-
 	Ok(total as usize)
     }
 }
