@@ -197,6 +197,7 @@ impl RocksEngine {
 	};
 
 	// we defer deallocate to the beginning of next call to gc to avoid an extra sync
+	println!("deallocating {} bytes starting at {}", logtail - old_logtail, old_logtail);
 	self.wotr().deallocate(old_logtail, logtail - old_logtail).unwrap();
 	let mut new_logtail = logtail;
 	let mut total = 0;
