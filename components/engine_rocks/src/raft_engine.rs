@@ -287,7 +287,7 @@ impl RocksEngine {
 				let k = req.get_put().get_key();
 				let k = keys::data_key(k);
 				// calculate offset like apply.rs:1590
-				let offset = req.get_put().get_value_offset() + 19 + 24 + entry_varint_len + k.len() as u64;
+				let offset = req.get_put().get_value_offset() + 19 + 24 + entry_varint_len + key.len() as u64;
 				let length = req.get_put().get_value().len().try_into().unwrap();
 				
 				putkeys.push((k, offset, length));
@@ -301,10 +301,10 @@ impl RocksEngine {
 	    raft_wb.delete(&key.to_vec());
 	    total += 1;
 
-	    for (key, partial_offset, length) in putkeys {
+	    for (k, partial_offset, length) in putkeys {
 		// must verify existing offset of key in kv-lsm
-		let loc = match kv.get_value(&key).unwrap() {
-		    None => panic!("key should be found in kv-lsm {:?}. Found in entry at partial_offset {} and length {}", key, partial_offset, length),
+		let loc = match kv.get_value(&k).unwrap() {
+		    None => panic!("key should be found in kv-lsm {:?}. Found in entry at partial_offset {} and length {}", k, partial_offset, length),
 		    Some(n) => {
 			let bytes: &[u8] = &n;
 			if bytes.len() != 16 {
@@ -336,7 +336,7 @@ impl RocksEngine {
 		    mem::transmute([partial_offset + offset as u64, length])
 		};
 		    
-		kv_wb.put(&key, &v).unwrap();
+		kv_wb.put(&k, &v).unwrap();
 	    }
 		
 	    let _ = iter.next();
