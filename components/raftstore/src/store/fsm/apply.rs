@@ -534,7 +534,7 @@ where
         // then persist the kv write batch to engine.
         unsafe {
             let s = FailScenario::setup();
-            fail_point!("apply_before_save", apply_calls == 25, |_| panic!("panicking"));
+            fail_point!("apply_before_save", apply_calls == 5000, |_| panic!("panicking"));
             s.teardown();
         }
         if !self.pending_ssts.is_empty() {
@@ -596,7 +596,7 @@ where
         }
         unsafe {
             let s = FailScenario::setup();
-            fail_point!("apply_before_callback", apply_calls == 25, |_| panic!("panicking"));
+            fail_point!("apply_before_callback", apply_calls == 5000, |_| panic!("panicking"));
             s.teardown();
         }
 
@@ -699,7 +699,7 @@ where
         if !self.apply_res.is_empty() {
             unsafe {
                 let s = FailScenario::setup();
-                fail_point!("apply_before_notifier", apply_calls == 25, |_| panic!("panicking"));
+                fail_point!("apply_before_notifier", apply_calls == 5000, |_| panic!("panicking"));
                 s.teardown();
             }
             fail_point!("before_nofity_apply_res");
@@ -723,7 +723,7 @@ where
         self.committed_count = 0;
         unsafe {
             let s = FailScenario::setup();
-            fail_point!("apply_after_flush", apply_calls == 25, |_| panic!("panicking"));
+            fail_point!("apply_after_flush", apply_calls == 5000, |_| panic!("panicking"));
             s.teardown();
         }
         is_synced

@@ -63,7 +63,7 @@ func readFailConfig(path string) []string {
 	return failpoints
 }
 
-func doInitialTransaction() (*transaction.KVTxn, [100]kvPair) {
+func doInitialTransaction() (*transaction.KVTxn, [100000]kvPair) {
 	client, err := tikv.NewClient([]string{clientAddr})
 	if err != nil {
 		log.Fatalf("Unable to initialize TiKV client on %s", clientAddr)
@@ -72,7 +72,7 @@ func doInitialTransaction() (*transaction.KVTxn, [100]kvPair) {
 	defer client.Close()
 
 	//initial data
-	var initial_kv_items [100]kvPair
+	var initial_kv_items [100000]kvPair
 	for i, _ := range initial_kv_items {
 		initial_kv_items[i] = kvPair{
 			key:   defaultKey + strconv.Itoa(i),
@@ -103,17 +103,17 @@ func doInitialTransaction() (*transaction.KVTxn, [100]kvPair) {
 	return t, initial_kv_items
 }
 
-func initKeys(client *rawkv.Client) [100]kvPair {
-	var newItems [100]kvPair
+func initKeys(client *rawkv.Client) [100000]kvPair {
+	var newItems [100000]kvPair
 	for j, _ := range newItems {
 		newItems[j] = kvPair{
-			key:   defaultKey + strconv.Itoa(100+(j+1)),
-			value: defaultValue + strconv.Itoa(100+(j+1)),
+			key:   defaultKey + strconv.Itoa(100000+(j+1)),
+			value: defaultValue + strconv.Itoa(100000+(j+1)),
 		}
 	}
 
-	log.Println("STARTING TO WRITE 100 KV PAIRS")
-	var writtenItems [100]kvPair
+	log.Println("STARTING TO WRITE 100000 KV PAIRS")
+	var writtenItems [100000]kvPair
 	for i, item := range newItems {
 		err := client.Put(context.TODO(), []byte(item.key), []byte(item.value))
 		if err != nil {
@@ -122,7 +122,7 @@ func initKeys(client *rawkv.Client) [100]kvPair {
 		log.Println("WROTE ITEM " + item.key + ": " + item.value)
 		writtenItems[i] = item
 	}
-	log.Println("WRITTEN 100 INITIAL KEYS")
+	log.Println("WRITTEN 100000 INITIAL KEYS")
 
 	log.Println("STARTING TO READ INITIAL WRITTEN PAIRS")
 	for _, item := range writtenItems {
@@ -143,7 +143,7 @@ func initKeys(client *rawkv.Client) [100]kvPair {
 	return writtenItems
 }
 
-func readInitialKeys(client *rawkv.Client, items [100]kvPair) {
+func readInitialKeys(client *rawkv.Client, items [100000]kvPair) {
 	log.Println("STARTING TO READ INITIAL WRITTEN PAIRS")
 	for _, item := range items {
 		log.Println("TRYING TO READ ITEM " + item.key + ": " + item.value)
@@ -168,7 +168,7 @@ func readInitialKeys(client *rawkv.Client, items [100]kvPair) {
 	}
 }
 
-func readBackTransaction(client *tikv.Client, items [100]kvPair) {
+func readBackTransaction(client *tikv.Client, items [100000]kvPair) {
 	t, err := client.Begin()
 	if err != nil {
 		log.Fatalf("Unable to start read TiKV transaction on %s", clientAddr)
@@ -191,11 +191,11 @@ func readBackTransaction(client *tikv.Client, items [100]kvPair) {
 }
 
 func failingTransaction(client *tikv.Client, i int) {
-	var newItems [100]kvPair
+	var newItems [100000]kvPair
 	for j, _ := range newItems {
 		newItems[j] = kvPair{
-			key:   defaultKey + strconv.Itoa(100+(i+1)),
-			value: defaultValue + strconv.Itoa(100+(i+1)),
+			key:   defaultKey + strconv.Itoa(100000+(i+1)),
+			value: defaultValue + strconv.Itoa(100000+(i+1)),
 		}
 	}
 
@@ -245,16 +245,16 @@ func failingTransaction(client *tikv.Client, i int) {
 }
 
 func failingRawKV(client *rawkv.Client, i int) {
-	var newItems [100]kvPair
+	var newItems [100000]kvPair
 	for j, _ := range newItems {
 		newItems[j] = kvPair{
-			key:   defaultKey + strconv.Itoa(100*(i+2)+(j+1)),
-			value: defaultValue + strconv.Itoa(100*(i+2)+(j+1)),
+			key:   defaultKey + strconv.Itoa(100000*(i+2)+(j+1)),
+			value: defaultValue + strconv.Itoa(100000*(i+2)+(j+1)),
 		}
 	}
 
-	log.Println("STARTING TO WRITE 100 KV PAIRS")
-	var writtenItems [100]kvPair
+	log.Println("STARTING TO WRITE 100000 KV PAIRS")
+	var writtenItems [100000]kvPair
 	var lastWritten = 0
 	for j, item := range newItems {
 		if !isTiKVServerRunning() {

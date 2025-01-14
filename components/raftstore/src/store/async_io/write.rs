@@ -524,7 +524,7 @@ where
 
         unsafe {
             let s = FailScenario::setup();
-            fail_point!("raft_between_save", raft_calls == 25, |_| {});
+            fail_point!("raft_between_save", raft_calls == 5000, |_| {});
             s.teardown();
         }
 
@@ -577,7 +577,7 @@ where
 
         unsafe {
             let s = FailScenario::setup();
-            fail_point!("raft_after_save", raft_calls == 25, |_| {});
+            fail_point!("raft_after_save", raft_calls == 5000, |_| {});
             s.teardown();
         }
 
