@@ -61,7 +61,7 @@ impl Iterable for RocksSnapshot {
             opt.set_snapshot(&self.snap);
         }
         Ok(RocksEngineIterator::from_raw(
-            DBIterator::new(self.db.clone(), opt),
+            DBIterator::new(self.db.clone(), opt, false),
             self.db.clone(),
             None::<String>,
         ))
@@ -75,7 +75,7 @@ impl Iterable for RocksSnapshot {
         }
         let handle = get_cf_handle(self.db.as_ref(), cf)?;
         Ok(RocksEngineIterator::from_raw(
-            DBIterator::new_cf(self.db.clone(), handle, opt),
+            DBIterator::new_cf(self.db.clone(), handle, opt, false),
             self.db.clone(),
             Some(cf.to_string())))
     }

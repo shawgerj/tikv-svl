@@ -120,7 +120,7 @@ impl Iterable for RocksEngine {
     fn iterator_opt(&self, opts: IterOptions) -> Result<Self::Iterator> {
         let opt: RocksReadOptions = opts.into();
         Ok(RocksEngineIterator::from_raw(
-            DBIterator::new(self.db.clone(), opt.into_raw()),
+            DBIterator::new(self.db.clone(), opt.into_raw(), false),
             self.db.clone(),
             None::<String>,
         ))
@@ -130,7 +130,7 @@ impl Iterable for RocksEngine {
         let handle = get_cf_handle(&self.db, cf)?;
         let opt: RocksReadOptions = opts.into();
         Ok(RocksEngineIterator::from_raw(
-            DBIterator::new_cf(self.db.clone(), handle, opt.into_raw()),
+            DBIterator::new_cf(self.db.clone(), handle, opt.into_raw(), false),
             self.db.clone(),
             Some(cf.to_string())))
     }
