@@ -1054,7 +1054,7 @@ impl Default for DbConfig {
             writable_file_max_buffer_size: ReadableSize::mb(1),
             use_direct_io_for_flush_and_compaction: false,
             enable_pipelined_write: true,
-            enable_multi_batch_write: true,
+            enable_multi_batch_write: false,
             enable_unordered_write: false,
             defaultcf: DefaultCfConfig::default(),
             writecf: WriteCfConfig::default(),
@@ -1113,11 +1113,12 @@ impl DbConfig {
         opts.set_use_direct_io_for_flush_and_compaction(
             self.use_direct_io_for_flush_and_compaction,
         );
-        opts.enable_pipelined_write(
-            (self.enable_pipelined_write || self.enable_multi_batch_write)
-                && !self.enable_unordered_write,
-        );
-        opts.enable_multi_batch_write(self.enable_multi_batch_write);
+//        opts.enable_pipelined_write(
+//            (self.enable_pipelined_write || self.enable_multi_batch_write)
+//                && !self.enable_unordered_write,
+//        );
+	opts.enable_pipelined_write(self.enable_pipelined_write);
+//        opts.enable_multi_batch_write(self.enable_multi_batch_write);
         opts.enable_unordered_write(self.enable_unordered_write);
         opts.add_event_listener(RocksEventListener::new("kv"));
         opts.set_info_log(RocksdbLogger::default());
