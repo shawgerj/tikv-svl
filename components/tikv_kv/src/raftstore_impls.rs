@@ -76,8 +76,7 @@ impl<S: Snapshot> EngineSnapshot for RegionSnapshot<S> {
         fail_point!("raftkv_snapshot_pget_cf_wotr", |_| Err(box_err!(
             "injected error for pget_cf_wotr"
         )));
-
-        let v = self.get_value_p_cf(cf, key.as_encoded())?;
+        let v = box_try!(self.get_value_p_cf(cf, key.as_encoded()));
         Ok(v.map(|v| v.to_vec()))
     }
 
