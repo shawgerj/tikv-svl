@@ -152,6 +152,7 @@ pub const ENGINE_TICKER_TYPES: &[TickerType] = &[
 pub const ENGINE_HIST_TYPES: &[HistType] = &[
     HistType::DbGet,
     HistType::DbWrite,
+    HistType::WotrGet,
     HistType::CompactionTime,
     HistType::TableSyncMicros,
     HistType::CompactionOutfileSyncMicros,

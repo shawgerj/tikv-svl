@@ -663,6 +663,9 @@ pub fn flush_engine_histogram_metrics(t: HistType, value: HistogramData, name: &
         HistType::DbWrite => {
             engine_histogram_metrics!(STORE_ENGINE_WRITE_VEC, "write", name, value);
         }
+	HistType::WotrGet => {
+	    engine_histogram_metrics!(STORE_ENGINE_WOTR_GET_VEC, "wotr_get", name, value);
+	}
         HistType::CompactionTime => {
             engine_histogram_metrics!(
                 STORE_ENGINE_COMPACTION_TIME_VEC,
@@ -1471,6 +1474,11 @@ lazy_static! {
         "tikv_engine_get_micro_seconds",
         "Histogram of get micros",
         &["db", "type"]
+    ).unwrap();
+    pub static ref STORE_ENGINE_WOTR_GET_VEC: GaugeVec = register_gauge_vec!(
+        "tikv_engine_wotr_get_micro_seconds",
+	"Histogram of wotr get micros",
+	&["db", "type"]
     ).unwrap();
     pub static ref STORE_ENGINE_WRITE_VEC: GaugeVec = register_gauge_vec!(
         "tikv_engine_write_micro_seconds",
