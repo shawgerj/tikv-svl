@@ -191,6 +191,7 @@ impl<'a, S: Snapshot> RawStoreInner<S> {
         if limit == 0 {
             return Ok(vec![]);
         }
+	dbg!(&start_key);
         let mut cursor = Cursor::new(self.snapshot.iter_cf(cf, option)?, ScanMode::Forward, false);
         let statistics = statistics.mut_cf_statistics(cf);
         if !cursor.seek(start_key, statistics)? {
@@ -213,8 +214,10 @@ impl<'a, S: Snapshot> RawStoreInner<S> {
                 if key_only {
                     vec![]
                 } else {
-		    self.snapshot.get_cf_valuelog(cf, &Key::from_raw(cursor.value(statistics))).unwrap().unwrap()
-                    //cursor.value(statistics).to_owned()
+//		    dbg!(cursor.key(statistics));
+		    let currkey = Key::from_encoded(cursor.key(statistics).to_vec());
+		    let currval = self.snapshot.get_cf_valuelog(cf, &currkey).map(|value| { value });
+		    currval.unwrap().unwrap()
                 },
             )));
             if pairs.len() < limit {
@@ -269,8 +272,9 @@ impl<'a, S: Snapshot> RawStoreInner<S> {
                 if key_only {
                     vec![]
                 } else {
-	            self.snapshot.get_cf_valuelog(cf, &Key::from_raw(cursor.value(statistics))).unwrap().unwrap()
-                    //cursor.value(statistics).to_owned()
+		    let currkey = Key::from_encoded(cursor.key(statistics).to_vec());
+		    let currval = self.snapshot.get_cf_valuelog(cf, &currkey).map(|value| { value });
+		    currval.unwrap().unwrap()
                 },
             )));
             if pairs.len() < limit {
