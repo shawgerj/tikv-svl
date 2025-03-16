@@ -73,7 +73,7 @@ impl<'a, S: Snapshot> RawStore<S> {
         key_only: bool,
     ) -> Result<Vec<Result<KvPair>>> {
         let mut option = IterOptions::default();
-	option.set_use_wotr(true);
+	option.set_use_wotr(false);
         if let Some(end) = end_key {
             option.set_upper_bound(end.as_encoded(), DATA_KEY_PREFIX_LEN);
         }
@@ -109,7 +109,7 @@ impl<'a, S: Snapshot> RawStore<S> {
         key_only: bool,
     ) -> Result<Vec<Result<KvPair>>> {
         let mut option = IterOptions::default();
-	option.set_use_wotr(true);
+	option.set_use_wotr(false);
         if let Some(end) = end_key {
             option.set_lower_bound(end.as_encoded(), DATA_KEY_PREFIX_LEN);
         }
@@ -213,7 +213,8 @@ impl<'a, S: Snapshot> RawStoreInner<S> {
                 if key_only {
                     vec![]
                 } else {
-                    cursor.value(statistics).to_owned()
+		    self.snapshot.get_cf_valuelog(cf, &Key::from_raw(cursor.value(statistics))).unwrap().unwrap()
+                    //cursor.value(statistics).to_owned()
                 },
             )));
             if pairs.len() < limit {
@@ -268,7 +269,8 @@ impl<'a, S: Snapshot> RawStoreInner<S> {
                 if key_only {
                     vec![]
                 } else {
-                    cursor.value(statistics).to_owned()
+	            self.snapshot.get_cf_valuelog(cf, &Key::from_raw(cursor.value(statistics))).unwrap().unwrap()
+                    //cursor.value(statistics).to_owned()
                 },
             )));
             if pairs.len() < limit {

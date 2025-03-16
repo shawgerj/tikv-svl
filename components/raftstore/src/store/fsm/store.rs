@@ -994,16 +994,17 @@ impl<EK: KvEngine, ER: RaftEngine, T> RaftPollerBuilder<EK, ER, T> {
         let mut merging_count = 0;
         let mut meta = self.store_meta.lock().unwrap();
         let mut replication_state = self.global_replication_state.lock().unwrap();
-        kv_engine.scan_cf(CF_RAFT, start_key, end_key, false, false, |key, value| {
+        kv_engine.scan_cf(CF_RAFT, start_key, end_key, false, false, |key, _value| {
             let (region_id, suffix) = box_try!(keys::decode_region_meta_key(key));
             if suffix != keys::REGION_STATE_SUFFIX {
                 return Ok(true);
             }
 
             total_count += 1;
+	    let value = kv_engine.get_value_cf_valuelog(CF_RAFT, key).unwrap().unwrap();
 
             let mut local_state = RegionLocalState::default();
-            local_state.merge_from_bytes(value)?;
+            local_state.merge_from_bytes(&value)?;
 
             let region = local_state.get_region();
             if local_state.get_state() == PeerState::Tombstone {
