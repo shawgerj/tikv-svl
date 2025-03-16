@@ -485,12 +485,6 @@ where
 
         self.batch.before_write_to_db(&self.metrics);
         
-        let mut key_queue = self.written_keys.lock().unwrap();
-        let keys = self.engines.raft.get_keys(&self.batch.raft_wb).unwrap();
-        for k in keys {
-            key_queue.push_back(k.to_vec());
-        }
-
         fail_point!("raft_before_save");
 
         let mut write_kv_time = 0f64;
@@ -529,7 +523,7 @@ where
             };
             raft_before_save_on_store_1();
 
-            let (size, offsets) = self.engines
+            let (size, _offsets) = self.engines
                 .raft
                 .consume(
                     &mut self.batch.raft_wb,
@@ -541,18 +535,6 @@ where
                         self.store_id, self.tag, e
                     );
                 });
-
-            // pair offsets to keys we have inserted and add to hashmap
-            let mut locs = self.data_locations.lock().unwrap();
-            for o in offsets {
-                let key = key_queue.pop_front();
-                match key {
-                    Some(k) => { locs.insert(k.to_vec(), o); },
-                    None => {
-                        panic!("tried to match an offset but missing key");
-                    }
-                };
-            }
 
             // shrink (split up operation from original)
             self.engines.raft.shrink(

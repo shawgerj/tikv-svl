@@ -568,7 +568,7 @@ where
             let mut write_opts = engine_traits::WriteOptions::new();
             write_opts.set_sync(false);
             write_opts.set_disable_wal(true);
-            self.kv_wb().write_opt(&write_opts).unwrap_or_else(|e| {
+            self.kv_wb().write_valuelog(&write_opts).unwrap_or_else(|e| {
                 panic!("failed to write to engine: {:?}", e);
             });
             self.perf_context.report_metrics();
@@ -1582,99 +1582,42 @@ where
         ctx: &mut ApplyContext<EK, W>,
         req: &Request,
     ) -> Result<()> {
-        let lockey = keys::raft_log_key(self.region_id(), ctx.exec_log_index);
-        
         let (key, value) = (req.get_put().get_key(), req.get_put().get_value());
-        let sizebytes = ctx.get_entry_size();
-
-        // offset from start of WOTR logentry is equal to:
-        // 24 bytes fixed-width of WOTR item_header +
-        // 19 bytes fixed-width beginning of Entry protobuf + 
-        // size of Entry key +
-        // varint size for entry bytes field
-        // the offset of the value field in Put<key, value>
-
-        let value_offset: u64 = req.get_put().get_value_offset() + 19 + 24 + sizebytes as u64 + lockey.len() as u64;
-        let value_length: u64 = value.len().try_into().unwrap();
-        
-        // region key range has no data prefix, so we must use origin key to check.
         util::check_key_in_region(key, &self.region)?;
 
         keys::data_key_with_buffer(key, &mut ctx.key_buffer);
         let key = ctx.key_buffer.as_slice();
         
-        let locs = ctx.data_locations.lock().unwrap();
-        if let Some(offset) = locs.get(&lockey.to_vec()) {
-            let logoffset: u64 = *offset as u64 + value_offset;
-	    let value: [u8; 16] = unsafe {
-		mem::transmute([logoffset, value_length])
-	    };
-	    
-            self.metrics.size_diff_hint += key.len() as i64;
-            self.metrics.size_diff_hint += value.len() as i64;
-            if !req.get_put().get_cf().is_empty() {
-                let cf = req.get_put().get_cf();
-                // TODO: don't allow write preseved cfs.
-                if cf == CF_LOCK {
-                    self.metrics.lock_cf_written_bytes += key.len() as u64;
-                    self.metrics.lock_cf_written_bytes += value.len() as u64;
-                }
-                // TODO: check whether cf exists or not.
-                ctx.kv_wb.put_cf(cf, key, &value).unwrap_or_else(|e| {
-                    panic!(
-                        "{} failed to write ({}, {}) to cf {}: {:?}",
-                        self.tag,
-                        log_wrappers::Value::key(key),
-                        log_wrappers::Value::value(&value),
-                        cf,
-                        e
-                    )
-                });
-            } else {
-                ctx.kv_wb.put(key, &value).unwrap_or_else(|e| {
-                    panic!(
-                        "{} failed to write ({}, {}): {:?}",
-                        self.tag,
-                        log_wrappers::Value::key(key),
-                        log_wrappers::Value::value(&value),
-                        e
-                    );
-                });
+        self.metrics.size_diff_hint += key.len() as i64;
+        self.metrics.size_diff_hint += value.len() as i64;
+        if !req.get_put().get_cf().is_empty() {
+            let cf = req.get_put().get_cf();
+            // TODO: don't allow write preseved cfs.
+            if cf == CF_LOCK {
+                self.metrics.lock_cf_written_bytes += key.len() as u64;
+                self.metrics.lock_cf_written_bytes += value.len() as u64;
             }
+            // TODO: check whether cf exists or not.
+            ctx.kv_wb.put_cf(cf, key, &value).unwrap_or_else(|e| {
+                panic!(
+                    "{} failed to write ({}, {}) to cf {}: {:?}",
+                    self.tag,
+                    log_wrappers::Value::key(key),
+                    log_wrappers::Value::value(&value),
+                    cf,
+                    e
+                )
+            });
         } else {
-            // this will probably have to change because we should be
-            // writing to WOTR. Different write batch?
-            self.metrics.size_diff_hint += key.len() as i64;
-            self.metrics.size_diff_hint += value.len() as i64;
-            if !req.get_put().get_cf().is_empty() {
-                let cf = req.get_put().get_cf();
-                // TODO: don't allow write preseved cfs.
-                if cf == CF_LOCK {
-                    self.metrics.lock_cf_written_bytes += key.len() as u64;
-                    self.metrics.lock_cf_written_bytes += value.len() as u64;
-                }
-                // TODO: check whether cf exists or not.
-                ctx.kv_wb_wotr.put_cf(cf, key, value).unwrap_or_else(|e| {
-                    panic!(
-                        "{} failed to write ({}, {}) to cf {}: {:?}",
-                        self.tag,
-                        log_wrappers::Value::key(key),
-                        log_wrappers::Value::value(value),
-                        cf,
-                        e
-                    )
-                });
-            } else {
-                ctx.kv_wb_wotr.put(key, value).unwrap_or_else(|e| {
-                    panic!(
-                        "{} failed to write ({}, {}): {:?}",
-                        self.tag,
-                        log_wrappers::Value::key(key),
-                        log_wrappers::Value::value(value),
-                        e
-                    );
-                });
-            }
+            ctx.kv_wb.put(key, value).unwrap_or_else(|e| {
+                panic!(
+                    "{} failed to write ({}, {}): {:?}",
+                    self.tag,
+                    log_wrappers::Value::key(key),
+                    log_wrappers::Value::value(&value),
+                    e
+                );
+            });
         }
 
         Ok(())
