@@ -247,6 +247,10 @@ impl Snapshot for BTreeEngineSnapshot {
     fn pget_cf_wotr(&self, _cf: CfName, _key: &Key) -> EngineResult<Option<Value>> {
         panic!()
     }
+
+    fn get_cf_valuelog(&self, _cf: CfName, _key: &Key) -> EngineResult<Option<Value>> {
+        panic!()
+    }
     
     fn iter(&self, iter_opt: IterOptions) -> EngineResult<Self::Iter> {
         self.iter_cf(CF_DEFAULT, iter_opt)
