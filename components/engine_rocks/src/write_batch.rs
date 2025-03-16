@@ -78,8 +78,9 @@ impl engine_traits::WriteBatch<RocksEngine> for RocksWriteBatch {
     fn write_opt(&self, opts: &WriteOptions) -> Result<()> {
         let opt: RocksWriteOptions = opts.into();
         self.get_db()
-            .write_opt(self.as_inner(), &opt.into_raw())
-            .map_err(Error::Engine)
+            .write_wotr(self.as_inner(), &opt.into_raw())
+            .map_err(Error::Engine);
+	Ok(())
     }
 
     fn write_valuelog(&self, opts: &WriteOptions) -> Result<Vec<usize>> {

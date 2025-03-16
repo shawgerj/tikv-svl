@@ -87,7 +87,7 @@ pub trait Peekable {
 
     /// Read a value and return it as a protobuf message.
     fn get_msg<M: protobuf::Message + Default>(&self, key: &[u8]) -> Result<Option<M>> {
-        let value = self.get_value(key)?;
+        let value = self.get_valuelog(key)?;
         if value.is_none() {
             return Ok(None);
         }
@@ -103,7 +103,7 @@ pub trait Peekable {
         cf: &str,
         key: &[u8],
     ) -> Result<Option<M>> {
-        let value = self.get_value_cf(cf, key)?;
+        let value = self.get_value_cf_valuelog(cf, key)?;
         if value.is_none() {
             return Ok(None);
         }

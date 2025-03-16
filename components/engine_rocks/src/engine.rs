@@ -155,7 +155,7 @@ impl Peekable for RocksEngine {
 
     fn get_value_opt(&self, opts: &ReadOptions, key: &[u8]) -> Result<Option<RocksDBVector>> {
         let opt: RocksReadOptions = opts.into();
-        let v = self.db.get_opt(key, &opt.into_raw())?;
+        let v = self.db.get_external(key, &opt.into_raw())?;
         Ok(v.map(RocksDBVector::from_raw))
     }
 
@@ -167,7 +167,7 @@ impl Peekable for RocksEngine {
     ) -> Result<Option<RocksDBVector>> {
         let opt: RocksReadOptions = opts.into();
         let handle = get_cf_handle(&self.db, cf)?;
-        let v = self.db.get_cf_opt(handle, key, &opt.into_raw())?;
+        let v = self.db.get_external_cf(handle, key, &opt.into_raw())?;
         Ok(v.map(RocksDBVector::from_raw))
     }
 
@@ -214,12 +214,14 @@ impl Peekable for RocksEngine {
 
 impl SyncMutable for RocksEngine {
     fn put(&self, key: &[u8], value: &[u8]) -> Result<()> {
-        self.db.put(key, value).map_err(Error::Engine)
+        self.db.put_external(key, value).map_err(Error::Engine);
+	Ok(())
     }
 
     fn put_cf(&self, cf: &str, key: &[u8], value: &[u8]) -> Result<()> {
         let handle = get_cf_handle(&self.db, cf)?;
-        self.db.put_cf(handle, key, value).map_err(Error::Engine)
+        self.db.put_cf_external(handle, key, value).map_err(Error::Engine);
+	Ok(())
     }
 
     fn put_valuelog(&self, key: &[u8], value: &[u8]) -> Result<usize> {
