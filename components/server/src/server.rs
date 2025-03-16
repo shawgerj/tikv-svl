@@ -190,7 +190,8 @@ struct TiKVServer<ER: RaftEngine> {
     concurrency_manager: ConcurrencyManager,
     env: Arc<Environment>,
     background_worker: Worker,
-    valuelog_mgr: Arc<RocksWOTR>,
+    valuelog_raft: Arc<RocksWOTR>,
+    valuelog_kv: Arc<RocksWOTR>,
 }
 
 struct TiKVEngines<EK: KvEngine, ER: RaftEngine> {
@@ -258,7 +259,8 @@ impl<ER: RaftEngine> TiKVServer<ER> {
         let latest_ts = block_on(pd_client.get_tso()).expect("failed to get timestamp from PD");
         let concurrency_manager = ConcurrencyManager::new(latest_ts);
 
-        let valuelog_mgr = Arc::new(RocksWOTR::new(&config.valuelog.path));
+        let valuelog_raft = Arc::new(RocksWOTR::new(&config.valuelog.raft_path));
+	let valuelog_kv = Arc::new(RocksWOTR::new(&config.valuelog.kv_path));
 
         TiKVServer {
             config,
@@ -283,7 +285,8 @@ impl<ER: RaftEngine> TiKVServer<ER> {
             background_worker,
             flow_info_sender: None,
             flow_info_receiver: None,
-            valuelog_mgr,
+            valuelog_raft,
+	    valuelog_kv,
         }
     }
 
@@ -1308,8 +1311,8 @@ impl TiKVServer<RocksEngine> {
 
         let mut engines = Engines::new(kv_engine, raft_engine);
         // recover the raft log, do not recover the kv log (tikv must do this later)
-        assert!(engines.raft.register_valuelog(self.valuelog_mgr.clone(), true).is_ok());
-        assert!(engines.kv.register_valuelog(self.valuelog_mgr.clone(), false).is_ok());
+        assert!(engines.raft.register_valuelog(self.valuelog_raft.clone(), true).is_ok());
+        assert!(engines.kv.register_valuelog(self.valuelog_kv.clone(), false).is_ok());
 
         check_and_dump_raft_engine(
             &self.config,

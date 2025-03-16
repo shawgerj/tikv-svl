@@ -932,13 +932,15 @@ impl TitanDBConfig {
 #[serde(default)]
 #[serde(rename_all = "kebab-case")]
 pub struct ValueLogConfig {
-    pub path: String,
+    pub raft_path: String,
+    pub kv_path: String,
 }
 
 impl Default for ValueLogConfig {
     fn default() -> Self {
         Self {
-            path: String::new(),
+            raft_path: String::new(),
+	    kv_path: String::new(),
         }
     }
 }
@@ -2622,11 +2624,15 @@ impl Default for TiKvConfig {
 }
 
 impl TiKvConfig {
-    pub fn infer_valuelog_path(&self, data_dir: Option<&str>) -> Result<String, Box<dyn Error>> {
+    pub fn infer_valuelog_path(&self, raft: bool, data_dir: Option<&str>) -> Result<String, Box<dyn Error>> {
         //        if self.valuelog.path.is_empty() {
         let data_dir = data_dir.unwrap_or(&self.storage.data_dir);
         let p = config::canonicalize_path(data_dir).unwrap();
-        Ok(format!("{}/{}", p, "valuelog.txt"))
+	if raft {
+            Ok(format!("{}/{}", p, "raft_valuelog.txt"))
+	} else {
+	    Ok(format!("{}/{}", p, "kv_valuelog.txt"))
+	}
         // } else {
         //     let p = config::canonicalize_path(&self.valuelog.path).unwrap();
         //     Ok(format!("{}/{}", p, "valuelog.txt"))
@@ -2670,7 +2676,8 @@ impl TiKvConfig {
                 .to_owned();
         }
 
-        self.valuelog.path = self.infer_valuelog_path(None)?;
+        self.valuelog.raft_path = self.infer_valuelog_path(true, None)?;
+	self.valuelog.kv_path = self.infer_valuelog_path(false, None)?;
         self.raft_store.raftdb_path = self.infer_raft_db_path(None)?;
         self.raft_engine.config.dir = self.infer_raft_engine_path(None)?;
 
