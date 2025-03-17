@@ -37,6 +37,10 @@ impl RaftEngineReadOnly for RocksEngine {
 	    return None;
 	}
 	let (offset, length): (u64, u64) = unsafe {
+	    let data = result.unwrap();
+	    assert_eq!(data.len(), std::mem::size_of::<(u64, u64)>());
+	    transmute::<[u8; 16], (u64, u64)>(data.try_into().unwrap())
+		
 	    let ptr = result.unwrap().as_ptr() as *const (u64, u64);
 	    ptr.read_unaligned()
 	};
