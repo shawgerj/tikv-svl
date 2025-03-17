@@ -1113,7 +1113,9 @@ where
             datasize >>= 7;
             entry_size_bytes += 1;
         }
-
+        // for the naive read version, we need to know how many bytes the entry is
+	// so we can insert key -> <offset, bytelength> for each key in the entry
+	// this is different from tikv-wotr where entry_size is the length of varint
         apply_ctx.set_entry_size(entry_size_bytes);
 
         if !data.is_empty() {
@@ -1587,29 +1589,20 @@ where
         let (key, value) = (req.get_put().get_key(), req.get_put().get_value());
         let sizebytes = ctx.get_entry_size();
 
-        // offset from start of WOTR logentry is equal to:
-        // 24 bytes fixed-width of WOTR item_header +
-        // 19 bytes fixed-width beginning of Entry protobuf + 
-        // size of Entry key +
-        // varint size for entry bytes field
-        // the offset of the value field in Put<key, value>
-
-        let value_offset: u64 = req.get_put().get_value_offset() + 19 + 24 + sizebytes as u64 + lockey.len() as u64;
-        let value_length: u64 = value.len().try_into().unwrap();
-        
-        // region key range has no data prefix, so we must use origin key to check.
         util::check_key_in_region(key, &self.region)?;
-
         keys::data_key_with_buffer(key, &mut ctx.key_buffer);
         let key = ctx.key_buffer.as_slice();
         
         let locs = ctx.data_locations.lock().unwrap();
+
         if let Some(offset) = locs.get(&lockey.to_vec()) {
-            let logoffset: u64 = *offset as u64 + value_offset;
-	    let value: [u8; 16] = unsafe {
-		mem::transmute([logoffset, value_length])
-	    };
-	    
+	    let mut value = [0u8; 16];
+	    if let Some((roffset, rlength)) = self.raft_engine.get_entry_location(&lockey.to_vec()) {
+		dbg!(roffset);
+		dbg!(rlength);
+		value = unsafe { mem::transmute([roffset, rlength]) };
+	    }
+
             self.metrics.size_diff_hint += key.len() as i64;
             self.metrics.size_diff_hint += value.len() as i64;
             if !req.get_put().get_cf().is_empty() {
@@ -3414,8 +3407,8 @@ where
             match locs.get(&lockey.to_vec()) {
                 Some(offset) => continue,
                 None => {
-                    if let Some(logoffset) = self.delegate.raft_engine.get_entry_location(&lockey.to_vec()) {
-                        locs.insert(lockey.to_vec(), logoffset as usize);
+                    if let Some((offset, length)) = self.delegate.raft_engine.get_entry_location(&lockey.to_vec()) {
+                        locs.insert(lockey.to_vec(), offset as usize);
 //                        println!("read back from raft: {} ", &logoffset);
                     } else {
                         println!("no raft entry found...");

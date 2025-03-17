@@ -80,6 +80,14 @@ impl<S: Snapshot> EngineSnapshot for RegionSnapshot<S> {
         Ok(v.map(|v| v.to_vec()))
     }
 
+    fn get_cf_valuelog(&self, cf: CfName, key: &Key) -> kv::Result<Option<Value>> {
+        fail_point!("raftkv_snapshot_get_cf_valuelog", |_| Err(box_err!(
+            "injected error for get_cf_valuelog"
+        )));
+        let v = box_try!(self.get_value_cf_valuelog(cf, key.as_encoded()));
+        Ok(v.map(|v| v.to_vec()))
+    }
+
     fn get_cf_opt(&self, opts: ReadOptions, cf: CfName, key: &Key) -> kv::Result<Option<Value>> {
         fail_point!("raftkv_snapshot_get_cf", |_| Err(box_err!(
             "injected error for get_cf"

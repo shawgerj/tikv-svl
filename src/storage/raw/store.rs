@@ -9,7 +9,10 @@ use crate::storage::Statistics;
 
 use api_version::{APIV1TTL, APIV2};
 use engine_traits::{CfName, IterOptions, DATA_KEY_PREFIX_LEN};
+use protobuf::Message;
 use kvproto::kvrpcpb::{ApiVersion, KeyRange};
+use kvproto::raft_cmdpb::{CmdType, RaftCmdRequest};
+use raft::eraftpb::Entry;
 use std::time::Duration;
 use tikv_util::time::Instant;
 use txn_types::{Key, KvPair};
@@ -166,12 +169,33 @@ impl<'a, S: Snapshot> RawStoreInner<S> {
     ) -> Result<Option<Vec<u8>>> {
         // no scan_count for this kind of op.
         let key_len = key.as_encoded().len();        
-        self.snapshot.pget_cf_wotr(cf, key).map(|value| {
+        let value = self.snapshot.get_cf_valuelog(cf, key).map(|value| {
             stats.data.flow_stats.read_keys = 1;
             stats.data.flow_stats.read_bytes =
                 key_len + value.as_ref().map(|v| v.len()).unwrap_or(0);
             value
-        })
+        }).unwrap();
+
+	// value is a protobuf... find the actual value matching the key in it
+	if let Some(v) = value {
+	    let mut entry = Entry::default();
+	    entry.merge_from_bytes(&v).unwrap();
+	    let mut cmd = RaftCmdRequest::default();
+	    cmd.merge_from_bytes(entry.get_data()).unwrap();
+
+	    let requests = cmd.get_requests();
+	    for req in requests {
+		let cmd_type = req.get_cmd_type();
+		if cmd_type == CmdType::Put {
+		    let (cmdkey, cmdval) = (req.get_put().get_key(), req.get_put().get_value());
+		    if cmdkey == key.as_encoded() {
+			return Ok(Some(cmdval.to_vec()));
+		    }
+		}
+	    }
+	}
+
+	Ok(None)
     }
 
     /// Scan raw keys in [`start_key`, `end_key`), returns at most `limit` keys. If `end_key` is

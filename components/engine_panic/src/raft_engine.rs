@@ -15,7 +15,7 @@ impl RaftEngineReadOnly for PanicEngine {
         panic!()
     }
 
-    fn get_entry_location(&self, key: &[u8]) -> Option<u64> {
+    fn get_entry_location(&self, key: &[u8]) -> Option<(u64, u64)> {
         panic!()
     }
     

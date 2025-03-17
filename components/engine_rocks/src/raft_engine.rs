@@ -14,6 +14,7 @@ use protobuf::Message;
 use raft::eraftpb::Entry;
 use tikv_util::{box_err, box_try};
 use std::ops::Deref;
+use std::mem;
 
 const RAFT_LOG_MULTI_GET_CNT: u64 = 8;
 
@@ -30,25 +31,16 @@ impl RaftEngineReadOnly for RocksEngine {
     }
 
     // presume we already know the key
-    fn get_entry_location(&self, key: &[u8]) -> Option<u64> {
-        match self.get_value(&key) {
-            Ok(result) => {
-                if let Some(logoffset) = result {
-		    let value = unsafe {
-		        let vptr = logoffset.as_ptr() as *const u64;
-		        *vptr
-		    };
-//		    let value = u64::from_le_bytes(varr);
-//                    let data = std::str::from_utf8(&logoffset).ok()?;
-//                    let value: u64 = data.parse().ok()?;
-                    println!("got value {}", value);
-                    Some(value)
-                } else {
-                    return None;
-                }
-            },
-            Err(_) => { return None; }
-        }
+    fn get_entry_location(&self, key: &[u8]) -> Option<(u64, u64)> {
+        let result = self.get_value(&key).unwrap();
+	if result.is_none() {
+	    return None;
+	}
+	let (offset, length): (u64, u64) = unsafe {
+	    let ptr = result.unwrap().as_ptr() as *const (u64, u64);
+	    ptr.read_unaligned()
+	};
+        Some((offset, length))
     }
 
     fn fetch_entries_to(
