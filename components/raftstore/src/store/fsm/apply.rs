@@ -1598,8 +1598,6 @@ where
         if let Some(offset) = locs.get(&lockey.to_vec()) {
 	    let mut value = [0u8; 16];
 	    if let Some((roffset, rlength)) = self.raft_engine.get_entry_location(&lockey.to_vec()) {
-		dbg!(roffset);
-		dbg!(rlength);
 		value = unsafe { mem::transmute([roffset, rlength]) };
 	    }
 

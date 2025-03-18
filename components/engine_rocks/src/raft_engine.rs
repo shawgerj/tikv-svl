@@ -15,6 +15,7 @@ use raft::eraftpb::Entry;
 use tikv_util::{box_err, box_try};
 use std::ops::Deref;
 use std::mem;
+use std::convert::TryInto;
 
 const RAFT_LOG_MULTI_GET_CNT: u64 = 8;
 
@@ -39,10 +40,7 @@ impl RaftEngineReadOnly for RocksEngine {
 	let (offset, length): (u64, u64) = unsafe {
 	    let data = result.unwrap();
 	    assert_eq!(data.len(), std::mem::size_of::<(u64, u64)>());
-	    transmute::<[u8; 16], (u64, u64)>(data.try_into().unwrap())
-		
-	    let ptr = result.unwrap().as_ptr() as *const (u64, u64);
-	    ptr.read_unaligned()
+	    mem::transmute::<[u8; 16], (u64, u64)>(data.as_ref().try_into().unwrap())
 	};
         Some((offset, length))
     }
