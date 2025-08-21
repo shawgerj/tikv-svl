@@ -204,6 +204,7 @@ pub fn apply_sst_cf_file<E>(path: &str, db: &E, cf: &str) -> Result<(), Error>
 where
     E: KvEngine,
 {
+    println!("apply sst file {}", path);
     box_try!(db.ingest_external_file_cf(cf, &[path]));
     Ok(())
 }
