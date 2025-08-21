@@ -156,7 +156,7 @@ where
     E: KvEngine,
     F: for<'r> FnMut(&'r [(Vec<u8>, Vec<u8>)]),
 {
-    println!("apply plain cf file {}", path)
+    println!("apply plain cf file {}", path);
     let file = box_try!(File::open(path));
     let mut decoder = if let Some(key_mgr) = key_mgr {
         let reader = get_decrypter_reader(path, key_mgr)?;
