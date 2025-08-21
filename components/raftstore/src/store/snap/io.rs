@@ -72,7 +72,7 @@ where
     };
 
     let mut stats = BuildStatistics::default();
-    box_try!(snap.scan_cf(cf, start_key, end_key, false, false, |key, value| {
+    box_try!(snap.scan_cf(cf, start_key, end_key, false, true, |key, value| {
         stats.key_count += 1;
         stats.total_size += key.len() + value.len();
         box_try!(BytesEncoder::encode_compact_bytes(&mut writer, key));
@@ -114,8 +114,8 @@ where
     let mut sst_writer = create_sst_file_writer::<E>(engine, cf, path)?;
     let mut stats = BuildStatistics::default();
     let mut remained_quota = 0;
-    // shawgerj surely this is broken but I don't think we are evaluating this
-    box_try!(snap.scan_cf(cf, start_key, end_key, false, false, |key, value| {
+
+    box_try!(snap.scan_cf(cf, start_key, end_key, false, true, |key, value| {
         let entry_len = key.len() + value.len();
         while entry_len > remained_quota {
             // It's possible to acquire more than necessary, but let it be.
@@ -156,6 +156,7 @@ where
     E: KvEngine,
     F: for<'r> FnMut(&'r [(Vec<u8>, Vec<u8>)]),
 {
+    println!("apply plain cf file {}", path)
     let file = box_try!(File::open(path));
     let mut decoder = if let Some(key_mgr) = key_mgr {
         let reader = get_decrypter_reader(path, key_mgr)?;
