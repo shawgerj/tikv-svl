@@ -243,7 +243,7 @@ impl Snapshot for Arc<RocksSnapshot> {
 
     fn get_cf_wotr(&self, cf: CfName, key: &Key) -> Result<Option<Value>> {
         trace!("RocksSnapshot: get_cf_wotr"; "cf" => cf, "key" => %key);
-        let v = self.get_valuelog_cf(cf, key.as_encoded())?;
+        let v = self.get_value_cf_valuelog(cf, key.as_encoded())?;
         Ok(v.map(|v| v.to_vec()))
     }
 
