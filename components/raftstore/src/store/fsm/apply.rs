@@ -1587,6 +1587,7 @@ where
         let (key, value) = (req.get_put().get_key(), req.get_put().get_value());
         let sizebytes = ctx.get_entry_size();
 
+	// SHAWGERJ OLD: see below
         // offset from start of WOTR logentry is equal to:
         // 24 bytes fixed-width of WOTR item_header +
         // 19 bytes fixed-width beginning of Entry protobuf + 
@@ -1594,7 +1595,10 @@ where
         // varint size for entry bytes field
         // the offset of the value field in Put<key, value>
 
-        let value_offset: u64 = req.get_put().get_value_offset() + 19 + 24 + sizebytes as u64 + lockey.len() as u64;
+	//        let value_offset: u64 = req.get_put().get_value_offset() + 19 + 24 + sizebytes as u64 + lockey.len() as u64;
+	
+	// SHAWGERJ NEW: no longer need WOTR item_header and size of Entry key
+	let value_offset: u64 = req.get_put().get_value_offset() + 19 + sizebytes as u64;
         let value_length: u64 = value.len().try_into().unwrap();
         
         // region key range has no data prefix, so we must use origin key to check.

@@ -60,25 +60,6 @@ pub trait Peekable {
                     key: &[u8],
     ) -> Result<Option<Self::DBVector>>;
 
-    fn get_value_p_opt(&self,
-                       readopts: &ReadOptions,
-                       key: &[u8],
-    ) -> Result<Option<Self::DBVector>>;
-    
-    fn get_value_p_cf_opt(&self,
-                          readopts: &ReadOptions,
-                          cf: &str,
-                          key: &[u8],
-    ) -> Result<Option<Self::DBVector>>;
-
-    fn get_value_p(&self, key: &[u8]) -> Result<Option<Self::DBVector>> {
-        self.get_value_p_opt(&ReadOptions::default(), key)
-    }
-    
-    fn get_value_p_cf(&self, cf: &str, key: &[u8]) -> Result<Option<Self::DBVector>> {
-        self.get_value_p_cf_opt(&ReadOptions::default(), cf, key)
-    }
-    
     fn get_valuelog(&self,
                     key: &[u8],
     ) -> Result<Option<Self::DBVector>> {

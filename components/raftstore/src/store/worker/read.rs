@@ -51,7 +51,7 @@ pub trait ReadExecutor<E: KvEngine> {
 
         let res = if !req.get_get().get_cf().is_empty() {
             let cf = req.get_get().get_cf();
-            engine.get_value_p_cf(cf, &keys::data_key(key))
+            engine.get_valuelog_cf(cf, &keys::data_key(key))
                 .unwrap_or_else(|e| {
                     panic!(
                         "[region {}] failed to get {} with cf {}: {:?}",
@@ -61,7 +61,7 @@ pub trait ReadExecutor<E: KvEngine> {
                         e
                     )})
         } else {
-            engine.get_value_p(&keys::data_key(key)).unwrap_or_else(|e| {
+            engine.get_valuelog(&keys::data_key(key)).unwrap_or_else(|e| {
                 panic!(
                     "[region {}] failed to get {}: {:?}",
                     region.get_id(),
