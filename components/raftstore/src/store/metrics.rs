@@ -223,13 +223,13 @@ lazy_static! {
         register_histogram!(
             "tikv_raftstore_store_duration_secs",
             "Bucketed histogram of store time duration.",
-            linear_buckets(0.0, 0.0005, 50).unwrap()
+            linear_buckets(0.0, 0.00005, 100).unwrap()
         ).unwrap();
     pub static ref APPLY_TIME_HISTOGRAM: Histogram =
         register_histogram!(
             "tikv_raftstore_apply_duration_secs",
             "Bucketed histogram of apply time duration.",
-            linear_buckets(0.0, 0.000025, 50).unwrap()
+            linear_buckets(0.0, 0.00005, 100).unwrap()
         ).unwrap();
 
     pub static ref STORE_WRITE_TASK_WAIT_DURATION_HISTOGRAM: Histogram =
@@ -278,19 +278,19 @@ lazy_static! {
         register_histogram!(
             "tikv_raftstore_append_log_duration_seconds",
             "Bucketed histogram of peer appending log duration.",
-            linear_buckets(0.0, 0.000025, 50).unwrap()
+            linear_buckets(0.0, 0.00005, 100).unwrap()
         ).unwrap();
     pub static ref STORE_WRITE_LOOP_DURATION_HISTOGRAM: Histogram =
         register_histogram!(
             "tikv_raftstore_store_write_loop_duration_seconds",
             "Bucketed histogram of store write loop duration.",
-            linear_buckets(0.0, 0.000025, 50).unwrap()
+            linear_buckets(0.0, 0.00005, 100).unwrap()
         ).unwrap();
     pub static ref STORE_WRITE_MSG_BLOCK_WAIT_DURATION_HISTOGRAM: Histogram =
         register_histogram!(
             "tikv_raftstore_store_write_msg_block_wait_duration_seconds",
             "Bucketed histogram of write msg block wait duration.",
-            linear_buckets(0.0, 0.000025, 50).unwrap()
+            linear_buckets(0.0, 0.00005, 100).unwrap()
         ).unwrap();
 
     /// Waterfall Metrics
@@ -298,49 +298,49 @@ lazy_static! {
         register_histogram!(
             "tikv_raftstore_store_wf_batch_wait_duration_seconds",
             "Bucketed histogram of proposals' wait batch duration.",
-            linear_buckets(0.0, 0.000025, 40).unwrap()
+            linear_buckets(0.0, 0.000025, 100).unwrap()
         ).unwrap();
     pub static ref STORE_WF_SEND_TO_QUEUE_DURATION_HISTOGRAM: Histogram =
         register_histogram!(
             "tikv_raftstore_store_wf_send_to_queue_duration_seconds",
             "Bucketed histogram of proposals' send to write queue duration.",
-            linear_buckets(0.0, 0.000025, 40).unwrap()
+            linear_buckets(0.0, 0.000025, 100).unwrap()
         ).unwrap();
     pub static ref STORE_WF_BEFORE_WRITE_DURATION_HISTOGRAM: Histogram =
         register_histogram!(
             "tikv_raftstore_store_wf_before_write_duration_seconds",
             "Bucketed histogram of proposals' before write duration.",
-            linear_buckets(0.0, 0.000025, 40).unwrap()
+            linear_buckets(0.0, 0.000025, 100).unwrap()
         ).unwrap();
     pub static ref STORE_WF_WRITE_KVDB_END_DURATION_HISTOGRAM: Histogram =
         register_histogram!(
             "tikv_raftstore_store_wf_write_kvdb_end_duration_seconds",
             "Bucketed histogram of proposals' write kv db end duration.",
-            linear_buckets(0.0, 0.000025, 40).unwrap()
+            linear_buckets(0.0, 0.000025, 100).unwrap()
         ).unwrap();
     pub static ref STORE_WF_WRITE_END_DURATION_HISTOGRAM: Histogram =
         register_histogram!(
             "tikv_raftstore_store_wf_write_end_duration_seconds",
             "Bucketed histogram of proposals' write db end duration.",
-            linear_buckets(0.0, 0.000025, 40).unwrap()
+            linear_buckets(0.0, 0.000025, 100).unwrap()
         ).unwrap();
     pub static ref STORE_WF_PERSIST_LOG_DURATION_HISTOGRAM: Histogram =
         register_histogram!(
             "tikv_raftstore_store_wf_persist_duration_seconds",
             "Bucketed histogram of proposals' persist duration.",
-            linear_buckets(0.0, 0.000025, 40).unwrap()
+            linear_buckets(0.0, 0.000025, 100).unwrap()
         ).unwrap();
     pub static ref STORE_WF_COMMIT_LOG_DURATION_HISTOGRAM: Histogram =
         register_histogram!(
             "tikv_raftstore_store_wf_commit_log_duration_seconds",
             "Bucketed histogram of proposals' commit and persist duration.",
-            linear_buckets(0.0, 0.00005, 50).unwrap()
+            linear_buckets(0.0, 0.000025, 100).unwrap()
         ).unwrap();
     pub static ref STORE_WF_COMMIT_NOT_PERSIST_LOG_DURATION_HISTOGRAM: Histogram =
         register_histogram!(
             "tikv_raftstore_store_wf_commit_not_persist_log_duration_seconds",
             "Bucketed histogram of proposals' commit but not persist duration",
-            linear_buckets(0.0, 0.000025, 40).unwrap()
+            linear_buckets(0.0, 0.000025, 100).unwrap()
         ).unwrap();
 
     pub static ref PEER_PROPOSAL_COUNTER_VEC: IntCounterVec =
@@ -365,21 +365,21 @@ lazy_static! {
         register_histogram!(
             "tikv_raftstore_commit_log_duration_seconds",
             "Bucketed histogram of peer commits logs duration.",
-            linear_buckets(0.0, 0.000025, 50).unwrap()
+            linear_buckets(0.0, 0.00005, 80).unwrap()
         ).unwrap();
 
     pub static ref STORE_APPLY_LOG_HISTOGRAM: Histogram =
         register_histogram!(
             "tikv_raftstore_apply_log_duration_seconds",
             "Bucketed histogram of peer applying log duration.",
-            linear_buckets(0.0, 0.000025, 50).unwrap()
+            linear_buckets(0.0, 0.00005, 80).unwrap()
         ).unwrap();
 
     pub static ref APPLY_TASK_WAIT_TIME_HISTOGRAM: Histogram =
         register_histogram!(
             "tikv_raftstore_apply_wait_time_duration_secs",
             "Bucketed histogram of apply task wait time duration.",
-            linear_buckets(0.0, 0.000025, 50).unwrap()
+            linear_buckets(0.0, 0.00005, 80).unwrap()
         ).unwrap();
 
     pub static ref STORE_RAFT_READY_COUNTER_VEC: IntCounterVec =
@@ -461,7 +461,7 @@ lazy_static! {
         register_histogram!(
             "tikv_raftstore_request_wait_time_duration_secs",
             "Bucketed histogram of request wait time duration.",
-            linear_buckets(0.0, 0.000025, 40).unwrap()
+            linear_buckets(0.0, 0.000025, 100).unwrap()
         ).unwrap();
 
     pub static ref PEER_GC_RAFT_LOG_COUNTER: IntCounter =
