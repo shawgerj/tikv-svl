@@ -10,7 +10,7 @@ use encryption::{
 };
 use engine_traits::{
     CfName, EncryptionKeyManager, Error as EngineError, Iterable, KvEngine, Mutable,
-    SstCompressionType, SstWriter, SstWriterBuilder, WriteBatch,
+    SstCompressionType, SstWriter, SstWriterBuilder, WriteBatch, WriteOptions,
 };
 use kvproto::encryptionpb::EncryptionMethod;
 use tikv_util::codec::bytes::{BytesEncoder, CompactBytesFromFileDecoder};
@@ -166,9 +166,13 @@ where
     };
 
     let mut wb = db.write_batch();
+    let mut opts = WriteOptions::default();
+    opts.set_sync(false);
+    opts.set_disable_wal(true);
+
     let mut write_to_db = |batch: &mut Vec<(Vec<u8>, Vec<u8>)>| -> Result<(), EngineError> {
         batch.iter().try_for_each(|(k, v)| wb.put_cf(cf, k, v))?;
-        wb.write()?;
+        let _ = wb.write_valuelog(&opts)?;
         wb.clear();
         callback(batch);
         batch.clear();
