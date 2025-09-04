@@ -246,8 +246,6 @@ pub trait Snapshot: Sync + Send + Clone {
     /// Get the value associated with `key` in `cf` column family, with Options in `opts`
     fn get_cf_opt(&self, opts: ReadOptions, cf: CfName, key: &Key) -> Result<Option<Value>>;
 
-    // "position" get on WOTR valuelog
-    fn pget_cf_wotr(&self, cf: CfName, key: &Key) -> Result<Option<Value>>;
     // "valuelog" get on WOTR valuelog
     fn get_cf_valuelog(&self, cf: CfName, key: &Key) -> Result<Option<Value>>;
     

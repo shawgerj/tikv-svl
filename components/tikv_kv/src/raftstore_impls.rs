@@ -72,18 +72,9 @@ impl<S: Snapshot> EngineSnapshot for RegionSnapshot<S> {
         Ok(v.map(|v| v.to_vec()))
     }
 
-    fn pget_cf_wotr(&self, cf: CfName, key: &Key) -> kv::Result<Option<Value>> {
-        fail_point!("raftkv_snapshot_pget_cf_wotr", |_| Err(box_err!(
-            "injected error for pget_cf_wotr"
-        )));
-
-        let v = self.get_value_p_cf(cf, key.as_encoded())?;
-        Ok(v.map(|v| v.to_vec()))
-    }
-
     fn get_cf_valuelog(&self, cf: CfName, key: &Key) -> kv::Result<Option<Value>> {
         fail_point!("raftkv_snapshot_get_cf_valuelog", |_| Err(box_err!(
-            "injected error for pget_cf_wotr"
+            "injected error for get_cf_valuelog"
         )));
 
         let v = self.get_value_cf_valuelog(cf, key.as_encoded())?;

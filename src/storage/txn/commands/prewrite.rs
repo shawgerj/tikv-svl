@@ -1373,9 +1373,6 @@ mod tests {
             fn get_cf(&self, _: CfName, _: &Key) -> Result<Option<Value>> {
                 unimplemented!()
             }
-            fn pget_cf_wotr(&self, _: CfName, _: &Key) -> Result<Option<Value>> {
-                unimplemented!()
-            }
             fn get_cf_opt(&self, _: ReadOptions, _: CfName, _: &Key) -> Result<Option<Value>> {
                 unimplemented!()
             }

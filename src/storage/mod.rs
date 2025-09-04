@@ -2493,11 +2493,6 @@ impl<S: Snapshot> Snapshot for TxnTestSnapshot<S> {
         self.snapshot.get_cf_opt(opts, cf, key)
     }
 
-    fn pget_cf_wotr(&self, _cf: CfName, _key: &Key)
-                   -> tikv_kv::Result<Option<Value>> {
-        panic!()
-    }
-
     fn get_cf_valuelog(&self, _cf: CfName, _key: &Key)
                    -> tikv_kv::Result<Option<Value>> {
         panic!()
