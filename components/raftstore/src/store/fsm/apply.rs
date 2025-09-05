@@ -1607,9 +1607,9 @@ where
         keys::data_key_with_buffer(key, &mut ctx.key_buffer);
         let key = ctx.key_buffer.as_slice();
         
-        let locs = ctx.data_locations.lock().unwrap();
-        if let Some(offset) = locs.get(&lockey.to_vec()) {
-            let logoffset: u64 = *offset as u64 + value_offset;
+        let mut locs = ctx.data_locations.lock().unwrap();
+        if let Some(offset) = locs.remove(&lockey.to_vec()) {
+            let logoffset: u64 = offset as u64 + value_offset;
 	    let value: [u8; 16] = unsafe {
 		mem::transmute([logoffset, value_length])
 	    };
