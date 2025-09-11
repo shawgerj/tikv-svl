@@ -514,7 +514,7 @@ where
             self.prepare_for(delegate);
             delegate.last_flush_applied_index = delegate.apply_state.get_applied_index()
         }
-        self.kv_wb_last_bytes = self.kv_wb().data_size() as u64;
+        self.kv_wb_last_bytes = self.kv_wb().ghost_size() as u64;
         self.kv_wb_last_keys = self.kv_wb().count() as u64;
         self.kv_wb_wotr_last_bytes = self.kv_wb_wotr().data_size() as u64;
         self.kv_wb_wotr_last_keys = self.kv_wb_wotr().count() as u64;
@@ -584,6 +584,7 @@ where
             }
             self.kv_wb_last_bytes = 0;
             self.kv_wb_last_keys = 0;
+	    self.kv_wb().zero_ghost_size();
         }
         if !self.delete_ssts.is_empty() {
             let tag = self.tag.clone();
@@ -638,7 +639,7 @@ where
     }
 
     pub fn delta_bytes(&self) -> u64 {
-        self.kv_wb().data_size() as u64 - self.kv_wb_last_bytes
+        self.kv_wb().ghost_size() as u64 - self.kv_wb_last_bytes
     }
 
     pub fn delta_keys(&self) -> u64 {
@@ -1598,6 +1599,7 @@ where
 	//        let value_offset: u64 = req.get_put().get_value_offset() + 19 + 24 + sizebytes as u64 + lockey.len() as u64;
 	
 	// SHAWGERJ NEW: no longer need WOTR item_header and size of Entry key
+	let orig_valuesize: u64 = req.get_put().get_value().len()
 	let value_offset: u64 = req.get_put().get_value_offset() + 19 + sizebytes as u64;
         let value_length: u64 = value.len().try_into().unwrap();
         
@@ -1615,7 +1617,7 @@ where
 	    };
 	    
             self.metrics.size_diff_hint += key.len() as i64;
-            self.metrics.size_diff_hint += value.len() as i64;
+            self.metrics.size_diff_hint += orig_valuesize as i64;
             if !req.get_put().get_cf().is_empty() {
                 let cf = req.get_put().get_cf();
                 // TODO: don't allow write preseved cfs.
@@ -1634,6 +1636,7 @@ where
                         e
                     )
                 });
+		ctx.kv_wb.add_to_ghost_size(org_valuesize as usize);
             } else {
                 ctx.kv_wb.put(key, &value).unwrap_or_else(|e| {
                     panic!(
