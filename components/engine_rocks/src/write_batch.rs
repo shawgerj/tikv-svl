@@ -34,6 +34,7 @@ impl WriteBatchExt for RocksEngine {
 pub struct RocksWriteBatch {
     db: Arc<DB>,
     wb: RawWriteBatch,
+    ghostsize: u64,
 }
 
 impl RocksWriteBatch {
@@ -41,6 +42,7 @@ impl RocksWriteBatch {
         RocksWriteBatch {
             db,
             wb: RawWriteBatch::default(),
+	    ghostsize: 0,
         }
     }
 
@@ -91,6 +93,18 @@ impl engine_traits::WriteBatch<RocksEngine> for RocksWriteBatch {
 
     fn data_size(&self) -> usize {
         self.wb.data_size()
+    }
+
+    fn ghost_size(&self) -> usize {
+	self.ghostsize
+    }
+
+    fn add_to_ghost_size(&self, n: usize) {
+	self.ghostsize += n;
+    }
+
+    fn zero_ghost_size(&self) {
+	self.ghostsize = 0;
     }
 
     fn count(&self) -> usize {
