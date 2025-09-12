@@ -584,7 +584,7 @@ where
             }
             self.kv_wb_last_bytes = 0;
             self.kv_wb_last_keys = 0;
-	    self.kv_wb().zero_ghost_size();
+	    self.kv_wb_mut().zero_ghost_size();
         }
         if !self.delete_ssts.is_empty() {
             let tag = self.tag.clone();
@@ -1599,7 +1599,7 @@ where
 	//        let value_offset: u64 = req.get_put().get_value_offset() + 19 + 24 + sizebytes as u64 + lockey.len() as u64;
 	
 	// SHAWGERJ NEW: no longer need WOTR item_header and size of Entry key
-	let orig_valuesize: u64 = req.get_put().get_value().len()
+	let orig_valuesize: u64 = req.get_put().get_value().len() as u64;
 	let value_offset: u64 = req.get_put().get_value_offset() + 19 + sizebytes as u64;
         let value_length: u64 = value.len().try_into().unwrap();
         
@@ -1636,7 +1636,7 @@ where
                         e
                     )
                 });
-		ctx.kv_wb.add_to_ghost_size(org_valuesize as usize);
+		ctx.kv_wb.add_to_ghost_size(orig_valuesize as usize);
             } else {
                 ctx.kv_wb.put(key, &value).unwrap_or_else(|e| {
                     panic!(

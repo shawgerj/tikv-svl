@@ -34,7 +34,7 @@ impl WriteBatchExt for RocksEngine {
 pub struct RocksWriteBatch {
     db: Arc<DB>,
     wb: RawWriteBatch,
-    ghostsize: u64,
+    ghostsize: usize,
 }
 
 impl RocksWriteBatch {
@@ -56,11 +56,11 @@ impl RocksWriteBatch {
         } else {
             RawWriteBatch::with_capacity(cap)
         };
-        RocksWriteBatch { db, wb }
+        RocksWriteBatch { db, wb, ghostsize: 0 }
     }
 
     pub fn from_raw(db: Arc<DB>, wb: RawWriteBatch) -> RocksWriteBatch {
-        RocksWriteBatch { db, wb }
+        RocksWriteBatch { db, wb, ghostsize: 0 }
     }
 
     pub fn get_db(&self) -> &DB {
@@ -99,11 +99,11 @@ impl engine_traits::WriteBatch<RocksEngine> for RocksWriteBatch {
 	self.ghostsize
     }
 
-    fn add_to_ghost_size(&self, n: usize) {
+    fn add_to_ghost_size(&mut self, n: usize) {
 	self.ghostsize += n;
     }
 
-    fn zero_ghost_size(&self) {
+    fn zero_ghost_size(&mut self) {
 	self.ghostsize = 0;
     }
 
@@ -264,6 +264,18 @@ impl engine_traits::WriteBatch<RocksEngine> for RocksWriteBatchVec {
 
     fn data_size(&self) -> usize {
         self.wbs.iter().fold(0, |a, b| a + b.data_size())
+    }
+
+    fn ghost_size(&self) -> usize {
+        todo!()
+    }
+
+    fn add_to_ghost_size(&mut self, n: usize) {
+        todo!()
+    }
+
+    fn zero_ghost_size(&mut self) {
+        todo!()
     }
 
     fn count(&self) -> usize {

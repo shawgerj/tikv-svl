@@ -39,6 +39,16 @@ impl WriteBatch<PanicEngine> for PanicWriteBatch {
     fn data_size(&self) -> usize {
         panic!()
     }
+    fn ghost_size(&self) -> usize {
+        panic!()
+    }
+    fn add_to_ghost_size(&mut self, n: usize) {
+        panic!()
+    }
+    fn zero_ghost_size(&mut self) {
+        panic!()
+    }
+    
     fn count(&self) -> usize {
         panic!()
     }
