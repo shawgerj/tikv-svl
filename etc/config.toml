@@ -350,7 +350,7 @@
 # region-split-check-diff = "6MB"
 
 ## The interval of triggering Region split check.
-split-region-check-tick-interval = "0s"
+split-region-check-tick-interval = "10s"
 
 ## When the number of Raft entries exceeds the max size, TiKV rejects to propose the entry.
 # raft-entry-max-size = "8MB"
