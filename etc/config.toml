@@ -447,6 +447,8 @@ split-region-check-tick-interval = "10s"
 ## `region_split_keys`.
 # region-max-keys = 1440000
 # region-split-keys = 960000
+region-max-keys = 100000
+region-split-keys = 60000
 
 ## Set to "mvcc" to do consistency check for MVCC data, or "raw" for raw data.
 # consistency-check-method = "mvcc"
