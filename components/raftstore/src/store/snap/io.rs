@@ -72,7 +72,7 @@ where
     };
 
     let mut stats = BuildStatistics::default();
-    box_try!(snap.scan_cf(cf, start_key, end_key, false, true, |key, value| {
+    box_try!(snap.scan_cf(cf, start_key, end_key, false, false, |key, value| {
         stats.key_count += 1;
         stats.total_size += key.len() + value.len();
         box_try!(BytesEncoder::encode_compact_bytes(&mut writer, key));
@@ -115,7 +115,7 @@ where
     let mut stats = BuildStatistics::default();
     let mut remained_quota = 0;
 
-    box_try!(snap.scan_cf(cf, start_key, end_key, false, false, |key, value| {
+    box_try!(snap.scan_cf(cf, start_key, end_key, false, true, |key, value| {
         let entry_len = key.len() + value.len();
         while entry_len > remained_quota {
             // It's possible to acquire more than necessary, but let it be.
@@ -156,6 +156,7 @@ where
     E: KvEngine,
     F: for<'r> FnMut(&'r [(Vec<u8>, Vec<u8>)]),
 {
+    println!("apply plain cf file {}", path);
     let file = box_try!(File::open(path));
     let mut decoder = if let Some(key_mgr) = key_mgr {
         let reader = get_decrypter_reader(path, key_mgr)?;
@@ -168,7 +169,7 @@ where
     let mut opts = WriteOptions::default();
     opts.set_sync(false);
     opts.set_disable_wal(true);
-    
+
     let mut write_to_db = |batch: &mut Vec<(Vec<u8>, Vec<u8>)>| -> Result<(), EngineError> {
         batch.iter().try_for_each(|(k, v)| wb.put_cf(cf, k, v))?;
         let _ = wb.write_valuelog(&opts)?;
@@ -207,6 +208,7 @@ pub fn apply_sst_cf_file<E>(path: &str, db: &E, cf: &str) -> Result<(), Error>
 where
     E: KvEngine,
 {
+    println!("apply sst file {}", path);
     box_try!(db.ingest_external_file_cf(cf, &[path]));
     Ok(())
 }
