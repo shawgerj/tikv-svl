@@ -485,11 +485,16 @@ where
 
         self.batch.before_write_to_db(&self.metrics);
         
-        let mut key_queue = self.written_keys.lock().unwrap();
-        let keys = self.engines.raft.get_keys(&self.batch.raft_wb).unwrap();
-        for k in keys {
-            key_queue.push_back(k.to_vec());
-        }
+        //let mut key_queue = self.written_keys.lock().unwrap();
+        let keys: Vec<Vec<u8>> = self.engines.raft.get_keys(&self.batch.raft_wb)
+	    .unwrap()
+	    .into_iter()
+	    .map(|slice| slice.to_vec())
+	    .collect();
+	//info!("length of keys in write batch: {}", keys.len());
+        //for k in keys {
+        //    key_queue.push_back(k.to_vec());
+        //}
 
         fail_point!("raft_before_save");
 
@@ -544,14 +549,16 @@ where
 
             // pair offsets to keys we have inserted and add to hashmap
             let mut locs = self.data_locations.lock().unwrap();
-            for o in offsets {
-                let key = key_queue.pop_front();
-                match key {
-                    Some(k) => { locs.insert(k.to_vec(), o); },
-                    None => {
-                        panic!("tried to match an offset but missing key");
-                    }
-                };
+            for (o, k) in offsets.iter().zip(keys.iter()) {
+//	        info!("inserting k: {:?} => o: {}", k, *o);
+	        locs.insert(k.to_vec(), *o);
+                //let key = key_queue.pop_front();
+                //match key {
+                //    Some(k) => { locs.insert(k.to_vec(), o); },
+                //    None => {
+                //        panic!("tried to match an offset but missing key");
+                //    }
+                //};
             }
 
             // shrink (split up operation from original)

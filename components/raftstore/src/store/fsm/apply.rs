@@ -1612,10 +1612,10 @@ where
         // finer-scoped lock...
 	let offset = {
             let mut locs = ctx.data_locations.lock().unwrap();
-	    locs.remove(&lockey.to_vec())
+	    locs.get(&lockey.to_vec())
 	};
         if let Some(offset) = offset {
-            let logoffset: u64 = offset as u64 + value_offset;
+            let logoffset: u64 = *offset as u64 + value_offset;
 	    let locator: [u8; 16] = unsafe {
 		mem::transmute([logoffset, value_length])
 	    };
@@ -1654,7 +1654,7 @@ where
 		ctx.kv_wb.add_to_ghost_size(orig_valuesize as usize);
             }
         } else {
-	    info!("unusual wotr write");
+	    info!("unusual wotr write. {:?} not found", &lockey.to_vec());
             // this will probably have to change because we should be
             // writing to WOTR. Different write batch?
             self.metrics.size_diff_hint += key.len() as i64;
