@@ -269,6 +269,7 @@ where
         end_key: &[u8],
     ) -> Result<Vec<Vec<u8>>> {
         let timer = CHECK_SPILT_HISTOGRAM.start_coarse_timer();
+	info!("starting scan_split_keys range {} to {}", start_key.to_vec(), end_key.to_vec());
         MergedIterator::<<E as Iterable>::Iterator>::new(
             &self.engine,
             LARGE_CFS,
@@ -305,6 +306,7 @@ where
         })?;
         timer.observe_duration();
 
+	info!("successfully returning from scan split key with {} keys", host.split_keys().len());
         Ok(host.split_keys())
     }
 
