@@ -5,7 +5,7 @@ use std::collections::BinaryHeap;
 use std::fmt::{self, Display, Formatter};
 use std::mem;
 
-use engine_traits::{CfName, IterOptions, Iterable, Iterator, KvEngine, CF_WRITE, LARGE_CFS};
+use engine_traits::{CfName, IterOptions, Iterable, Iterator, KvEngine, CF_WRITE, CF_DEFAULT, LARGE_CFS};
 use kvproto::metapb::Region;
 use kvproto::metapb::RegionEpoch;
 use kvproto::pdpb::CheckPolicy;
@@ -47,7 +47,7 @@ impl KeyEntry {
     }
 
     pub fn is_commit_version(&self) -> bool {
-        self.cf == CF_WRITE
+        self.cf == CF_WRITE || self.cf == CF_DEFAULT
     }
 
     pub fn entry_size(&self) -> usize {
