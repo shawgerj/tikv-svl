@@ -265,7 +265,7 @@ impl Default for Config {
             prevote: true,
             raftdb_path: String::new(),
             capacity: ReadableSize(0),
-            raft_base_tick_interval: ReadableDuration::millis(100),
+            raft_base_tick_interval: ReadableDuration::secs(1),
             raft_heartbeat_ticks: 2,
             raft_election_timeout_ticks: 10,
             raft_min_election_timeout_ticks: 0,
