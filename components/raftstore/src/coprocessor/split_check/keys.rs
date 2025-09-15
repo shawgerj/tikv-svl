@@ -45,13 +45,12 @@ where
     E: KvEngine,
 {
     fn on_kv(&mut self, _: &mut ObserverContext<'_>, key: &KeyEntry) -> bool {
-        if !key.is_commit_version() {
-            return false;
-        }
+//        if !key.is_commit_version() {
+//            return false;
+//        }
         self.current_count += 1;
 
         let mut over_limit = self.split_keys.len() as u64 >= self.batch_split_limit;
-	info!("in key split checker with threshold {}", self.split_threshold);
         if self.current_count > self.split_threshold && !over_limit {
 	    info!("adding a key to split_keys");
             self.split_keys.push(keys::origin_key(key.key()).to_vec());
