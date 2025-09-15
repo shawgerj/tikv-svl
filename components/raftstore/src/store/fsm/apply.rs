@@ -1612,10 +1612,10 @@ where
         // finer-scoped lock...
 	let offset = {
             let mut locs = ctx.data_locations.lock().unwrap();
-	    locs.get(&lockey.to_vec())
+	    locs.get(&lockey.to_vec()).copied()
 	};
         if let Some(offset) = offset {
-            let logoffset: u64 = *offset as u64 + value_offset;
+            let logoffset: u64 = offset as u64 + value_offset;
 	    let locator: [u8; 16] = unsafe {
 		mem::transmute([logoffset, value_length])
 	    };
