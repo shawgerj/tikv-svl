@@ -1616,7 +1616,7 @@ where
 	};
         if let Some(offset) = offset {
             let logoffset: u64 = offset as u64 + value_offset;
-	    let value: [u8; 16] = unsafe {
+	    let locator: [u8; 16] = unsafe {
 		mem::transmute([logoffset, value_length])
 	    };
 	    
@@ -1630,29 +1630,31 @@ where
                     self.metrics.lock_cf_written_bytes += value.len() as u64;
                 }
                 // TODO: check whether cf exists or not.
-                ctx.kv_wb.put_cf(cf, key, &value).unwrap_or_else(|e| {
+                ctx.kv_wb.put_cf(cf, key, &locator).unwrap_or_else(|e| {
                     panic!(
                         "{} failed to write ({}, {}) to cf {}: {:?}",
                         self.tag,
                         log_wrappers::Value::key(key),
-                        log_wrappers::Value::value(&value),
+                        log_wrappers::Value::value(&locator),
                         cf,
                         e
                     )
                 });
 		ctx.kv_wb.add_to_ghost_size(orig_valuesize as usize);
             } else {
-                ctx.kv_wb.put(key, &value).unwrap_or_else(|e| {
+                ctx.kv_wb.put(key, &locator).unwrap_or_else(|e| {
                     panic!(
                         "{} failed to write ({}, {}): {:?}",
                         self.tag,
                         log_wrappers::Value::key(key),
-                        log_wrappers::Value::value(&value),
+                        log_wrappers::Value::value(&locator),
                         e
                     );
                 });
+		ctx.kv_wb.add_to_ghost_size(orig_valuesize as usize);
             }
         } else {
+	    info!("unusual wotr write");
             // this will probably have to change because we should be
             // writing to WOTR. Different write batch?
             self.metrics.size_diff_hint += key.len() as i64;
