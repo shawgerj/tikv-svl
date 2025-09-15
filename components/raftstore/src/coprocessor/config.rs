@@ -57,9 +57,9 @@ pub enum ConsistencyCheckMethod {
 }
 
 /// Default region split size.
-pub const SPLIT_SIZE_MB: u64 = 96;
+pub const SPLIT_SIZE_MB: u64 = 300;
 /// Default region split keys.
-pub const SPLIT_KEYS: u64 = 960000;
+pub const SPLIT_KEYS: u64 = 30000;
 /// Default batch split limit.
 pub const BATCH_SPLIT_LIMIT: u64 = 10;
 

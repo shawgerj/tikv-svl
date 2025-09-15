@@ -45,9 +45,9 @@ where
     E: KvEngine,
 {
     fn on_kv(&mut self, _: &mut ObserverContext<'_>, key: &KeyEntry) -> bool {
-        if !key.is_commit_version() {
-            return false;
-        }
+        // if !key.is_commit_version() {
+        //     return false;
+        // }
         self.current_count += 1;
 
         let mut over_limit = self.split_keys.len() as u64 >= self.batch_split_limit;
