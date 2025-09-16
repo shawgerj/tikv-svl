@@ -691,12 +691,17 @@ where
             "peer_id" => peer_id,
             "path" => ?engines.kv.path(),
         );
+	info!("PeerStorage - init raft state");
         let mut raft_state = init_raft_state(&engines, region)?;
+	info!("PeerStorage - init apply state");
         let apply_state = init_apply_state(&engines, region)?;
+	info!("PeerStorage - validating state");
         if let Err(e) = validate_states(region.get_id(), &engines, &mut raft_state, &apply_state) {
             return Err(box_err!("{} validate state fail: {:?}", tag, e));
         }
+	info!("PeerStorage - init last term");
         let last_term = init_last_term(&engines, region, &raft_state, &apply_state)?;
+	info!("PeerStorage - init applied index term");
         let applied_index_term = init_applied_index_term(&engines, region, &apply_state)?;
 
         Ok(PeerStorage {

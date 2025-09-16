@@ -609,6 +609,7 @@ where
         region: &metapb::Region,
         peer: metapb::Peer,
     ) -> Result<Peer<EK, ER>> {
+	info!("creating Peer");
         if peer.get_id() == raft::INVALID_ID {
             return Err(box_err!("invalid peer id"));
         }
@@ -617,6 +618,7 @@ where
 
         let ps = PeerStorage::new(engines, region, sched, peer.get_id(), tag.clone())?;
 
+	info!("Created PeerStorage");
         let applied_index = ps.applied_index();
 
         let raft_cfg = raft::Config {
