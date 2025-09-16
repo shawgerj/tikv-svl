@@ -491,6 +491,7 @@ fn init_raft_state<EK: KvEngine, ER: RaftEngine>(
     engines: &Engines<EK, ER>,
     region: &Region,
 ) -> Result<RaftLocalState> {
+    info!("getting init raft state");
     if let Some(state) = engines.raft.get_raft_state(region.get_id())? {
         return Ok(state);
     }
@@ -498,11 +499,14 @@ fn init_raft_state<EK: KvEngine, ER: RaftEngine>(
     let mut raft_state = RaftLocalState::default();
     if util::is_region_initialized(region) {
         // new split region
+	info!("init raft state - new split region");
         raft_state.last_index = RAFT_INIT_LOG_INDEX;
         raft_state.mut_hard_state().set_term(RAFT_INIT_LOG_TERM);
         raft_state.mut_hard_state().set_commit(RAFT_INIT_LOG_INDEX);
+	info!("writing init raft state");
         engines.raft.put_raft_state(region.get_id(), &raft_state)?;
     }
+    info!("returning init raft state");
     Ok(raft_state)
 }
 
