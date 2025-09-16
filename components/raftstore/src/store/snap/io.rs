@@ -72,7 +72,7 @@ where
     };
 
     let mut stats = BuildStatistics::default();
-    box_try!(snap.scan_cf(cf, start_key, end_key, false, false, |key, value| {
+    box_try!(snap.scan_cf(cf, start_key, end_key, false, true, |key, value| {
         stats.key_count += 1;
         stats.total_size += key.len() + value.len();
         box_try!(BytesEncoder::encode_compact_bytes(&mut writer, key));

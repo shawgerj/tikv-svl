@@ -10,22 +10,30 @@ use tikv_util::{box_err, box_try, debug, info};
 
 impl RangePropertiesExt for RocksEngine {
     fn get_range_approximate_keys(&self, range: Range<'_>, large_threshold: u64) -> Result<u64> {
+	let mut keys = 0;
+        for cfname in LARGE_CFS {
+            keys += self
+                .get_range_approximate_keys_cf(cfname, range, large_threshold)
+                // CF_LOCK doesn't have RangeProperties until v4.0, so we swallow the error for
+                // backward compatibility.
+                .or_else(|e| if cfname == &CF_LOCK { Ok(0) } else { Err(e) })?;
+	}
+	Ok(keys)
         // try to get from RangeProperties first.
-        match self.get_range_approximate_keys_cf(CF_WRITE, range, large_threshold) {
-            Ok(v) => {
-                return Ok(v);
-            }
-            Err(e) => debug!(
-                "failed to get keys from RangeProperties";
-                "err" => ?e,
-            ),
-        }
+        // match self.get_range_approximate_keys_cf(CF_WRITE, range, large_threshold) {
+        //     Ok(v) => {
+        //         return Ok(v);
+        //     }
+        //     Err(e) => debug!(
+        //         "failed to get keys from RangeProperties";
+        //         "err" => ?e,
+        //     ),
+        // }
 
-        let start = &range.start_key;
-        let end = &range.end_key;
-        let (_, keys) =
-            get_range_entries_and_versions(self, CF_WRITE, start, end).unwrap_or_default();
-        Ok(keys)
+        // let start = &range.start_key;
+        // let end = &range.end_key;
+        // let (_, keys) =
+        //     get_range_entries_and_versions(self, CF_WRITE, start, end).unwrap_or_default();
     }
 
     fn get_range_approximate_keys_cf(
