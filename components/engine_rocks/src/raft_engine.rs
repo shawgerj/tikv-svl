@@ -308,7 +308,7 @@ impl RaftEngine for RocksEngine {
     }
 
     fn put_raft_state(&self, raft_group_id: u64, state: &RaftLocalState) -> Result<()> {
-        self.put_msg_valuelog(&keys::raft_state_key(raft_group_id), state);
+        self.put_msg_valuelog(&keys::raft_state_key(raft_group_id), state)?;
         Ok(())
     }
 

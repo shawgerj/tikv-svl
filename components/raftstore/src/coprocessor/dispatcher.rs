@@ -326,10 +326,10 @@ impl<E: KvEngine> CoprocessorHost<E> {
         cfg: Config,
     ) -> CoprocessorHost<E> {
         let mut registry = Registry::default();
-        registry.register_split_check_observer(
-            200,
-            BoxSplitCheckObserver::new(SizeCheckObserver::new(ch.clone())),
-        );
+        // registry.register_split_check_observer(
+        //     200,
+        //     BoxSplitCheckObserver::new(SizeCheckObserver::new(ch.clone())),
+        // );
         registry.register_split_check_observer(
             200,
             BoxSplitCheckObserver::new(KeysCheckObserver::new(ch)),

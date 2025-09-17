@@ -24,9 +24,9 @@ pub trait SyncMutable {
     }
 
     fn put_msg_valuelog<M: protobuf::Message>(&self, key: &[u8], m: &M)
-                                              -> Result<()> {
-        self.put_valuelog(key, &m.write_to_bytes()?);
-        Ok(())
+                                              -> Result<usize> {
+	let bytes = m.write_to_bytes()?;
+        self.put_valuelog(key, &bytes)
     }
 
     fn put_msg_cf<M: protobuf::Message>(&self, cf: &str, key: &[u8], m: &M)

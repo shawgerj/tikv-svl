@@ -247,8 +247,7 @@ pub trait Snapshot: Sync + Send + Clone {
     fn get_cf_opt(&self, opts: ReadOptions, cf: CfName, key: &Key) -> Result<Option<Value>>;
 
     // "position" get on WOTR valuelog
-    fn pget_cf_wotr(&self, cf: CfName, key: &Key) -> Result<Option<Value>>;
-    fn get_cf_valuelog(&self, cf: CfName, key: &Key) -> Result<Option<Value>>;
+    fn get_cf_wotr(&self, cf: CfName, key: &Key) -> Result<Option<Value>>;
     fn iter(&self, iter_opt: IterOptions) -> Result<Self::Iter>;
     fn iter_cf(&self, cf: CfName, iter_opt: IterOptions) -> Result<Self::Iter>;
     // The minimum key this snapshot can retrieve.

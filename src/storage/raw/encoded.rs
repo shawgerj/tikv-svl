@@ -81,8 +81,8 @@ impl<S: Snapshot, API: APIVersion> Snapshot for RawEncodeSnapshot<S, API> {
         self.map_value(self.snap.get_cf_opt(opts, cf, key))
     }
 
-    fn pget_cf_wotr(&self, cf: CfName, key: &Key) -> Result<Option<Value>> {
-        self.map_value(self.snap.pget_cf_wotr(cf, key))
+    fn get_cf_wotr(&self, cf: CfName, key: &Key) -> Result<Option<Value>> {
+        self.map_value(self.snap.get_cf_wotr(cf, key))
     }
 
     fn get_cf_valuelog(&self, cf: CfName, key: &Key) -> Result<Option<Value>> {

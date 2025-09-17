@@ -491,6 +491,7 @@ fn init_raft_state<EK: KvEngine, ER: RaftEngine>(
     engines: &Engines<EK, ER>,
     region: &Region,
 ) -> Result<RaftLocalState> {
+    info!("getting init raft state");
     if let Some(state) = engines.raft.get_raft_state(region.get_id())? {
         return Ok(state);
     }
@@ -498,11 +499,14 @@ fn init_raft_state<EK: KvEngine, ER: RaftEngine>(
     let mut raft_state = RaftLocalState::default();
     if util::is_region_initialized(region) {
         // new split region
+	info!("init raft state - new split region");
         raft_state.last_index = RAFT_INIT_LOG_INDEX;
         raft_state.mut_hard_state().set_term(RAFT_INIT_LOG_TERM);
         raft_state.mut_hard_state().set_commit(RAFT_INIT_LOG_INDEX);
+	info!("writing init raft state id {}", region.get_id());
         engines.raft.put_raft_state(region.get_id(), &raft_state)?;
     }
+    info!("returning init raft state");
     Ok(raft_state)
 }
 
@@ -691,12 +695,17 @@ where
             "peer_id" => peer_id,
             "path" => ?engines.kv.path(),
         );
+	info!("PeerStorage - init raft state");
         let mut raft_state = init_raft_state(&engines, region)?;
+	info!("PeerStorage - init apply state");
         let apply_state = init_apply_state(&engines, region)?;
+	info!("PeerStorage - validating state");
         if let Err(e) = validate_states(region.get_id(), &engines, &mut raft_state, &apply_state) {
             return Err(box_err!("{} validate state fail: {:?}", tag, e));
         }
+	info!("PeerStorage - init last term");
         let last_term = init_last_term(&engines, region, &raft_state, &apply_state)?;
+	info!("PeerStorage - init applied index term");
         let applied_index_term = init_applied_index_term(&engines, region, &apply_state)?;
 
         Ok(PeerStorage {

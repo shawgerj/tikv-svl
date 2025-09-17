@@ -101,6 +101,12 @@ pub trait WriteBatch<E: WriteBatchExt + Sized>: Mutable {
     /// serialized in memory, prior to being written to disk.
     fn data_size(&self) -> usize;
 
+    fn ghost_size(&self) -> usize;
+
+    fn add_to_ghost_size(&mut self, n: usize);
+
+    fn zero_ghost_size(&mut self);
+
     /// The number of commands in this batch
     fn count(&self) -> usize;
 

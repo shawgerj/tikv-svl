@@ -5,7 +5,7 @@ use std::collections::BinaryHeap;
 use std::fmt::{self, Display, Formatter};
 use std::mem;
 
-use engine_traits::{CfName, IterOptions, Iterable, Iterator, KvEngine, CF_WRITE, LARGE_CFS};
+use engine_traits::{CfName, IterOptions, Iterable, Iterator, KvEngine, CF_WRITE, CF_DEFAULT, LARGE_CFS};
 use kvproto::metapb::Region;
 use kvproto::metapb::RegionEpoch;
 use kvproto::pdpb::CheckPolicy;
@@ -47,7 +47,7 @@ impl KeyEntry {
     }
 
     pub fn is_commit_version(&self) -> bool {
-        self.cf == CF_WRITE
+        self.cf == CF_WRITE || self.cf == CF_DEFAULT
     }
 
     pub fn entry_size(&self) -> usize {
@@ -91,7 +91,8 @@ where
                 Some(KeyBuilder::from_slice(start_key, 0, 0)),
                 Some(KeyBuilder::from_slice(end_key, 0, 0)),
                 fill_cache,
-		false,
+		//		false,
+		true,
             );
             let mut iter = db.iterator_cf_opt(cf, iter_opt)?;
             let found: Result<bool> = iter.seek(start_key.into()).map_err(|e| box_err!(e));
@@ -241,6 +242,7 @@ where
         };
 
         if !split_keys.is_empty() {
+	    info!("creating a new split region message");
             let region_epoch = region.get_region_epoch().clone();
             let msg = new_split_region(region_epoch, split_keys, "split checker");
             let res = self.router.send(region_id, msg);
@@ -268,6 +270,7 @@ where
         end_key: &[u8],
     ) -> Result<Vec<Vec<u8>>> {
         let timer = CHECK_SPILT_HISTOGRAM.start_coarse_timer();
+	info!("starting scan_split_keys range {:?} to {:?}", start_key.to_vec(), end_key.to_vec());
         MergedIterator::<<E as Iterable>::Iterator>::new(
             &self.engine,
             LARGE_CFS,

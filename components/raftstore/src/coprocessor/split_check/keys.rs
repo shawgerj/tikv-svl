@@ -52,6 +52,7 @@ where
 
         let mut over_limit = self.split_keys.len() as u64 >= self.batch_split_limit;
         if self.current_count > self.split_threshold && !over_limit {
+	    info!("adding a key to split_keys");
             self.split_keys.push(keys::origin_key(key.key()).to_vec());
             // if for previous on_kv() self.current_count == self.split_threshold,
             // the split key would be pushed this time, but the entry for this time should not be ignored.

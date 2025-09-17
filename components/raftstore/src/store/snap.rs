@@ -104,7 +104,8 @@ impl ErrorCodeExt for Error {
 // CF_LOCK is relatively small, so we use plain file for performance issue.
 #[inline]
 pub fn plain_file_used(cf: &str) -> bool {
-    cf == CF_LOCK
+    true // shawgerj always do this for simplicity with wotr
+    // cf == CF_LOCK
 }
 
 #[inline]

@@ -514,7 +514,7 @@ where
             self.prepare_for(delegate);
             delegate.last_flush_applied_index = delegate.apply_state.get_applied_index()
         }
-        self.kv_wb_last_bytes = self.kv_wb().data_size() as u64;
+        self.kv_wb_last_bytes = self.kv_wb().ghost_size() as u64;
         self.kv_wb_last_keys = self.kv_wb().count() as u64;
         self.kv_wb_wotr_last_bytes = self.kv_wb_wotr().data_size() as u64;
         self.kv_wb_wotr_last_keys = self.kv_wb_wotr().count() as u64;
@@ -584,6 +584,7 @@ where
             }
             self.kv_wb_last_bytes = 0;
             self.kv_wb_last_keys = 0;
+	    self.kv_wb_mut().zero_ghost_size();
         }
         if !self.delete_ssts.is_empty() {
             let tag = self.tag.clone();
@@ -638,7 +639,7 @@ where
     }
 
     pub fn delta_bytes(&self) -> u64 {
-        self.kv_wb().data_size() as u64 - self.kv_wb_last_bytes
+        self.kv_wb().ghost_size() as u64 - self.kv_wb_last_bytes
     }
 
     pub fn delta_keys(&self) -> u64 {
@@ -1602,7 +1603,7 @@ where
 	    }
 
             self.metrics.size_diff_hint += key.len() as i64;
-            self.metrics.size_diff_hint += value.len() as i64;
+            self.metrics.size_diff_hint += orig_valuesize as i64;
             if !req.get_put().get_cf().is_empty() {
                 let cf = req.get_put().get_cf();
                 // TODO: don't allow write preseved cfs.
@@ -1611,28 +1612,31 @@ where
                     self.metrics.lock_cf_written_bytes += value.len() as u64;
                 }
                 // TODO: check whether cf exists or not.
-                ctx.kv_wb.put_cf(cf, key, &value).unwrap_or_else(|e| {
+                ctx.kv_wb.put_cf(cf, key, &locator).unwrap_or_else(|e| {
                     panic!(
                         "{} failed to write ({}, {}) to cf {}: {:?}",
                         self.tag,
                         log_wrappers::Value::key(key),
-                        log_wrappers::Value::value(&value),
+                        log_wrappers::Value::value(&locator),
                         cf,
                         e
                     )
                 });
+		ctx.kv_wb.add_to_ghost_size(orig_valuesize as usize);
             } else {
-                ctx.kv_wb.put(key, &value).unwrap_or_else(|e| {
+                ctx.kv_wb.put(key, &locator).unwrap_or_else(|e| {
                     panic!(
                         "{} failed to write ({}, {}): {:?}",
                         self.tag,
                         log_wrappers::Value::key(key),
-                        log_wrappers::Value::value(&value),
+                        log_wrappers::Value::value(&locator),
                         e
                     );
                 });
+		ctx.kv_wb.add_to_ghost_size(orig_valuesize as usize);
             }
         } else {
+	    info!("unusual wotr write. {:?} not found", &lockey.to_vec());
             // this will probably have to change because we should be
             // writing to WOTR. Different write batch?
             self.metrics.size_diff_hint += key.len() as i64;
@@ -3399,21 +3403,21 @@ where
         }
 
         // shawgerj we need to make sure all entries have a location in hashmap
-        for entry in &entries {
-            let lockey = keys::raft_log_key(self.delegate.region_id(), entry.index);
-            let mut locs = apply_ctx.data_locations.lock().unwrap();
-            match locs.get(&lockey.to_vec()) {
-                Some(offset) => continue,
-                None => {
-                    if let Some((offset, length)) = self.delegate.raft_engine.get_entry_location(&lockey.to_vec()) {
-                        locs.insert(lockey.to_vec(), offset as usize);
-//                        println!("read back from raft: {} ", &logoffset);
-                    } else {
-                        println!("no raft entry found...");
-                    }
-                }
-            }
-        }
+//         for entry in &entries {
+//             let lockey = keys::raft_log_key(self.delegate.region_id(), entry.index);
+//             let mut locs = apply_ctx.data_locations.lock().unwrap();
+//             match locs.get(&lockey.to_vec()) {
+//                 Some(offset) => continue,
+//                 None => {
+//                     if let Some(logoffset) = self.delegate.raft_engine.get_entry_location(&lockey.to_vec()) {
+//                         locs.insert(lockey.to_vec(), logoffset as usize);
+// //                        println!("read back from raft: {} ", &logoffset);
+//                     } else {
+//                         println!("no raft entry found...");
+//                     }
+//                 }
+//             }
+//         }
         
         if dangle_size > 0 {
             MEMTRACE_ENTRY_CACHE.trace(TraceEvent::Sub(dangle_size));
