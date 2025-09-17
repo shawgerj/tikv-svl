@@ -1589,6 +1589,7 @@ where
         
         let (key, value) = (req.get_put().get_key(), req.get_put().get_value());
         let sizebytes = ctx.get_entry_size();
+	let orig_valuesize: u64 = req.get_put().get_value().len() as u64;
 
         util::check_key_in_region(key, &self.region)?;
         keys::data_key_with_buffer(key, &mut ctx.key_buffer);
@@ -1597,9 +1598,9 @@ where
         let locs = ctx.data_locations.lock().unwrap();
 
         if let Some(offset) = locs.get(&lockey.to_vec()) {
-	    let mut value = [0u8; 16];
+	    let mut locator = [0u8; 16];
 	    if let Some((roffset, rlength)) = self.raft_engine.get_entry_location(&lockey.to_vec()) {
-		value = unsafe { mem::transmute([roffset, rlength]) };
+		locator = unsafe { mem::transmute([roffset, rlength]) };
 	    }
 
             self.metrics.size_diff_hint += key.len() as i64;
